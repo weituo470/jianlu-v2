@@ -1,0 +1,15 @@
+{
+  "name": "database",
+  "version": "1.0.0",
+  "description": "✅ **MySQL 8.0 已安装并可用**\r - 版本: MySQL 8.0.42 for Win64\r - 位置: C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysql.exe",
+  "main": "auto-fix-team-types.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mysql2": "^3.14.3"
+  }
+}

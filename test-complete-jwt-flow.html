@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>完整JWT流程测试</title>
+</head>
+<body>
+    <h1>完整JWT流程测试</h1>
+    <button onclick="testCompleteFlow()">测试完整流程</button>
+    <div id="result"></div>
+
+    <script>
+        function log(msg) {
+            document.getElementById('result').innerHTML += '<p>' + msg + '</p>';
+        }
+        
+        async function testCompleteFlow() {
+            document.getElementById('result').innerHTML = '';
+            log('=== 完整JWT流程测试 ===');
+            
+            try {
+                // 1. 清除现有数据
+                log('1. 清除现有认证数据...');
+                localStorage.clear();
+                
+                // 2. 模拟登录
+                log('2. 执行登录...');
+                const loginResponse = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'admin123' })
+                });
+                
+                const loginData = await loginResponse.json();
+                if (!loginData.success) {
+                    log('❌ 登录失败: ' + loginData.message);
+                    return;
+                }
+                
+                log('✅ 登录成功');
+                const token = loginData.data.token;
+                const user = loginData.data.user;
+                
+                // 3. 手动存储token（模拟前端存储）
+                log('3. 存储认证数据...');
+                localStorage.setItem('token', token);
+                localStorage.setItem('admin_user', JSON.stringify(user));
+                localStorage.setItem('admin_token_expires', (Date.now() + 24*60*60*1000).toString());
+                
+                log(`Token长度: ${token.length}`);
+                log(`Token格式: ${token.split('.').length === 3 ? 'JWT' : '非JWT'}`);
+                
+                // 4. 测试直接API调用
+                log('4. 测试直接API调用...');
+                const directResponse = await fetch('/api/teams/types', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                log(`直接调用状态: ${directResponse.status}`);
+                if (directResponse.ok) {
+                    const directData = await directResponse.json();
+                    log(`✅ 直接调用成功，数据量: ${directData.data?.length || 0}`);
+                } else {
+                    const directError = await directResponse.json();
+                    log(`❌ 直接调用失败: ${directError.message}`);
+                }
+                
+                // 5. 测试通过localStorage获取token
+                log('5. 测试localStorage获取...');
+                const storedToken = localStorage.getItem('token');
+                log(`存储的token与原始token相等: ${storedToken === token}`);
+                
+                if (storedToken !== token) {
+                    log('⚠️ Token存储有问题！');
+                    log(`原始: ${token.substring(0, 50)}...`);
+                    log(`存储: ${storedToken.substring(0, 50)}...`);
+                }
+                
+                // 6. 测试使用存储的token调用API
+                log('6. 测试使用存储token调用API...');
+                const storedResponse = await fetch('/api/teams/types', {
+                    headers: { 'Authorization': 'Bearer ' + storedToken }
+                });
+                
+                log(`存储token调用状态: ${storedResponse.status}`);
+                if (storedResponse.ok) {
+                    const storedData = await storedResponse.json();
+                    log(`✅ 存储token调用成功，数据量: ${storedData.data?.length || 0}`);
+                } else {
+                    const storedError = await storedResponse.json();
+                    log(`❌ 存储token调用失败: ${storedError.message}`);
+                }
+                
+            } catch (error) {
+                log(`💥 测试异常: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

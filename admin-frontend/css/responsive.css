@@ -1,0 +1,424 @@
+/* 响应式样式文件 */
+
+/* 平板端样式 (768px - 1024px) */
+@media (max-width: 1024px) {
+    :root {
+        --sidebar-width: 240px;
+    }
+    
+    .login-container {
+        padding: 30px;
+        max-width: 420px;
+    }
+    
+    .account-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
+    .account-card {
+        padding: 12px;
+    }
+    
+    .page-content {
+        padding: 20px;
+    }
+    
+    .filters {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .stat-card {
+        padding: 20px;
+    }
+}
+
+/* 移动端样式 (最大768px) */
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 280px;
+        --topnav-height: 56px;
+    }
+    
+    /* 登录页面移动端适配 */
+    .login-page {
+        padding: 16px;
+    }
+    
+    .login-container {
+        padding: 24px;
+        max-width: 100%;
+    }
+    
+    .login-header h1 {
+        font-size: var(--font-size-2xl);
+    }
+    
+    .account-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* 主应用移动端布局 */
+    .main-app {
+        grid-template-areas: 
+            "header"
+            "content";
+        grid-template-columns: 1fr;
+        grid-template-rows: var(--topnav-height) 1fr;
+    }
+    
+    .sidebar {
+        position: fixed;
+        top: var(--topnav-height);
+        left: 0;
+        height: calc(100vh - var(--topnav-height));
+        z-index: 200;
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+    }
+    
+    .sidebar.show {
+        transform: translateX(0);
+    }
+    
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 150;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s;
+    }
+    
+    .sidebar-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    /* 顶部导航移动端适配 */
+    .top-nav {
+        padding: 0 16px;
+    }
+    
+    .nav-left .logo span {
+        display: none;
+    }
+    
+    .user-info .user-name,
+    .user-info .user-role {
+        display: none;
+    }
+    
+    .user-dropdown {
+        right: -8px;
+        min-width: 180px;
+    }
+    
+    /* 面包屑移动端适配 */
+    .breadcrumb {
+        padding: 12px 16px;
+        font-size: var(--font-size-xs);
+    }
+    
+    /* 页面内容移动端适配 */
+    .page-content {
+        padding: 16px;
+    }
+    
+    /* 卡片移动端适配 */
+    .card-header,
+    .card-body,
+    .card-footer {
+        padding: 16px;
+    }
+    
+    .stat-card {
+        padding: 16px;
+    }
+    
+    .stat-card-value {
+        font-size: var(--font-size-2xl);
+    }
+    
+    /* 表格移动端适配 */
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    .table {
+        min-width: 600px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 8px 12px;
+        font-size: var(--font-size-sm);
+    }
+    
+    /* 筛选器移动端适配 */
+    .filters {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 16px;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+    
+    .filter-select {
+        width: 100%;
+    }
+    
+    /* 搜索框移动端适配 */
+    .search-box {
+        max-width: 100%;
+    }
+    
+    /* 操作按钮移动端适配 */
+    .action-buttons {
+        flex-wrap: wrap;
+    }
+    
+    /* 分页移动端适配 */
+    .pagination {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    
+    .pagination-item {
+        width: 36px;
+        height: 36px;
+        font-size: var(--font-size-xs);
+    }
+    
+    /* 模态框移动端适配 */
+    .modal {
+        width: 95%;
+        margin: 16px;
+    }
+    
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 16px;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer .btn {
+        width: 100%;
+    }
+    
+    /* Toast移动端适配 */
+    .toast-container {
+        top: 16px;
+        right: 16px;
+        left: 16px;
+    }
+    
+    .toast {
+        min-width: auto;
+        width: 100%;
+    }
+}
+
+/* 小屏幕移动端 (最大480px) */
+@media (max-width: 480px) {
+    .login-container {
+        padding: 20px;
+    }
+    
+    .login-header .logo {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .login-header .logo i {
+        font-size: 2rem;
+    }
+    
+    .login-header h1 {
+        font-size: var(--font-size-xl);
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .btn-login {
+        padding: 14px;
+        font-size: var(--font-size-base);
+    }
+    
+    .test-accounts {
+        padding-top: 20px;
+    }
+    
+    .account-card {
+        padding: 12px;
+    }
+    
+    .account-card i {
+        font-size: 1.25rem;
+    }
+    
+    .account-card h5 {
+        font-size: var(--font-size-xs);
+    }
+    
+    .account-card p {
+        font-size: 10px;
+    }
+    
+    /* 主应用小屏适配 */
+    .page-content {
+        padding: 12px;
+    }
+    
+    .stat-card {
+        padding: 12px;
+    }
+    
+    .stat-card-header {
+        margin-bottom: 12px;
+    }
+    
+    .stat-card-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.25rem;
+    }
+    
+    .stat-card-value {
+        font-size: var(--font-size-xl);
+    }
+    
+    .card-header,
+    .card-body,
+    .card-footer {
+        padding: 12px;
+    }
+    
+    .empty-state {
+        padding: 40px 16px;
+    }
+    
+    .empty-state-icon {
+        font-size: 3rem;
+    }
+}
+
+/* 超宽屏适配 (最小1440px) */
+@media (min-width: 1440px) {
+    :root {
+        --sidebar-width: 280px;
+    }
+    
+    .login-container {
+        max-width: 520px;
+        padding: 50px;
+    }
+    
+    .page-content {
+        padding: 32px;
+    }
+    
+    .stat-card {
+        padding: 28px;
+    }
+    
+    .card-header,
+    .card-body,
+    .card-footer {
+        padding: 28px;
+    }
+}
+
+/* 打印样式 */
+@media print {
+    .sidebar,
+    .top-nav,
+    .breadcrumb,
+    .action-buttons,
+    .pagination,
+    .toast-container {
+        display: none !important;
+    }
+    
+    .main-app {
+        grid-template-areas: "content";
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+    }
+    
+    .main-content {
+        background: white;
+    }
+    
+    .page-content {
+        padding: 0;
+    }
+    
+    .card {
+        border: 1px solid #000;
+        box-shadow: none;
+    }
+    
+    .table {
+        border-collapse: collapse;
+    }
+    
+    .table th,
+    .table td {
+        border: 1px solid #000;
+    }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+    :root {
+        --border-color: #000000;
+        --text-secondary: #000000;
+        --bg-tertiary: #f0f0f0;
+    }
+    
+    .btn {
+        border: 2px solid currentColor;
+    }
+    
+    .card {
+        border: 2px solid var(--border-color);
+    }
+    
+    .table th,
+    .table td {
+        border: 1px solid var(--border-color);
+    }
+}
+
+/* 减少动画模式 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .spinner {
+        animation: none;
+    }
+    
+    .loading-spinner-sm {
+        animation: none;
+    }
+}

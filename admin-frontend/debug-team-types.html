@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>团队类型API调试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; }
+        pre { background: #f8f9fa; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>团队类型API调试工具</h1>
+    
+    <div>
+        <button onclick="testAPI()">测试团队类型API</button>
+        <button onclick="testWithToken()">使用Token测试</button>
+        <button onclick="checkLocalStorage()">检查LocalStorage</button>
+        <button onclick="testTeamTypeManager()">测试TeamTypeManager</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+        }
+
+        async function testAPI() {
+            log('开始测试团队类型API...');
+            
+            try {
+                const response = await fetch('/api/teams/types', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log(`响应状态: ${response.status} ${response.statusText}`);
+                
+                const data = await response.text();
+                log(`响应内容: <pre>${data}</pre>`);
+                
+                if (response.ok) {
+                    try {
+                        const jsonData = JSON.parse(data);
+                        log(`解析后的JSON: <pre>${JSON.stringify(jsonData, null, 2)}</pre>`, 'success');
+                    } catch (e) {
+                        log(`JSON解析失败: ${e.message}`, 'error');
+                    }
+                } else {
+                    log('API调用失败', 'error');
+                }
+                
+            } catch (error) {
+                log(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function testWithToken() {
+            log('使用Token测试团队类型API...');
+            
+            const token = localStorage.getItem('token') || 'no-token';
+            log(`使用Token: ${token}`);
+            
+            try {
+                const response = await fetch('/api/teams/types', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                log(`响应状态: ${response.status} ${response.statusText}`);
+                
+                const data = await response.text();
+                log(`响应内容: <pre>${data}</pre>`);
+                
+                if (response.ok) {
+                    try {
+                        const jsonData = JSON.parse(data);
+                        log(`解析后的JSON: <pre>${JSON.stringify(jsonData, null, 2)}</pre>`, 'success');
+                        
+                        if (jsonData.success && jsonData.data) {
+                            log(`找到 ${jsonData.data.length} 个团队类型`, 'success');
+                            jsonData.data.forEach(type => {
+                                log(`- ${type.value}: ${type.label} (${type.description})`);
+                            });
+                        }
+                    } catch (e) {
+                        log(`JSON解析失败: ${e.message}`, 'error');
+                    }
+                } else {
+                    log('API调用失败', 'error');
+                }
+                
+            } catch (error) {
+                log(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        function checkLocalStorage() {
+            log('检查LocalStorage中的认证信息...');
+            
+            const token = localStorage.getItem('token');
+            const adminToken = localStorage.getItem('admin_token');
+            const user = localStorage.getItem('user');
+            
+            log(`token: ${token || '未设置'}`);
+            log(`admin_token: ${adminToken || '未设置'}`);
+            log(`user: ${user || '未设置'}`);
+            
+            // 尝试解析用户信息
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    log(`用户信息: <pre>${JSON.stringify(userData, null, 2)}</pre>`);
+                } catch (e) {
+                    log(`用户信息解析失败: ${e.message}`, 'error');
+                }
+            }
+        }
+
+        async function testTeamTypeManager() {
+            log('测试TeamTypeManager...');
+            
+            // 检查是否有TeamTypeManager
+            if (typeof TeamTypeManager !== 'undefined') {
+                log('TeamTypeManager已加载', 'success');
+                
+                try {
+                    const options = await TeamTypeManager.getTypeOptions();
+                    log(`TeamTypeManager.getTypeOptions() 返回: <pre>${JSON.stringify(options, null, 2)}</pre>`, 'success');
+                    
+                    const html = await TeamTypeManager.generateTypeOptionsHtml();
+                    log(`生成的HTML选项: <pre>${html}</pre>`, 'success');
+                    
+                } catch (error) {
+                    log(`TeamTypeManager测试失败: ${error.message}`, 'error');
+                }
+            } else {
+                log('TeamTypeManager未加载', 'error');
+                
+                // 尝试加载app.js
+                const script = document.createElement('script');
+                script.src = '/js/app.js';
+                script.onload = () => {
+                    log('app.js已加载，请重新测试TeamTypeManager', 'success');
+                };
+                script.onerror = () => {
+                    log('加载app.js失败', 'error');
+                };
+                document.head.appendChild(script);
+            }
+        }
+    </script>
+</body>
+</html>

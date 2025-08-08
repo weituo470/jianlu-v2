@@ -1,0 +1,93 @@
+"use strict";
+const common_vendor = require("../common/vendor.js");
+const BASE_URL = "http://localhost:3458/api";
+const request = (options) => {
+  return new Promise((resolve, reject) => {
+    const token = common_vendor.index.getStorageSync("token");
+    const header = {
+      "Content-Type": "application/json",
+      ...options.header
+    };
+    if (token) {
+      header.Authorization = `Bearer ${token}`;
+    }
+    const fullUrl = BASE_URL + options.url;
+    common_vendor.index.__f__("log", "at utils/request.js:19", "发送请求:", {
+      url: fullUrl,
+      method: options.method || "GET",
+      data: options.data,
+      header
+    });
+    common_vendor.index.request({
+      url: fullUrl,
+      method: options.method || "GET",
+      data: options.data || {},
+      header,
+      success: (res) => {
+        var _a;
+        common_vendor.index.__f__("log", "at utils/request.js:32", "请求响应:", {
+          url: fullUrl,
+          statusCode: res.statusCode,
+          data: res.data
+        });
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(res.data);
+        } else if (res.statusCode === 401) {
+          common_vendor.index.removeStorageSync("token");
+          common_vendor.index.removeStorageSync("userInfo");
+          common_vendor.index.reLaunch({
+            url: "/pages/login/login"
+          });
+          reject(new Error("登录已过期"));
+        } else {
+          common_vendor.index.__f__("error", "at utils/request.js:51", "请求失败:", res);
+          reject(new Error(((_a = res.data) == null ? void 0 : _a.message) || `请求失败 (${res.statusCode})`));
+        }
+      },
+      fail: (err) => {
+        common_vendor.index.__f__("error", "at utils/request.js:56", "网络请求失败:", {
+          url: fullUrl,
+          error: err
+        });
+        common_vendor.index.showToast({
+          title: "网络请求失败",
+          icon: "none"
+        });
+        reject(new Error(`网络请求失败: ${err.errMsg || "未知错误"}`));
+      }
+    });
+  });
+};
+const get = (url, data = {}) => {
+  return request({
+    url,
+    method: "GET",
+    data
+  });
+};
+const post = (url, data = {}) => {
+  return request({
+    url,
+    method: "POST",
+    data
+  });
+};
+const put = (url, data = {}) => {
+  return request({
+    url,
+    method: "PUT",
+    data
+  });
+};
+const del = (url, data = {}) => {
+  return request({
+    url,
+    method: "DELETE",
+    data
+  });
+};
+exports.del = del;
+exports.get = get;
+exports.post = post;
+exports.put = put;
+//# sourceMappingURL=../../.sourcemap/mp-weixin/utils/request.js.map
