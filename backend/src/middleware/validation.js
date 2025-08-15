@@ -1,5 +1,27 @@
 const Joi = require('joi');
+const { validationResult } = require('express-validator');
 const { validationError } = require('../utils/response');
+
+/**
+ * express-validator验证结果处理中间件
+ */
+function validateRequest(req, res, next) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const formattedErrors = errors.array().map(error => ({
+      field: error.path || error.param,
+      message: error.msg,
+      value: error.value
+    }));
+    
+    return res.status(400).json({
+      success: false,
+      message: '数据验证失败',
+      errors: formattedErrors
+    });
+  }
+  next();
+}
 
 /**
  * 数据验证中间件
@@ -201,6 +223,7 @@ const batchOperationSchema = Joi.object({
 
 module.exports = {
   validate,
+  validateRequest,
   loginSchema,
   createUserSchema,
   updateUserSchema,

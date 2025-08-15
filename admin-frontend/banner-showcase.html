@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轮播图展示 - 简庐</title>
+    
+    <!-- Swiper CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        
+        .banner-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .swiper {
+            width: 100%;
+            height: 500px;
+        }
+        
+        .swiper-slide {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+        }
+        
+        .swiper-slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .slide-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            color: white;
+            padding: 40px 30px 30px;
+            z-index: 2;
+        }
+        
+        .slide-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .slide-description {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .slide-link {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .slide-link:hover {
+            background: white;
+            color: #333;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .swiper-pagination-bullet {
+            width: 12px;
+            height: 12px;
+            background: rgba(255,255,255,0.5);
+            opacity: 1;
+        }
+        
+        .swiper-pagination-bullet-active {
+            background: white;
+            transform: scale(1.2);
+        }
+        
+        .swiper-button-next,
+        .swiper-button-prev {
+            color: white;
+            background: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            margin-top: -25px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .swiper-button-next:hover,
+        .swiper-button-prev:hover {
+            background: rgba(0,0,0,0.6);
+            transform: scale(1.1);
+        }
+        
+        .swiper-button-next:after,
+        .swiper-button-prev:after {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .banner-header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .banner-header h1 {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .banner-header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .loading-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 500px;
+            color: #6c757d;
+        }
+        
+        .error-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 500px;
+            color: #dc3545;
+            flex-direction: column;
+        }
+        
+        .admin-link {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .admin-link:hover {
+            background: white;
+            color: #007bff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        
+        @media (max-width: 768px) {
+            .slide-title {
+                font-size: 2rem;
+            }
+            
+            .slide-description {
+                font-size: 1rem;
+            }
+            
+            .banner-header h1 {
+                font-size: 2rem;
+            }
+            
+            .swiper {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/content/banners" class="admin-link">
+        <i class="fas fa-cog"></i>
+        管理轮播图
+    </a>
+    
+    <div class="container">
+        <div class="banner-header">
+            <h1>欢迎来到简庐</h1>
+            <p>探索我们的精彩内容</p>
+        </div>
+        
+        <div class="banner-container">
+            <div id="banner-swiper" class="swiper">
+                <div class="swiper-wrapper" id="swiper-wrapper">
+                    <!-- 加载状态 -->
+                    <div class="loading-state">
+                        <div class="spinner-border text-primary me-3"></div>
+                        <span>正在加载轮播图...</span>
+                    </div>
+                </div>
+                
+                <!-- 分页器 -->
+                <div class="swiper-pagination"></div>
+                
+                <!-- 导航按钮 -->
+                <div class="swiper-button-next"></div>
+                <div class="swiper-button-prev"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Swiper JS -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    
+    <!-- 引入必要的脚本 -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    
+    <script>
+        let swiper = null;
+        
+        // 初始化轮播图
+        async function initBanner() {
+            try {
+                console.log('开始加载轮播图数据...');
+                
+                // 调用API获取轮播图数据
+                const response = await window.API.banners.getList();
+                console.log('轮播图数据:', response);
+                
+                if (!response.success) {
+                    throw new Error(response.message || '获取轮播图失败');
+                }
+                
+                let banners = response.data;
+                if (banners && banners.data) {
+                    banners = banners.data;
+                }
+                
+                // 只显示激活状态的轮播图
+                const activeBanners = banners.filter(banner => banner.status === 'active');
+                console.log('激活的轮播图:', activeBanners.length);
+                
+                if (activeBanners.length === 0) {
+                    showEmptyState();
+                    return;
+                }
+                
+                // 渲染轮播图
+                renderBanners(activeBanners);
+                
+                // 初始化Swiper
+                initSwiper();
+                
+            } catch (error) {
+                console.error('加载轮播图失败:', error);
+                showErrorState(error.message);
+            }
+        }
+        
+        // 渲染轮播图
+        function renderBanners(banners) {
+            const wrapper = document.getElementById('swiper-wrapper');
+            
+            const slides = banners.map(banner => {
+                const hasLink = banner.link_url && banner.link_url.trim();
+                const linkButton = hasLink ? 
+                    `<a href="${banner.link_url}" class="slide-link">了解更多</a>` : '';
+                
+                return `
+                    <div class="swiper-slide">
+                        <img src="${banner.image_url}" alt="${banner.title}" loading="lazy">
+                        <div class="slide-overlay">
+                            <div class="slide-title">${banner.title}</div>
+                            ${banner.description ? `<div class="slide-description">${banner.description}</div>` : ''}
+                            ${linkButton}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            wrapper.innerHTML = slides;
+        }
+        
+        // 初始化Swiper
+        function initSwiper() {
+            swiper = new Swiper('#banner-swiper', {
+                // 基本配置
+                loop: true,
+                autoplay: {
+                    delay: 5000,
+                    disableOnInteraction: false,
+                    pauseOnMouseEnter: true
+                },
+                speed: 800,
+                effect: 'fade',
+                fadeEffect: {
+                    crossFade: true
+                },
+                
+                // 分页器
+                pagination: {
+                    el: '.swiper-pagination',
+                    clickable: true,
+                    dynamicBullets: true
+                },
+                
+                // 导航按钮
+                navigation: {
+                    nextEl: '.swiper-button-next',
+                    prevEl: '.swiper-button-prev'
+                },
+                
+                // 键盘控制
+                keyboard: {
+                    enabled: true,
+                    onlyInViewport: true
+                },
+                
+                // 鼠标滚轮控制
+                mousewheel: {
+                    enabled: false
+                },
+                
+                // 触摸控制
+                grabCursor: true,
+                
+                // 响应式断点
+                breakpoints: {
+                    640: {
+                        slidesPerView: 1
+                    },
+                    768: {
+                        slidesPerView: 1
+                    },
+                    1024: {
+                        slidesPerView: 1
+                    }
+                },
+                
+                // 事件回调
+                on: {
+                    init: function() {
+                        console.log('Swiper初始化完成');
+                    },
+                    slideChange: function() {
+                        console.log('切换到第', this.realIndex + 1, '张');
+                    }
+                }
+            });
+        }
+        
+        // 显示空状态
+        function showEmptyState() {
+            const wrapper = document.getElementById('swiper-wrapper');
+            wrapper.innerHTML = `
+                <div class="loading-state">
+                    <div class="text-center">
+                        <i class="fas fa-images fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">暂无轮播图</h5>
+                        <p class="text-muted">管理员还没有添加任何轮播图</p>
+                        <a href="/content/banners" class="btn btn-primary">
+                            <i class="fas fa-plus"></i>
+                            添加轮播图
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 显示错误状态
+        function showErrorState(message) {
+            const wrapper = document.getElementById('swiper-wrapper');
+            wrapper.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <h5>加载失败</h5>
+                    <p>${message}</p>
+                    <button class="btn btn-outline-primary" onclick="initBanner()">
+                        <i class="fas fa-sync-alt"></i>
+                        重新加载
+                    </button>
+                </div>
+            `;
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 稍微延迟加载，确保所有脚本都已准备好
+            setTimeout(initBanner, 500);
+        });
+        
+        // 页面卸载时销毁Swiper实例
+        window.addEventListener('beforeunload', function() {
+            if (swiper) {
+                swiper.destroy(true, true);
+            }
+        });
+    </script>
+</body>
+</html>

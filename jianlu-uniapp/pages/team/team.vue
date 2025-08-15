@@ -81,24 +81,51 @@
 
 				<view class="modal-body">
 					<view class="form-item">
-						<text class="label">团队名称</text>
+						<text class="label">团队名称 <text class="required">*</text></text>
 						<input
 							class="input"
 							type="text"
-							placeholder="输入团队名称..."
+							placeholder="输入团队名称（2-50个字符）"
 							v-model="groupForm.name"
 							:maxlength="50"
 						/>
 					</view>
 
 					<view class="form-item">
+						<text class="label">团队类型</text>
+						<picker 
+							:range="teamTypes" 
+							:range-key="'label'"
+							:value="teamTypeIndex"
+							@change="onTeamTypeChange"
+							class="picker"
+						>
+							<view class="picker-display">
+								{{ getSelectedTeamTypeName() }}
+								<text class="picker-arrow">▼</text>
+							</view>
+						</picker>
+					</view>
+
+					<view class="form-item">
 						<text class="label">团队描述</text>
 						<textarea
 							class="textarea"
-							placeholder="描述一下这个团队的用途..."
+							placeholder="描述一下这个团队的用途（可选，最多500字符）"
 							v-model="groupForm.description"
 							:maxlength="500"
 						/>
+					</view>
+
+					<view class="form-item">
+						<text class="label">团队头像</text>
+						<input
+							class="input"
+							type="text"
+							placeholder="输入头像URL（可选）"
+							v-model="groupForm.avatar_url"
+						/>
+						<text class="form-hint">可以输入图片链接作为团队头像</text>
 					</view>
 				</view>
 				
@@ -210,6 +237,9 @@
 		data() {
 			return {
 				groups: [],
+				teamTypes: [
+					{ value: 'general', label: '通用团队' }
+				], // 团队类型列表，初始化默认值
 				loading: false,
 				showModal: false,
 				showDetailModal: false,
@@ -217,15 +247,27 @@
 				selectedGroup: null,
 				groupForm: {
 					name: '',
-					description: ''
+					description: '',
+					team_type: 'general',
+					avatar_url: ''
 				}
 			}
 		},
+		computed: {
+			// 计算团队类型选择器的索引
+			teamTypeIndex() {
+				if (!this.teamTypes || this.teamTypes.length === 0) {
+					return 0
+				}
+				const index = this.teamTypes.findIndex(t => t.value === this.groupForm.team_type)
+				return index >= 0 ? index : 0
+			}
+		},
 		onLoad() {
-			this.fetchGroups()
+			this.loadInitialData()
 		},
 		onShow() {
-			this.fetchGroups()
+			this.loadInitialData()
 		},
 		onPullDownRefresh() {
 			this.fetchGroups().finally(() => {
@@ -235,6 +277,41 @@
 		methods: {
 			formatDate,
 			
+			// 加载初始数据
+			async loadInitialData() {
+				await Promise.all([
+					this.fetchGroups(),
+					this.loadTeamTypes()
+				])
+			},
+
+			// 加载团队类型
+			async loadTeamTypes() {
+				try {
+					// ⚠️ 临时硬编码数据 - 生产环境需要替换为数据库查询
+					// TODO: 后续改为从 API.teamTypes.getList() 获取
+					const teamTypesTemp = [
+						{ value: 'general', label: '通用团队' },
+						{ value: 'development', label: '开发团队' },
+						{ value: 'design', label: '设计团队' },
+						{ value: 'marketing', label: '市场团队' },
+						{ value: 'sales', label: '销售团队' },
+						{ value: 'support', label: '客服团队' },
+						{ value: 'hr', label: '人事团队' },
+						{ value: 'finance', label: '财务团队' },
+						{ value: 'other', label: '其他' }
+					]
+					this.teamTypes = teamTypesTemp
+				} catch (error) {
+					console.error('加载团队类型失败:', error)
+					// 使用默认类型
+					const defaultTeamTypesTemp = [
+						{ value: 'general', label: '通用团队' }
+					]
+					this.teamTypes = defaultTeamTypesTemp
+				}
+			},
+			
 			// 获取团队列表
 			async fetchGroups() {
 				this.loading = true
@@ -242,7 +319,9 @@
 					// 调用我的团队API，获取用户已加入的团队
 					const response = await groupApi.getMyTeams()
 					if (response.success) {
-						this.groups = response.data
+						// 修复：团队数据在 response.data.teams 中
+						const teams = response.data.teams || response.data || []
+						this.groups = Array.isArray(teams) ? teams : []
 					}
 				} catch (error) {
 					showError('获取团队列表失败')
@@ -268,30 +347,55 @@
 			resetForm() {
 				this.groupForm = {
 					name: '',
-					description: ''
+					description: '',
+					team_type: 'general',
+					avatar_url: ''
 				}
 			},
 			
 			// 创建团队
 			async createGroup() {
+				// 表单验证
 				if (!this.groupForm.name.trim()) {
 					showError('请输入团队名称')
+					return
+				}
+
+				if (this.groupForm.name.trim().length < 2) {
+					showError('团队名称至少2个字符')
+					return
+				}
+
+				if (this.groupForm.name.trim().length > 50) {
+					showError('团队名称不能超过50个字符')
+					return
+				}
+
+				if (this.groupForm.description && this.groupForm.description.length > 500) {
+					showError('团队描述不能超过500个字符')
 					return
 				}
 
 				this.saving = true
 				try {
 					const data = {
-						name: this.groupForm.name,
-						description: this.groupForm.description || undefined
+						name: this.groupForm.name.trim(),
+						description: this.groupForm.description?.trim() || '',
+						team_type: this.groupForm.team_type || 'general',
+						avatar_url: this.groupForm.avatar_url?.trim() || null
 					}
 
-					await groupApi.create(data)
-					showSuccess('团队创建成功')
-					this.hideModal()
-					this.fetchGroups()
+					const response = await groupApi.create(data)
+					if (response.success) {
+						showSuccess('团队创建成功')
+						this.hideModal()
+						this.fetchGroups()
+					} else {
+						throw new Error(response.message || '创建失败')
+					}
 				} catch (error) {
-					showError('创建失败')
+					console.error('创建团队失败:', error)
+					showError(error.message || '创建失败，请稍后重试')
 				} finally {
 					this.saving = false
 				}
@@ -387,7 +491,23 @@
 					console.log('获取成员预览失败:', error)
 					// 如果获取失败，使用默认显示
 				}
-			}
+			},
+
+			// 团队类型选择相关方法
+			onTeamTypeChange(e) {
+				const index = e.detail.value
+				this.groupForm.team_type = this.teamTypes[index].value
+			},
+
+			getSelectedTeamTypeName() {
+				if (!this.teamTypes || this.teamTypes.length === 0) {
+					return '通用团队'
+				}
+				const type = this.teamTypes.find(t => t.value === this.groupForm.team_type)
+				return type ? type.label : '通用团队'
+			},
+
+
 		}
 	}
 </script>
@@ -652,6 +772,43 @@
 		font-size: 28rpx;
 		color: #333;
 		margin-bottom: 12rpx;
+	}
+
+	.required {
+		color: #ff3b30;
+		font-weight: bold;
+	}
+
+	.picker {
+		width: 100%;
+	}
+
+	.picker-display {
+		width: 100%;
+		height: 80rpx;
+		padding: 20rpx;
+		border: 2rpx solid #e0e0e0;
+		border-radius: 8rpx;
+		font-size: 28rpx;
+		box-sizing: border-box;
+		line-height: 40rpx;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		background-color: #fff;
+	}
+
+	.picker-arrow {
+		color: #999;
+		font-size: 24rpx;
+	}
+
+	.form-hint {
+		display: block;
+		font-size: 24rpx;
+		color: #999;
+		margin-top: 8rpx;
+		line-height: 1.4;
 	}
 
 	.input {

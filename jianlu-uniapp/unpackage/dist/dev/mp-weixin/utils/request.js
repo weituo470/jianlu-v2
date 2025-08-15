@@ -1,6 +1,7 @@
 "use strict";
 const common_vendor = require("../common/vendor.js");
-const BASE_URL = "http://localhost:3458/api";
+const config_env = require("../config/env.js");
+const BASE_URL = config_env.envConfig.API_BASE_URL;
 const request = (options) => {
   return new Promise((resolve, reject) => {
     const token = common_vendor.index.getStorageSync("token");
@@ -12,7 +13,7 @@ const request = (options) => {
       header.Authorization = `Bearer ${token}`;
     }
     const fullUrl = BASE_URL + options.url;
-    common_vendor.index.__f__("log", "at utils/request.js:19", "发送请求:", {
+    common_vendor.index.__f__("log", "at utils/request.js:21", "发送请求:", {
       url: fullUrl,
       method: options.method || "GET",
       data: options.data,
@@ -25,7 +26,7 @@ const request = (options) => {
       header,
       success: (res) => {
         var _a;
-        common_vendor.index.__f__("log", "at utils/request.js:32", "请求响应:", {
+        common_vendor.index.__f__("log", "at utils/request.js:34", "请求响应:", {
           url: fullUrl,
           statusCode: res.statusCode,
           data: res.data
@@ -40,12 +41,12 @@ const request = (options) => {
           });
           reject(new Error("登录已过期"));
         } else {
-          common_vendor.index.__f__("error", "at utils/request.js:51", "请求失败:", res);
+          common_vendor.index.__f__("error", "at utils/request.js:53", "请求失败:", res);
           reject(new Error(((_a = res.data) == null ? void 0 : _a.message) || `请求失败 (${res.statusCode})`));
         }
       },
       fail: (err) => {
-        common_vendor.index.__f__("error", "at utils/request.js:56", "网络请求失败:", {
+        common_vendor.index.__f__("error", "at utils/request.js:58", "网络请求失败:", {
           url: fullUrl,
           error: err
         });

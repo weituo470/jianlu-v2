@@ -9,6 +9,12 @@ export const authApi = {
 	register: (data) => post('/auth/register', data)
 }
 
+// 轮播图相关API
+export const bannerApi = {
+	// 获取轮播图列表（只获取激活的）
+	getList: () => get('/banners/public/active')
+}
+
 // 日记相关API
 export const diaryApi = {
 	// 获取日记列表
@@ -30,46 +36,46 @@ export const diaryApi = {
 // 群组相关API
 export const groupApi = {
 	// 获取群组列表（所有可加入的团队）
-	getList: () => get('/group'),
+	getList: () => get('/miniapp/teams'),
 
 	// 获取我的团队列表
-	getMyTeams: () => get('/wechat/my-teams'),
+	getMyTeams: () => get('/miniapp/teams'),
 
 	// 获取群组详情
-	getDetail: (id) => get(`/group/${id}`),
+	getDetail: (id) => get(`/miniapp/teams/${id}`),
 
 	// 创建群组
-	create: (data) => post('/group', data),
+	create: (data) => post('/miniapp/teams', data),
 
 	// 加入群组
-	join: (id) => post(`/group/${id}/join`),
+	join: (id) => post(`/miniapp/teams/${id}/join`),
 
 	// 离开群组
-	leave: (id) => post(`/group/${id}/leave`),
+	leave: (id) => post(`/miniapp/teams/${id}/leave`),
 
 	// 申请加入团队
-	apply: (id, data) => post(`/wechat/teams/${id}/apply`, data),
+	apply: (id, data) => post(`/miniapp/teams/${id}/apply`, data),
 
 	// 获取我的申请记录
-	getMyApplications: (params) => get('/wechat/teams/my-applications', { params }),
+	getMyApplications: (params) => get('/miniapp/teams/my-applications', { params }),
 
 	// 获取团队申请列表（团队负责人）
-	getTeamApplications: (id, params) => get(`/wechat/teams/${id}/applications`, { params }),
+	getTeamApplications: (id, params) => get(`/miniapp/teams/${id}/applications`, { params }),
 
 	// 处理申请（批准/拒绝）
-	processApplication: (applicationId, data) => put(`/wechat/teams/applications/${applicationId}`, data),
+	processApplication: (applicationId, data) => put(`/miniapp/teams/applications/${applicationId}`, data),
 
 	// 获取申请统计
-	getApplicationStats: (id) => get(`/wechat/teams/${id}/application-stats`),
+	getApplicationStats: (id) => get(`/miniapp/teams/${id}/application-stats`),
 
 	// 获取团队成员列表
-	getTeamMembers: (id, params) => get(`/wechat/teams/${id}/members`, { params }),
+	getTeamMembers: (id, params) => get(`/miniapp/teams/${id}/members`, { params }),
 
 	// 获取团队详情
-	getTeamDetail: (id) => get(`/wechat/teams/${id}`)
+	getTeamDetail: (id) => get(`/miniapp/teams/${id}`)
 }
 
-// 活动相关API（保留旧版本兼容性）
+// 活动相关API（使用小程序专用API）
 export const activityApi = {
 	// 获取活动列表
 	getList: (params = {}) => {
@@ -77,27 +83,30 @@ export const activityApi = {
 		if (typeof params === 'string' || typeof params === 'number') {
 			return get(`/activity?group_id=${params}`)
 		}
-		// 新版本使用微信活动API
-		return get('/wechat/activities', params)
+		// 使用小程序专用活动API
+		return get('/miniapp/activities', params)
 	},
 
 	// 获取活动详情
-	getDetail: (id) => get(`/wechat/activities/${id}`),
+	getDetail: (id) => get(`/miniapp/activities/${id}`),
 
 	// 创建活动
-	create: (data) => post('/wechat/activities', data),
+	create: (data) => post('/miniapp/activities', data),
 
 	// 更新活动
-	update: (id, data) => put(`/wechat/activities/${id}`, data),
+	update: (id, data) => put(`/miniapp/activities/${id}`, data),
 
 	// 删除活动
-	delete: (id) => del(`/wechat/activities/${id}`),
+	delete: (id) => del(`/miniapp/activities/${id}`),
 
 	// 报名活动
-	register: (id, data) => post(`/wechat/activities/${id}/register`, data),
+	register: (id, data) => post(`/miniapp/activities/${id}/register`, data),
 
 	// 取消报名
-	cancelRegistration: (id) => del(`/wechat/activities/${id}/register`),
+	cancelRegistration: (id) => del(`/miniapp/activities/${id}/register`),
+
+	// 获取活动类型列表
+	getTypes: () => get('/miniapp/activity-types'),
 
 	// 参加活动（兼容旧版本）
 	join: (id) => post(`/activity/${id}/join`),

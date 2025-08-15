@@ -6,33 +6,37 @@ const authApi = {
   // 用户注册
   register: (data) => utils_request.post("/auth/register", data)
 };
+const bannerApi = {
+  // 获取轮播图列表（只获取激活的）
+  getList: () => utils_request.get("/banners/public/active")
+};
 const groupApi = {
   // 获取群组列表（所有可加入的团队）
-  getList: () => utils_request.get("/group"),
+  getList: () => utils_request.get("/miniapp/teams"),
   // 获取我的团队列表
-  getMyTeams: () => utils_request.get("/wechat/my-teams"),
+  getMyTeams: () => utils_request.get("/miniapp/teams"),
   // 获取群组详情
-  getDetail: (id) => utils_request.get(`/group/${id}`),
+  getDetail: (id) => utils_request.get(`/miniapp/teams/${id}`),
   // 创建群组
-  create: (data) => utils_request.post("/group", data),
+  create: (data) => utils_request.post("/miniapp/teams", data),
   // 加入群组
-  join: (id) => utils_request.post(`/group/${id}/join`),
+  join: (id) => utils_request.post(`/miniapp/teams/${id}/join`),
   // 离开群组
-  leave: (id) => utils_request.post(`/group/${id}/leave`),
+  leave: (id) => utils_request.post(`/miniapp/teams/${id}/leave`),
   // 申请加入团队
-  apply: (id, data) => utils_request.post(`/wechat/teams/${id}/apply`, data),
+  apply: (id, data) => utils_request.post(`/miniapp/teams/${id}/apply`, data),
   // 获取我的申请记录
-  getMyApplications: (params) => utils_request.get("/wechat/teams/my-applications", { params }),
+  getMyApplications: (params) => utils_request.get("/miniapp/teams/my-applications", { params }),
   // 获取团队申请列表（团队负责人）
-  getTeamApplications: (id, params) => utils_request.get(`/wechat/teams/${id}/applications`, { params }),
+  getTeamApplications: (id, params) => utils_request.get(`/miniapp/teams/${id}/applications`, { params }),
   // 处理申请（批准/拒绝）
-  processApplication: (applicationId, data) => utils_request.put(`/wechat/teams/applications/${applicationId}`, data),
+  processApplication: (applicationId, data) => utils_request.put(`/miniapp/teams/applications/${applicationId}`, data),
   // 获取申请统计
-  getApplicationStats: (id) => utils_request.get(`/wechat/teams/${id}/application-stats`),
+  getApplicationStats: (id) => utils_request.get(`/miniapp/teams/${id}/application-stats`),
   // 获取团队成员列表
-  getTeamMembers: (id, params) => utils_request.get(`/wechat/teams/${id}/members`, { params }),
+  getTeamMembers: (id, params) => utils_request.get(`/miniapp/teams/${id}/members`, { params }),
   // 获取团队详情
-  getTeamDetail: (id) => utils_request.get(`/wechat/teams/${id}`)
+  getTeamDetail: (id) => utils_request.get(`/miniapp/teams/${id}`)
 };
 const activityApi = {
   // 获取活动列表
@@ -40,20 +44,22 @@ const activityApi = {
     if (typeof params === "string" || typeof params === "number") {
       return utils_request.get(`/activity?group_id=${params}`);
     }
-    return utils_request.get("/wechat/activities", params);
+    return utils_request.get("/miniapp/activities", params);
   },
   // 获取活动详情
-  getDetail: (id) => utils_request.get(`/wechat/activities/${id}`),
+  getDetail: (id) => utils_request.get(`/miniapp/activities/${id}`),
   // 创建活动
-  create: (data) => utils_request.post("/wechat/activities", data),
+  create: (data) => utils_request.post("/miniapp/activities", data),
   // 更新活动
-  update: (id, data) => utils_request.put(`/wechat/activities/${id}`, data),
+  update: (id, data) => utils_request.put(`/miniapp/activities/${id}`, data),
   // 删除活动
-  delete: (id) => utils_request.del(`/wechat/activities/${id}`),
+  delete: (id) => utils_request.del(`/miniapp/activities/${id}`),
   // 报名活动
-  register: (id, data) => utils_request.post(`/wechat/activities/${id}/register`, data),
+  register: (id, data) => utils_request.post(`/miniapp/activities/${id}/register`, data),
   // 取消报名
-  cancelRegistration: (id) => utils_request.del(`/wechat/activities/${id}/register`),
+  cancelRegistration: (id) => utils_request.del(`/miniapp/activities/${id}/register`),
+  // 获取活动类型列表
+  getTypes: () => utils_request.get("/miniapp/activity-types"),
   // 参加活动（兼容旧版本）
   join: (id) => utils_request.post(`/activity/${id}/join`),
   // 取消参加活动（兼容旧版本）
@@ -71,6 +77,7 @@ const userApi = {
 };
 exports.activityApi = activityApi;
 exports.authApi = authApi;
+exports.bannerApi = bannerApi;
 exports.groupApi = groupApi;
 exports.userApi = userApi;
 //# sourceMappingURL=../../.sourcemap/mp-weixin/api/index.js.map

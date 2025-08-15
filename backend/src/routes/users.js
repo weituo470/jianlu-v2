@@ -114,6 +114,123 @@ router.get('/:id',
 );
 
 /**
+ * 获取用户详细信息（包含关联数据）
+ * GET /api/users/:id/details
+ */
+router.get('/:id/details',
+  requirePermission('user:read'),
+  validate(idParamSchema, 'params'),
+  async (req, res, next) => {
+    try {
+      const { Team, TeamMember, Activity, ActivityParticipant } = require('../models');
+      
+      // 获取用户基本信息
+      const user = await User.findOne({
+        where: { 
+          id: req.params.id,
+          status: { [Op.ne]: 'deleted' }
+        },
+        attributes: { exclude: ['password_hash'] }
+      });
+
+      if (!user) {
+        return notFound(res, '用户不存在');
+      }
+
+      // 获取用户加入的团队
+      const userTeams = await TeamMember.findAll({
+        where: { user_id: req.params.id },
+        include: [
+          {
+            model: Team,
+            as: 'team',
+            attributes: ['id', 'name', 'description', 'avatar_url', 'status', 'member_count']
+          }
+        ],
+        order: [['joined_at', 'DESC']]
+      });
+
+      // 获取用户创建的团队
+      const createdTeams = await Team.findAll({
+        where: { 
+          creator_id: req.params.id,
+          status: { [Op.ne]: 'dissolved' }
+        },
+        attributes: ['id', 'name', 'description', 'avatar_url', 'status', 'member_count', 'created_at'],
+        order: [['created_at', 'DESC']]
+      });
+
+      // 获取用户参与的活动
+      const userActivities = await ActivityParticipant.findAll({
+        where: { user_id: req.params.id },
+        include: [
+          {
+            model: Activity,
+            as: 'activity',
+            attributes: ['id', 'title', 'description', 'type', 'start_time', 'end_time', 'status'],
+            include: [
+              {
+                model: Team,
+                as: 'team',
+                attributes: ['id', 'name']
+              }
+            ]
+          }
+        ],
+        order: [['registered_at', 'DESC']]
+      });
+
+      // 获取用户创建的活动
+      const createdActivities = await Activity.findAll({
+        where: { 
+          creator_id: req.params.id
+        },
+        attributes: ['id', 'title', 'description', 'type', 'start_time', 'end_time', 'status', 'current_participants', 'created_at'],
+        include: [
+          {
+            model: Team,
+            as: 'team',
+            attributes: ['id', 'name']
+          }
+        ],
+        order: [['created_at', 'DESC']]
+      });
+
+      // 统计数据
+      const statistics = {
+        joinedTeamsCount: userTeams.length,
+        createdTeamsCount: createdTeams.length,
+        participatedActivitiesCount: userActivities.length,
+        createdActivitiesCount: createdActivities.length,
+        adminTeamsCount: userTeams.filter(tm => tm.role === 'admin').length
+      };
+
+      const result = {
+        user: user.toJSON(),
+        joinedTeams: userTeams.map(tm => ({
+          ...tm.team.toJSON(),
+          memberRole: tm.role,
+          joinedAt: tm.joined_at
+        })),
+        createdTeams,
+        participatedActivities: userActivities.map(ap => ({
+          ...ap.activity.toJSON(),
+          participationStatus: ap.status,
+          registeredAt: ap.registered_at
+        })),
+        createdActivities,
+        statistics
+      };
+
+      success(res, result, '获取用户详细信息成功');
+
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
  * 创建新用户
  * POST /api/users
  */
@@ -293,11 +410,14 @@ router.delete('/:id',
         return error(res, '无权限删除超级管理员账号', 403, 'INSUFFICIENT_PERMISSION');
       }
 
-      // 软删除用户
-      await user.update({ status: 'deleted' });
+      // 使用安全删除方法
+      await user.safeDelete(
+        `管理员删除操作 - 操作人: ${req.user.username}`,
+        req.user.id
+      );
 
       // 记录操作日志
-      logger.info(`管理员${req.user.username}删除了用户: ${user.username}`);
+      logger.info(`管理员${req.user.username}安全删除了用户: ${user.username}`);
 
       success(res, null, '用户删除成功');
 

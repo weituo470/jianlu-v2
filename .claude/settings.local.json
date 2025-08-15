@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node check-banners.js)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(dir:*)",
+      "Bash(mysql:*)",
+      "Bash(npm start)",
+      "Bash(npm install:*)",
+      "Bash(TASKKILL:*)",
+      "Bash(grep:*)",
+      "Bash(wmic:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -2,7 +2,7 @@
 
 window.AppConfig = {
     // API配置
-    API_BASE_URL: 'http://localhost:3458/api',
+    API_BASE_URL: 'http://localhost:3459/api',
     
     // 应用信息
     APP_NAME: '简庐管理后台',
@@ -18,7 +18,7 @@ window.AppConfig = {
     PAGE_SIZE_OPTIONS: [10, 20, 50, 100],
     
     // 上传配置
-    MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+    MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
     ALLOWED_FILE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'],
     
     // 界面配置
@@ -150,6 +150,12 @@ window.AppConfig = {
             permissions: ['content:read'],
             children: [
                 {
+                    id: 'content-banners',
+                    title: '轮播图管理',
+                    path: '/content/banners',
+                    permissions: ['content:read']
+                },
+                {
                     id: 'content-diary',
                     title: '日记管理',
                     path: '/content/diary',
@@ -223,7 +229,7 @@ window.AppConfig = {
         // 点击外部是否关闭弹窗 - 已禁用以防止误触
         CLICK_OUTSIDE_TO_CLOSE: false,
         // 有数据时是否需要确认
-        CONFIRM_ON_DATA_LOSS: true,
+        CONFIRM_ON_DATA_LOSS: false,
         // 特殊弹窗类型（永远不允许点击外部关闭）
         PROTECTED_MODALS: ['user-create', 'user-edit', 'activity-create', 'activity-edit']
     },

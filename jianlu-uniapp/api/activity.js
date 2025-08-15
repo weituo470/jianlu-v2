@@ -1,60 +1,60 @@
 import { get, post, put, del } from '../utils/request.js'
 
-// 活动API接口
+// 活动API接口（使用小程序专用API）
 export const activityApi = {
   // 获取活动列表
   getList(params = {}) {
-    return get('/wechat/activities', params)
+    return get('/miniapp/activities', params)
   },
 
   // 获取活动详情
   getDetail(id) {
-    return get(`/wechat/activities/${id}`)
+    return get(`/miniapp/activities/${id}`)
   },
 
   // 创建活动
   create(data) {
-    return post('/wechat/activities', data)
+    return post('/miniapp/activities', data)
   },
 
   // 更新活动
   update(id, data) {
-    return put(`/wechat/activities/${id}`, data)
+    return put(`/miniapp/activities/${id}`, data)
   },
 
   // 删除活动
   delete(id) {
-    return del(`/wechat/activities/${id}`)
+    return del(`/miniapp/activities/${id}`)
   },
 
   // 报名活动
   register(id, data) {
-    return post(`/wechat/activities/${id}/register`, data)
+    return post(`/miniapp/activities/${id}/register`, data)
   },
 
   // 取消报名
   cancelRegistration(id) {
-    return del(`/wechat/activities/${id}/register`)
+    return del(`/miniapp/activities/${id}/register`)
   },
 
   // 获取我的报名列表
   getMyRegistrations(params = {}) {
-    return get('/wechat/my-registrations', params)
+    return get('/miniapp/my-registrations', params)
   },
 
   // 获取活动报名列表（管理员）
   getRegistrations(id, params = {}) {
-    return get(`/wechat/activities/${id}/registrations`, params)
+    return get(`/miniapp/activities/${id}/registrations`, params)
   },
 
   // 审核报名（管理员）
   approveRegistration(registrationId, approved = true) {
-    return post(`/wechat/registrations/${registrationId}/approve`, { approved })
+    return post(`/miniapp/registrations/${registrationId}/approve`, { approved })
   },
 
   // 批量审核报名（管理员）
   batchApproveRegistrations(registrationIds, approved = true) {
-    return post('/wechat/registrations/batch-approve', { 
+    return post('/miniapp/registrations/batch-approve', { 
       registration_ids: registrationIds, 
       approved 
     })

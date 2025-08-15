@@ -10,6 +10,8 @@ const ActivityType = require('./ActivityType');
 const ActivityParticipant = require('./ActivityParticipant');
 const UserActivity = require('./UserActivity');
 const UserDeletionAudit = require('./UserDeletionAudit');
+const { UserAccount, AccountTransaction } = require('./UserAccount');
+const { ActivityRegistration, ActivityCostSharing } = require('./ActivityRegistration');
 
 // 创建模型对象
 const models = {
@@ -21,7 +23,11 @@ const models = {
   ActivityType,
   ActivityParticipant,
   UserActivity,
-  UserDeletionAudit
+  UserDeletionAudit,
+  UserAccount,
+  AccountTransaction,
+  ActivityRegistration,
+  ActivityCostSharing
 };
 
 // 初始化所有模型关联

@@ -1,5 +1,41 @@
 <template>
 	<view class="home-container">
+		<!-- Banner 轮播图 -->
+		<view class="banner-section" v-if="bannerList.length > 0">
+			<swiper 
+				class="banner-swiper"
+				:indicator-dots="true"
+				:autoplay="true"
+				:interval="4000"
+				:duration="500"
+				:circular="true"
+				indicator-active-color="#007aff"
+				indicator-color="rgba(255,255,255,0.5)"
+			>
+				<swiper-item 
+					v-for="banner in bannerList" 
+					:key="banner.id"
+					@tap="onBannerTap(banner)"
+				>
+					<view class="banner-item">
+						<image 
+							:src="getImageUrl(banner.image_url)" 
+							class="banner-image"
+							mode="aspectFill"
+							:lazy-load="true"
+							@error="onImageError"
+						/>
+						<view class="banner-overlay" v-if="banner.title || banner.description">
+							<view class="banner-content">
+								<text class="banner-title" v-if="banner.title">{{ banner.title }}</text>
+								<text class="banner-description" v-if="banner.description">{{ banner.description }}</text>
+							</view>
+						</view>
+					</view>
+				</swiper-item>
+			</swiper>
+		</view>
+		
 		<!-- 顶部欢迎区域 -->
 		<view class="welcome-section">
 			<view class="welcome-header">
@@ -117,8 +153,9 @@
 </template>
 
 <script>
-	import { groupApi, activityApi } from '../../api/index.js'
+	import { groupApi, activityApi, bannerApi } from '../../api/index.js'
 	import { formatDate, getActivityStatus, getActivityStatusText, showSuccess, showError } from '../../utils/index.js'
+	import envConfig from '../../config/env.js'
 	
 	export default {
 		data() {
@@ -127,6 +164,7 @@
 				unreadCount: 0,
 				recentActivities: [],
 				myTeams: [],
+				bannerList: [], // 轮播图列表
 				loading: false
 			}
 		},
@@ -152,6 +190,7 @@
 				this.loading = true
 				try {
 					await Promise.all([
+						this.loadBanners(),
 						this.loadRecentActivities(),
 						this.loadMyTeams(),
 						this.loadUnreadCount()
@@ -163,12 +202,32 @@
 				}
 			},
 			
+			// 加载轮播图
+			async loadBanners() {
+				try {
+					const response = await bannerApi.getList()
+					if (response.success) {
+						// 公开接口直接返回轮播图数组
+						this.bannerList = Array.isArray(response.data) ? response.data : []
+						console.log('轮播图加载成功:', this.bannerList.length, '张')
+					} else {
+						console.error('轮播图加载失败:', response.message)
+						this.bannerList = []
+					}
+				} catch (error) {
+					console.error('轮播图加载异常:', error)
+					this.bannerList = []
+				}
+			},
+			
 			// 加载最近活动
 			async loadRecentActivities() {
 				try {
 					const response = await activityApi.getList()
 					if (response.success) {
-						this.recentActivities = response.data.slice(0, 3) // 只显示前3个
+						// 修复：活动数据在 response.data.activities 中
+						const activities = response.data.activities || response.data || []
+						this.recentActivities = Array.isArray(activities) ? activities.slice(0, 3) : []
 					}
 				} catch (error) {
 					console.error('加载活动失败:', error)
@@ -180,7 +239,9 @@
 				try {
 					const response = await groupApi.getList()
 					if (response.success) {
-						this.myTeams = response.data.slice(0, 3) // 只显示前3个
+						// 修复：团队数据在 response.data.teams 中
+						const teams = response.data.teams || response.data || []
+						this.myTeams = Array.isArray(teams) ? teams.slice(0, 3) : []
 					}
 				} catch (error) {
 					console.error('加载团队失败:', error)
@@ -212,6 +273,78 @@
 				uni.switchTab({
 					url: '/pages/team/team'
 				})
+			},
+			
+			// 处理图片URL
+			getImageUrl(imageUrl) {
+				if (!imageUrl) return ''
+				
+				// 如果已经是完整URL，直接返回
+				if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+					return imageUrl
+				}
+				
+				// 处理相对路径，转换为完整URL
+				const baseUrl = envConfig.IMAGE_BASE_URL
+				return baseUrl + (imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl)
+			},
+			
+			// 图片加载错误处理
+			onImageError(e) {
+				console.error('图片加载失败:', e)
+				uni.showToast({
+					title: '图片加载失败',
+					icon: 'none',
+					duration: 2000
+				})
+			},
+			
+			// Banner 点击事件
+			onBannerTap(banner) {
+				console.log('点击轮播图:', banner)
+				
+				// 如果有链接地址，处理跳转
+				if (banner.link_url) {
+					// 判断是否为外部链接
+					if (banner.link_url.startsWith('http://') || banner.link_url.startsWith('https://')) {
+						// 复制链接到剪贴板并提示用户
+						uni.setClipboardData({
+							data: banner.link_url,
+							success: () => {
+								uni.showModal({
+									title: '提示',
+									content: '链接已复制到剪贴板，请在浏览器中打开',
+									showCancel: false
+								})
+							}
+						})
+					} else {
+						// 内部链接，直接跳转
+						if (banner.link_url.startsWith('/')) {
+							// 页面路径跳转
+							uni.navigateTo({
+								url: banner.link_url
+							}).catch(() => {
+								// 如果 navigateTo 失败，尝试 switchTab
+								uni.switchTab({
+									url: banner.link_url
+								}).catch(() => {
+									uni.showToast({
+										title: '页面跳转失败',
+										icon: 'none'
+									})
+								})
+							})
+						}
+					}
+				} else {
+					// 没有链接，显示轮播图详情
+					uni.showModal({
+						title: banner.title || '轮播图',
+						content: banner.description || '暂无描述',
+						showCancel: false
+					})
+				}
 			},
 			
 			// 创建团队
@@ -280,6 +413,64 @@
 	.home-container {
 		min-height: 100vh;
 		background-color: #f5f5f5;
+	}
+	
+	/* Banner 轮播图样式 */
+	.banner-section {
+		width: 100%;
+		height: 360rpx;
+		position: relative;
+	}
+	
+	.banner-swiper {
+		width: 100%;
+		height: 100%;
+	}
+	
+	.banner-item {
+		position: relative;
+		width: 100%;
+		height: 100%;
+	}
+	
+	.banner-image {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+	
+	.banner-overlay {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+		padding: 40rpx 30rpx 30rpx;
+	}
+	
+	.banner-content {
+		color: white;
+	}
+	
+	.banner-title {
+		font-size: 32rpx;
+		font-weight: bold;
+		line-height: 1.4;
+		margin-bottom: 10rpx;
+		display: block;
+		text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.3);
+	}
+	
+	.banner-description {
+		font-size: 26rpx;
+		line-height: 1.4;
+		opacity: 0.9;
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.3);
 	}
 	
 	.welcome-section {

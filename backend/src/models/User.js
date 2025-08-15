@@ -94,15 +94,15 @@ const User = sequelize.define('User', {
 });
 
 // 实例方法
-User.prototype.validatePassword = async function(password) {
+User.prototype.validatePassword = async function (password) {
   return await bcrypt.compare(password, this.password_hash);
 };
 
-User.prototype.isLocked = function() {
+User.prototype.isLocked = function () {
   return this.locked_until && this.locked_until > new Date();
 };
 
-User.prototype.incrementLoginAttempts = async function() {
+User.prototype.incrementLoginAttempts = async function () {
   const maxAttempts = 5;
   const lockTime = 15 * 60 * 1000; // 15分钟
 
@@ -115,71 +115,92 @@ User.prototype.incrementLoginAttempts = async function() {
   await this.save();
 };
 
-User.prototype.resetLoginAttempts = async function() {
+User.prototype.resetLoginAttempts = async function () {
   this.login_attempts = 0;
   this.locked_until = null;
   this.last_login_at = new Date();
   await this.save();
 };
 
-User.prototype.toJSON = function() {
+User.prototype.toJSON = function () {
   const values = { ...this.get() };
   delete values.password_hash;
   return values;
 };
 
 // 类方法
-User.findByUsername = function(username) {
+User.findByUsername = function (username) {
   return User.findOne({
     where: { username, status: { [Op.ne]: 'deleted' } }
   });
 };
 
-User.findByEmail = function(email) {
+User.findByEmail = function (email) {
   return User.findOne({
     where: { email, status: { [Op.ne]: 'deleted' } }
   });
 };
 
-// 改进的软删除方法
-User.prototype.softDelete = async function(reason, operatorId) {
-  const UserDeletionAudit = require('./UserDeletionAudit');
-  const { v4: uuidv4 } = require('uuid');
+// 安全的软删除方法 - 简化版本，降低事务复杂度
+User.prototype.safeDelete = async function (reason, operatorId) {
+  const logger = require('../utils/logger');
   
-  const transaction = await User.sequelize.transaction();
   try {
-    // 1. 创建审计记录
-    await UserDeletionAudit.create({
-      id: uuidv4(),
-      original_user_id: this.id,
-      deleted_user_data: this.toJSON(),
-      deletion_reason: reason,
-      deletion_type: 'soft',
-      deleted_by: operatorId
-    }, { transaction });
-    
-    // 2. 修改用户名和邮箱，释放唯一约束
+    // 生成唯一标识符，避免用户名/邮箱冲突
     const timestamp = Date.now();
-    await this.update({
-      username: `${this.username}_deleted_${timestamp}`,
-      email: `${this.email}_deleted_${timestamp}`,
+    const uniqueId = this.id.substring(0, 8); // 使用UUID前8位
+    
+    // 1. 先创建审计记录（独立事务，即使失败也不影响删除）
+    try {
+      const UserDeletionAudit = require('./UserDeletionAudit');
+      const { v4: uuidv4 } = require('uuid');
+      
+      await UserDeletionAudit.create({
+        id: uuidv4(),
+        original_user_id: this.id,
+        deleted_user_data: this.toJSON(),
+        deletion_reason: reason || '用户删除',
+        deletion_type: 'soft',
+        deleted_by: operatorId || 'system'
+      });
+      
+      logger.info(`用户删除审计记录创建成功: ${this.username}`);
+    } catch (auditError) {
+      // 审计记录创建失败不阻止删除操作，但要记录警告
+      logger.warn(`用户删除审计记录创建失败: ${this.username}`, auditError);
+    }
+
+    // 2. 执行安全的软删除（单一原子操作）
+    const updateResult = await this.update({
+      username: `deleted_${uniqueId}_${timestamp}`,
+      email: `deleted_${uniqueId}_${timestamp}@deleted.local`,
       status: 'deleted',
       deleted_at: new Date()
-    }, { transaction });
+    });
+
+    logger.info(`用户安全删除成功: ${this.username} -> deleted_${uniqueId}_${timestamp}`);
+    return updateResult;
     
-    await transaction.commit();
-    return true;
   } catch (error) {
-    await transaction.rollback();
-    throw error;
+    logger.error(`用户安全删除失败: ${this.username}`, error);
+    throw new Error(`用户删除失败: ${error.message}`);
   }
 };
 
+// 保留原有的复杂删除方法作为备用（标记为已弃用）
+User.prototype.softDelete = async function (reason, operatorId) {
+  const logger = require('../utils/logger');
+  logger.warn('softDelete方法已弃用，请使用safeDelete方法');
+  
+  // 调用新的安全删除方法
+  return await this.safeDelete(reason, operatorId);
+};
+
 // 硬删除方法
-User.prototype.hardDelete = async function(reason, operatorId) {
+User.prototype.hardDelete = async function (reason, operatorId) {
   const UserDeletionAudit = require('./UserDeletionAudit');
   const { v4: uuidv4 } = require('uuid');
-  
+
   const transaction = await User.sequelize.transaction();
   try {
     // 1. 创建审计记录
@@ -192,10 +213,10 @@ User.prototype.hardDelete = async function(reason, operatorId) {
       deleted_by: operatorId,
       can_restore: false
     }, { transaction });
-    
+
     // 2. 物理删除用户
     await this.destroy({ transaction });
-    
+
     await transaction.commit();
     return true;
   } catch (error) {
@@ -205,9 +226,9 @@ User.prototype.hardDelete = async function(reason, operatorId) {
 };
 
 // 恢复软删除的用户
-User.restoreFromAudit = async function(auditId, operatorId) {
+User.restoreFromAudit = async function (auditId, operatorId) {
   const UserDeletionAudit = require('./UserDeletionAudit');
-  
+
   const transaction = await User.sequelize.transaction();
   try {
     // 1. 获取审计记录
@@ -215,7 +236,7 @@ User.restoreFromAudit = async function(auditId, operatorId) {
     if (!auditRecord || !auditRecord.canBeRestored()) {
       throw new Error('无法恢复此用户');
     }
-    
+
     // 2. 检查用户名和邮箱是否可用
     const originalData = auditRecord.getOriginalUserData();
     const existingUser = await User.findOne({
@@ -228,11 +249,11 @@ User.restoreFromAudit = async function(auditId, operatorId) {
       },
       transaction
     });
-    
+
     if (existingUser) {
       throw new Error('用户名或邮箱已被占用，无法恢复');
     }
-    
+
     // 3. 恢复用户
     const restoredUser = await User.create({
       ...originalData,
@@ -240,13 +261,13 @@ User.restoreFromAudit = async function(auditId, operatorId) {
       status: 'active',
       deleted_at: null
     }, { transaction });
-    
+
     // 4. 更新审计记录
     await auditRecord.update({
       restored_at: new Date(),
       restored_by: operatorId
     }, { transaction });
-    
+
     await transaction.commit();
     return restoredUser;
   } catch (error) {

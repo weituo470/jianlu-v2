@@ -1,30 +1,79 @@
 "use strict";
 const common_vendor = require("../../common/vendor.js");
-const api_activity = require("../../api/activity.js");
+const api_index = require("../../api/index.js");
 const utils_index = require("../../utils/index.js");
 const _sfc_main = {
   data() {
     return {
       activities: [],
+      activityTypes: {},
+      // 活动类型数据，从API加载
       loading: false,
       currentFilter: "all",
       currentType: "",
-      showTypeFilter: false,
-      activityTypes: api_activity.activityTypes
+      showTypeFilter: false
     };
   },
   onLoad() {
-    this.loadActivities();
+    this.loadInitialData();
   },
   onShow() {
-    this.loadActivities();
+    this.loadInitialData();
   },
   onPullDownRefresh() {
-    this.loadActivities().finally(() => {
+    this.loadInitialData().finally(() => {
       common_vendor.index.stopPullDownRefresh();
     });
   },
   methods: {
+    // 加载初始数据
+    async loadInitialData() {
+      await Promise.all([
+        this.loadActivities(),
+        this.loadActivityTypes()
+      ]);
+    },
+    // 加载活动类型
+    async loadActivityTypes() {
+      try {
+        const response = await api_index.activityApi.getTypes();
+        if (response.success) {
+          const typesData = {};
+          const types = response.data || [];
+          types.forEach((type) => {
+            const icon = this.getTypeIcon(type.id);
+            typesData[type.id] = {
+              icon,
+              name: type.name
+            };
+          });
+          this.activityTypes = typesData;
+          common_vendor.index.__f__("log", "at pages/activity/activity.vue:174", `成功加载 ${types.length} 个活动类型`);
+        } else {
+          throw new Error(response.message || "获取活动类型失败");
+        }
+      } catch (error) {
+        common_vendor.index.__f__("error", "at pages/activity/activity.vue:179", "加载活动类型失败:", error);
+        this.activityTypes = {
+          other: { icon: "📅", name: "其他" }
+        };
+      }
+    },
+    // 根据类型ID获取对应图标
+    getTypeIcon(typeId) {
+      const iconMap = {
+        meeting: "💼",
+        event: "🎉",
+        training: "📚",
+        social: "🍽️",
+        sports: "⚽",
+        travel: "🏖️",
+        workshop: "🔧",
+        conference: "🎤",
+        other: "📅"
+      };
+      return iconMap[typeId] || "📅";
+    },
     // 设置筛选条件
     setFilter(filter) {
       this.currentFilter = filter;
@@ -41,12 +90,13 @@ const _sfc_main = {
       this.loading = true;
       try {
         const params = this.buildParams();
-        const response = await api_activity.activityApi.getList(params);
+        const response = await api_index.activityApi.getList(params);
         if (response.success) {
-          this.activities = response.data || [];
+          const activities = response.data.activities || response.data || [];
+          this.activities = Array.isArray(activities) ? activities : [];
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity/activity.vue:169", "加载活动失败:", error);
+        common_vendor.index.__f__("error", "at pages/activity/activity.vue:228", "加载活动失败:", error);
         utils_index.showError("加载活动失败");
       } finally {
         this.loading = false;

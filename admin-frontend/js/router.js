@@ -73,6 +73,12 @@ window.Router = {
             requireAuth: true,
             permissions: ['content:read']
         },
+        '/content/banners': {
+            title: '轮播图管理',
+            component: 'BannersPage',
+            requireAuth: true,
+            permissions: ['content:read']
+        },
         '/settings': {
             title: '系统设置',
             component: 'SettingsPage',
@@ -265,6 +271,9 @@ window.Router = {
                 case 'ContentPage':
                     await this.renderContent();
                     break;
+                case 'BannersPage':
+                    await this.renderBanners();
+                    break;
                 case 'SettingsPage':
                     await this.renderSettings();
                     break;
@@ -375,7 +384,7 @@ window.Router = {
                                         </p>
                                     </div>
                                     <div class="welcome-actions">
-                                        <button class="btn btn-primary" onclick="DashboardManager.refreshData()">
+                                        <button class="btn btn-primary" onclick="location.reload()">
                                             <i class="fas fa-sync-alt"></i>
                                             刷新数据
                                         </button>
@@ -522,7 +531,11 @@ window.Router = {
             `;
 
             // 初始化仪表板管理器
-            DashboardManager.init();
+            if (typeof DashboardManager !== 'undefined') {
+                DashboardManager.init();
+            } else {
+                console.warn('DashboardManager 未定义，跳过初始化');
+            }
 
             // 添加查看用户函数到全局
             window.viewUser = (id) => {
@@ -1065,6 +1078,213 @@ window.Router = {
         }
     },
 
+    // 创建活动列表表格
+    createActivitiesTable(activities) {
+        if (!activities || activities.length === 0) {
+            return `
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-calendar-times"></i>
+                    </div>
+                    <div class="empty-state-title">暂无活动</div>
+                    <div class="empty-state-description">还没有创建任何活动</div>
+                    ${Auth.hasPermission(['activity:create']) ? `
+                        <button class="btn btn-primary" onclick="ActivityManager.showCreateModal()">
+                            <i class="fas fa-plus"></i>
+                            创建第一个活动
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        return `
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            ${Auth.hasPermission(['activity:delete']) ? `
+                                <th width="50">
+                                    <input type="checkbox" id="select-all-activities" class="form-check-input">
+                                </th>
+                            ` : ''}
+                            <th>活动标题</th>
+                            <th>活动类型</th>
+                            <th>所属团队</th>
+                            <th>开始时间</th>
+                            <th>参与人数</th>
+                            <th>状态</th>
+                            <th>创建者</th>
+                            <th width="200">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${activities.map(activity => `
+                            <tr>
+                                ${Auth.hasPermission(['activity:delete']) ? `
+                                    <td>
+                                        <input type="checkbox" class="activity-checkbox form-check-input" value="${activity.id}">
+                                    </td>
+                                ` : ''}
+                                <td>
+                                    <div style="display: flex; align-items: center;">
+                                        <div style="width: 32px; height: 32px; border-radius: 50%; background: ${this.getActivityIconBackground(activity.type)}; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                            <i class="${this.getActivityIcon(activity.type)}" style="color: ${this.getActivityIconColor(activity.type)}; font-size: 14px;"></i>
+                                        </div>
+                                        <div>
+                                            <div style="font-weight: 500;">${activity.title || '未命名活动'}</div>
+                                            ${activity.description ? `<small style="color: #666;">${activity.description.substring(0, 50)}${activity.description.length > 50 ? '...' : ''}</small>` : ''}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-secondary">
+                                        ${this.getActivityTypeLabel(activity.type)}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div>${activity.team_name || '未知团队'}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div>${Utils.date.format(activity.start_time, 'MM-DD HH:mm')}</div>
+                                        ${activity.location ? `<small style="color: #666;"><i class="fas fa-map-marker-alt"></i> ${activity.location}</small>` : ''}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-info">
+                                        ${activity.current_participants}/${activity.max_participants || '∞'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge ${this.getActivityStatusBadgeClass(activity.status)}">
+                                        ${this.getActivityStatusLabel(activity.status)}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div>${activity.creator_name || '未知'}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-primary" onclick="activitiesManager.viewActivity('${activity.id}')" title="查看详情">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        ${Auth.hasPermission(['activity:update']) ? `
+                                            <button class="btn btn-sm btn-warning" onclick="ActivityManager.editActivity('${activity.id}')" title="编辑">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        ` : ''}
+                                        ${Auth.hasPermission(['activity:delete']) ? `
+                                            <button class="btn btn-sm btn-danger" onclick="ActivityManager.deleteActivity('${activity.id}')" title="删除">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    // 获取活动类型标签
+    getActivityTypeLabel(type) {
+        const typeLabels = {
+            'meeting': '会议',
+            'training': '培训',
+            'workshop': '工作坊',
+            'team_building': '团建',
+            'project': '项目',
+            'presentation': '演示',
+            'brainstorm': '头脑风暴',
+            'review': '评审',
+            'ceremony': '仪式',
+            'other': '其他'
+        };
+        return typeLabels[type] || type;
+    },
+
+    // 获取活动状态标签
+    getActivityStatusLabel(status) {
+        const statusLabels = {
+            'draft': '草稿',
+            'published': '已发布',
+            'ongoing': '进行中',
+            'completed': '已完成',
+            'cancelled': '已取消'
+        };
+        return statusLabels[status] || status;
+    },
+
+    // 获取活动状态徽章样式
+    getActivityStatusBadgeClass(status) {
+        const statusClasses = {
+            'draft': 'badge-secondary',
+            'published': 'badge-success',
+            'ongoing': 'badge-primary',
+            'completed': 'badge-info',
+            'cancelled': 'badge-danger'
+        };
+        return statusClasses[status] || 'badge-secondary';
+    },
+
+    // 获取活动图标
+    getActivityIcon(type) {
+        const iconMap = {
+            'meeting': 'fas fa-users',
+            'training': 'fas fa-graduation-cap',
+            'workshop': 'fas fa-tools',
+            'team_building': 'fas fa-heart',
+            'project': 'fas fa-project-diagram',
+            'presentation': 'fas fa-presentation',
+            'brainstorm': 'fas fa-lightbulb',
+            'review': 'fas fa-search',
+            'ceremony': 'fas fa-trophy',
+            'other': 'fas fa-calendar'
+        };
+        return iconMap[type] || 'fas fa-calendar';
+    },
+
+    // 获取活动图标背景色
+    getActivityIconBackground(type) {
+        const backgroundMap = {
+            'meeting': '#e3f2fd',
+            'training': '#f3e5f5',
+            'workshop': '#fff3e0',
+            'team_building': '#fce4ec',
+            'project': '#e8f5e8',
+            'presentation': '#fff8e1',
+            'brainstorm': '#f1f8e9',
+            'review': '#e0f2f1',
+            'ceremony': '#fff3e0',
+            'other': '#f5f5f5'
+        };
+        return backgroundMap[type] || '#f5f5f5';
+    },
+
+    // 获取活动图标颜色
+    getActivityIconColor(type) {
+        const colorMap = {
+            'meeting': '#1976d2',
+            'training': '#7b1fa2',
+            'workshop': '#f57c00',
+            'team_building': '#c2185b',
+            'project': '#388e3c',
+            'presentation': '#fbc02d',
+            'brainstorm': '#689f38',
+            'review': '#00796b',
+            'ceremony': '#f57c00',
+            'other': '#757575'
+        };
+        return colorMap[type] || '#757575';
+    },
+
     // 创建团队列表表格
     createTeamsTable(teams) {
         if (!teams || teams.length === 0) {
@@ -1503,102 +1723,182 @@ window.Router = {
         const pageContent = document.getElementById('page-content');
 
         try {
+            // 获取URL参数
+            const params = Utils.url.getParams();
+            const currentPage = parseInt(params.page) || 1;
+            const searchQuery = params.search || '';
+            const statusFilter = params.status || '';
+            const typeFilter = params.type || '';
+
+            // 先显示基础页面结构，避免API错误导致页面无法显示
             pageContent.innerHTML = `
                 <div class="activities-page">
-                    <!-- 页面头部 -->
                     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                        <div>
-                            <h2>活动列表</h2>
-                            <p class="text-muted mb-0">管理和查看所有活动信息</p>
-                        </div>
-                        <div class="header-actions">
+                        <h2>活动列表</h2>
+                        <div class="header-actions" style="display: flex; gap: 8px;">
                             <button class="btn btn-secondary" onclick="activitiesManager.refreshList()">
                                 <i class="fas fa-sync-alt"></i>
                                 刷新
                             </button>
-                            ${Auth.hasPermission('activity:create') ? `
-                                <button class="btn btn-primary" onclick="activitiesManager.showCreateModal()">
+                        </div>
+                    </div>
+                    
+                    <!-- 搜索和筛选 - 紧凑布局 -->
+                    <div class="filters-section" style="margin-bottom: 16px;">
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <!-- 搜索框 -->
+                            <div style="flex: 1; min-width: 200px;">
+                                <div class="search-input-group" style="height: 36px;">
+                                    <input type="text" class="form-control" placeholder="搜索活动标题..." 
+                                           value="${searchQuery}" 
+                                           id="activity-search-input"
+                                           onkeyup="if(event.key==='Enter') activitiesManager.handleSearch(this.value)"
+                                           style="height: 36px;">
+                                    <button class="btn btn-outline-secondary" type="button" 
+                                            onclick="activitiesManager.handleSearch(document.getElementById('activity-search-input').value)"
+                                            style="height: 36px; background-color: #f8f9fa; padding: 0 12px;">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 状态筛选 -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="margin: 0; font-size: 14px; white-space: nowrap;">状态:</label>
+                                <select class="form-control" style="width: 100px; height: 36px; font-size: 14px;" 
+                                        onchange="activitiesManager.handleFilter('status', this.value)">
+                                    <option value="">全部</option>
+                                    <option value="draft" ${statusFilter === 'draft' ? 'selected' : ''}>草稿</option>
+                                    <option value="published" ${statusFilter === 'published' ? 'selected' : ''}>已发布</option>
+                                    <option value="ongoing" ${statusFilter === 'ongoing' ? 'selected' : ''}>进行中</option>
+                                    <option value="completed" ${statusFilter === 'completed' ? 'selected' : ''}>已完成</option>
+                                    <option value="cancelled" ${statusFilter === 'cancelled' ? 'selected' : ''}>已取消</option>
+                                </select>
+                            </div>
+                            
+                            <!-- 类型筛选 -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="margin: 0; font-size: 14px; white-space: nowrap;">类型:</label>
+                                <select class="form-control" style="width: 100px; height: 36px; font-size: 14px;" 
+                                        onchange="activitiesManager.handleFilter('type', this.value)">
+                                    <option value="">全部</option>
+                                    <option value="meeting" ${typeFilter === 'meeting' ? 'selected' : ''}>会议</option>
+                                    <option value="training" ${typeFilter === 'training' ? 'selected' : ''}>培训</option>
+                                    <option value="workshop" ${typeFilter === 'workshop' ? 'selected' : ''}>工作坊</option>
+                                    <option value="team_building" ${typeFilter === 'team_building' ? 'selected' : ''}>团建</option>
+                                    <option value="other" ${typeFilter === 'other' ? 'selected' : ''}>其他</option>
+                                </select>
+                            </div>
+                            
+                            <!-- 创建活动按钮 -->
+                            ${Auth.hasPermission(['activity:create']) ? `
+                                <button class="btn btn-primary" onclick="ActivityManager.showCreateModal()" style="height: 36px; white-space: nowrap;">
                                     <i class="fas fa-plus"></i>
                                     创建活动
+                                </button>
+                                <button class="btn btn-success" onclick="ActivityManager.showAAActivityModal()" style="height: 36px; white-space: nowrap; margin-left: 8px;">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    创建AA活动
                                 </button>
                             ` : ''}
                         </div>
                     </div>
-
-                    <!-- 搜索和筛选 -->
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" placeholder="搜索活动标题..." 
-                                               id="search-input" onkeyup="if(event.key==='Enter') activitiesManager.handleSearch()">
-                                        <button class="btn btn-outline-secondary" onclick="activitiesManager.handleSearch()">
-                                            <i class="fas fa-search"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <select class="form-select" id="status-filter" onchange="activitiesManager.handleFilter()">
-                                        <option value="">全部状态</option>
-                                        <option value="draft">草稿</option>
-                                        <option value="published">已发布</option>
-                                        <option value="ongoing">进行中</option>
-                                        <option value="completed">已完成</option>
-                                        <option value="cancelled">已取消</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <select class="form-select" id="type-filter" onchange="activitiesManager.handleFilter()">
-                                        <option value="">全部类型</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <select class="form-select" id="team-filter" onchange="activitiesManager.handleFilter()">
-                                        <option value="">全部团队</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <button class="btn btn-outline-secondary w-100" onclick="activitiesManager.clearFilters()">
-                                        <i class="fas fa-times"></i>
-                                        清除筛选
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
+                    
                     <!-- 活动列表 -->
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="card-title mb-0">活动列表</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="activities-container">
-                                <div class="text-center py-4">
-                                    <div class="spinner-border" role="status">
-                                        <span class="visually-hidden">加载中...</span>
-                                    </div>
-                                    <p class="mt-2">正在加载活动数据...</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3 class="card-title">活动列表</h3>
+                                <div class="header-actions" style="display: flex; gap: 6px;">
+                                    ${Auth.hasPermission(['activity:delete']) ? `
+                                        <button class="btn btn-danger btn-sm" onclick="activitiesManager.batchDelete()" id="batch-delete-activities-btn" style="display: none;">
+                                            <i class="fas fa-trash"></i>
+                                            批量删除
+                                        </button>
+                                    ` : ''}
                                 </div>
                             </div>
+                        </div>
+                        <div class="card-body" id="activities-table-container">
+                            ${Components.createLoading('加载活动列表...')}
                         </div>
                     </div>
                 </div>
             `;
 
-            // 动态加载活动管理器脚本
-            if (!window.activitiesManager) {
-                await this.loadScript('js/activities-manager.js');
-            }
-
-            // 初始化活动管理器
-            if (window.activitiesManager) {
-                await window.activitiesManager.init();
-            }
+            // 异步加载活动数据
+            this.loadActivitiesData(currentPage, searchQuery, statusFilter, typeFilter);
 
         } catch (error) {
             throw new Error(`活动列表加载失败: ${error.message}`);
+        }
+    },
+
+    // 异步加载活动数据
+    async loadActivitiesData(currentPage, searchQuery, statusFilter, typeFilter) {
+        try {
+            // 构建API请求参数
+            const apiParams = {
+                page: currentPage,
+                limit: 20
+            };
+
+            if (searchQuery) apiParams.search = searchQuery;
+            if (statusFilter) apiParams.status = statusFilter;
+            if (typeFilter) apiParams.type = typeFilter;
+
+            const response = await API.activities.getList(apiParams);
+            const activities = response.data || [];
+            const pagination = response.pagination || {};
+
+            // 更新表格内容
+            const tableContainer = document.getElementById('activities-table-container');
+            if (tableContainer) {
+                tableContainer.innerHTML = `
+                    ${this.createActivitiesTable(activities)}
+                    ${this.createSimplePagination(pagination, currentPage)}
+                `;
+            }
+
+            // 动态加载活动管理器脚本
+            if (typeof ActivitiesManager === 'undefined') {
+                await this.loadScript('/js/activities-manager.js');
+            }
+            
+            // 动态加载ActivityManager脚本（用于创建活动）
+            if (typeof ActivityManager === 'undefined') {
+                await this.loadScript('/js/activity-manager.js');
+            }
+
+            // 初始化活动管理器
+            if (typeof activitiesManager === 'undefined') {
+                window.activitiesManager = new ActivitiesManager();
+            }
+            await activitiesManager.init();
+            
+            // 初始化ActivityManager
+            if (typeof ActivityManager !== 'undefined') {
+                ActivityManager.init();
+            }
+
+        } catch (error) {
+            console.error('加载活动数据失败:', error);
+            const tableContainer = document.getElementById('activities-table-container');
+            if (tableContainer) {
+                tableContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <div class="empty-state-title">加载失败</div>
+                        <div class="empty-state-description">${error.message}</div>
+                        <button class="btn btn-primary" onclick="Router.navigate('/activities/list', {force: true})">
+                            <i class="fas fa-sync-alt"></i>
+                            重新加载
+                        </button>
+                    </div>
+                `;
+            }
         }
     },
 
@@ -1682,17 +1982,17 @@ window.Router = {
                                         <small style="color: var(--text-secondary);">${activity.creator?.email || ''}</small>
                                     </td>
                                     <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-sm btn-outline-primary" onclick="ActivityManager.viewActivity('${activity.id}')" title="查看详情">
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-primary" onclick="activitiesManager.viewActivity('${activity.id}')" title="查看详情">
                                                 <i class="fas fa-eye"></i>
                                             </button>
                                             ${Auth.hasPermission(['activity:update']) ? `
-                                                <button class="btn btn-sm btn-outline-secondary" onclick="ActivityManager.editActivity('${activity.id}')" title="编辑">
+                                                <button class="btn btn-sm btn-warning" onclick="ActivityManager.editActivity('${activity.id}')" title="编辑">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
                                             ` : ''}
                                             ${Auth.hasPermission(['activity:delete']) ? `
-                                                <button class="btn btn-sm btn-outline-danger" onclick="ActivityManager.deleteActivity('${activity.id}')" title="删除">
+                                                <button class="btn btn-sm btn-danger" onclick="ActivityManager.deleteActivity('${activity.id}')" title="删除">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             ` : ''}
@@ -2267,5 +2567,94 @@ window.Router = {
         });
 
         Components.renderBreadcrumb(breadcrumbItems);
+    },
+
+    // 渲染轮播图管理页面
+    async renderBanners() {
+        const pageContent = document.getElementById('page-content');
+
+        try {
+            // 加载轮播图管理器脚本
+            if (typeof BannersManager === 'undefined') {
+                await this.loadScript('/js/banners-manager.js');
+            }
+
+            pageContent.innerHTML = `
+                <div class="banners-page">
+                    <!-- 消息容器 -->
+                    <div id="messages-container"></div>
+                    
+                    <!-- 页面头部 -->
+                    <div class="page-header" style="background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h1 style="font-size: 1.5rem; margin-bottom: 8px;">
+                                    <i class="fas fa-images text-primary"></i>
+                                    轮播图管理
+                                </h1>
+                                <p style="color: #6c757d; margin: 0;">管理首页轮播图，支持图片上传、排序和状态控制</p>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <button class="btn btn-primary" onclick="bannersManager.showCreateModal()">
+                                    <i class="fas fa-plus"></i>
+                                    新增轮播图
+                                </button>
+                                <button class="btn btn-secondary" onclick="bannersManager.refreshList()">
+                                    <i class="fas fa-sync-alt"></i>
+                                    刷新
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 主要内容 -->
+                    <div class="content-card" style="background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div id="banners-container">
+                            <div style="text-align: center; padding: 40px; color: #6c757d;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">加载中...</span>
+                                </div>
+                                <p style="margin-top: 12px;">正在加载轮播图数据...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 初始化轮播图管理器
+            console.log('开始初始化轮播图管理器...');
+            console.log('window.bannersManager:', typeof window.bannersManager, window.bannersManager);
+            console.log('bannersManager:', typeof bannersManager);
+            
+            if (window.bannersManager) {
+                console.log('使用 window.bannersManager.init()');
+                await window.bannersManager.init();
+            } else if (typeof bannersManager !== 'undefined') {
+                console.log('使用 bannersManager.init()');
+                await bannersManager.init();
+            } else {
+                console.error('BannersManager未正确加载');
+                // 尝试手动加载脚本
+                console.log('尝试手动创建 BannersManager');
+                if (typeof BannersManager !== 'undefined') {
+                    window.bannersManager = new BannersManager();
+                    await window.bannersManager.init();
+                } else {
+                    console.error('BannersManager 类未定义');
+                }
+            }
+
+        } catch (error) {
+            console.error('渲染轮播图页面失败:', error);
+            pageContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="empty-state-title">页面加载失败</div>
+                    <div class="empty-state-description">${error.message}</div>
+                </div>
+            `;
+        }
     }
 };

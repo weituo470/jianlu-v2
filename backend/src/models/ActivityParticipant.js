@@ -30,6 +30,32 @@ const ActivityParticipant = sequelize.define('ActivityParticipant', {
   registered_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
+  },
+  // 支付相关字段
+  payment_status: {
+    type: DataTypes.ENUM('unpaid', 'paid', 'exempted'),
+    defaultValue: 'unpaid',
+    comment: '支付状态'
+  },
+  payment_amount: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00,
+    comment: '应付金额'
+  },
+  payment_time: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: '支付时间'
+  },
+  payment_method: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: '支付方式'
+  },
+  payment_note: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: '支付备注'
   }
 }, {
   tableName: 'activity_participants',
@@ -55,6 +81,55 @@ ActivityParticipant.associate = (models) => {
     foreignKey: 'user_id',
     as: 'user'
   });
+};
+
+// 实例方法：更新支付状态
+ActivityParticipant.prototype.updatePaymentStatus = async function(paymentData) {
+  const updateData = {
+    payment_status: paymentData.payment_status
+  };
+  
+  if (paymentData.payment_status === 'paid') {
+    updateData.payment_time = new Date();
+    updateData.payment_method = paymentData.payment_method || null;
+    updateData.payment_note = paymentData.payment_note || null;
+  }
+  
+  return await this.update(updateData);
+};
+
+// 静态方法：获取活动的支付统计
+ActivityParticipant.getPaymentSummary = async function(activityId) {
+  const participants = await this.findAll({
+    where: { activity_id: activityId },
+    include: [{
+      model: sequelize.models.User,
+      as: 'user',
+      attributes: ['id', 'username', 'email', 'profile']
+    }]
+  });
+  
+  const summary = {
+    total: participants.length,
+    paid: 0,
+    unpaid: 0,
+    exempted: 0,
+    totalAmount: 0,
+    paidAmount: 0
+  };
+  
+  participants.forEach(p => {
+    summary[p.payment_status]++;
+    summary.totalAmount += parseFloat(p.payment_amount) || 0;
+    if (p.payment_status === 'paid') {
+      summary.paidAmount += parseFloat(p.payment_amount) || 0;
+    }
+  });
+  
+  return {
+    summary,
+    participants
+  };
 };
 
 module.exports = ActivityParticipant;

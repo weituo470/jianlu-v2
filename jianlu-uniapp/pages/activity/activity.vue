@@ -113,36 +113,93 @@
 </template>
 
 <script>
-	import { activityApi, activityTypes } from '../../api/activity.js'
+	import { activityApi } from '../../api/index.js'
 	import { showSuccess, showError, formatDate } from '../../utils/index.js'
 
 	export default {
 		data() {
 			return {
 				activities: [],
+				activityTypes: {}, // 活动类型数据，从API加载
 				loading: false,
 				currentFilter: 'all',
 				currentType: '',
-				showTypeFilter: false,
-				activityTypes
+				showTypeFilter: false
 			}
 		},
 
 		onLoad() {
-			this.loadActivities()
+			this.loadInitialData()
 		},
 
 		onShow() {
-			this.loadActivities()
+			this.loadInitialData()
 		},
 
 		onPullDownRefresh() {
-			this.loadActivities().finally(() => {
+			this.loadInitialData().finally(() => {
 				uni.stopPullDownRefresh()
 			})
 		},
 
 		methods: {
+			// 加载初始数据
+			async loadInitialData() {
+				await Promise.all([
+					this.loadActivities(),
+					this.loadActivityTypes()
+				])
+			},
+
+			// 加载活动类型
+			async loadActivityTypes() {
+				try {
+					// 从后端API获取真实活动类型数据
+					const response = await activityApi.getTypes()
+					if (response.success) {
+						// 转换后端数据格式为前端需要的格式
+						const typesData = {}
+						const types = response.data || []
+						
+						types.forEach(type => {
+							// 为每个类型添加图标
+							const icon = this.getTypeIcon(type.id)
+							typesData[type.id] = {
+								icon: icon,
+								name: type.name
+							}
+						})
+						
+						this.activityTypes = typesData
+						console.log(`成功加载 ${types.length} 个活动类型`)
+					} else {
+						throw new Error(response.message || '获取活动类型失败')
+					}
+				} catch (error) {
+					console.error('加载活动类型失败:', error)
+					// 降级到默认类型
+					this.activityTypes = {
+						other: { icon: '📅', name: '其他' }
+					}
+				}
+			},
+
+			// 根据类型ID获取对应图标
+			getTypeIcon(typeId) {
+				const iconMap = {
+					meeting: '💼',
+					event: '🎉', 
+					training: '📚',
+					social: '🍽️',
+					sports: '⚽',
+					travel: '🏖️',
+					workshop: '🔧',
+					conference: '🎤',
+					other: '📅'
+				}
+				return iconMap[typeId] || '📅'
+			},
+
 			// 设置筛选条件
 			setFilter(filter) {
 				this.currentFilter = filter
@@ -163,7 +220,9 @@
 					const params = this.buildParams()
 					const response = await activityApi.getList(params)
 					if (response.success) {
-						this.activities = response.data || []
+						// 修复：活动数据在 response.data.activities 中
+						const activities = response.data.activities || response.data || []
+						this.activities = Array.isArray(activities) ? activities : []
 					}
 				} catch (error) {
 					console.error('加载活动失败:', error)

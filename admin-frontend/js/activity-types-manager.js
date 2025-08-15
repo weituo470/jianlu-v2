@@ -1,3 +1,4 @@
+/* 最后修改时间: 2025-01-12 14:45:00 */
 // 活动类型管理器
 // 基于团队类型管理器的成功模式
 
@@ -14,6 +15,7 @@ class ActivityTypesManager {
     }
 
     // 加载活动类型数据
+    // TODO: 函数复杂度较高(70行)，建议拆分为多个小函数：loadFromAPI、loadFromFetch、processResponse
     async loadTypes() {
         if (this.isLoading) return;
         
@@ -111,12 +113,12 @@ class ActivityTypesManager {
                                     </span>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary me-1" 
+                                    <button class="btn btn-sm btn-warning me-1" 
                                             onclick="activityTypesManager.editType('${type.id}')"
                                             title="编辑">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" 
+                                    <button class="btn btn-sm btn-danger" 
                                             onclick="activityTypesManager.deleteType('${type.id}')"
                                             title="删除">
                                         <i class="fas fa-trash"></i>
@@ -313,8 +315,10 @@ class ActivityTypesManager {
             if (result.success) {
                 this.showMessage('活动类型新增成功', 'success');
                 
-                // 关闭模态框
-                this.closeModal();
+                // 使用FormUtils安全关闭模态框，避免浏览器未保存数据警告
+                FormUtils.onFormSubmitSuccess('createActivityTypeForm', () => {
+                    this.closeModal();
+                });
                 
                 // 重新加载数据
                 await this.loadTypes();
@@ -398,12 +402,14 @@ class ActivityTypesManager {
     // 显示消息
     showMessage(message, type = 'info') {
         // 创建消息提示
-        const alertClass = {
+        // TODO: 将硬编码的样式映射迁移到配置文件或常量定义
+        const alertClassTemp = {
             'success': 'alert-success',
             'error': 'alert-danger',
             'warning': 'alert-warning',
             'info': 'alert-info'
-        }[type] || 'alert-info';
+        };
+        const alertClass = alertClassTemp[type] || 'alert-info';
 
         const alertHtml = `
             <div class="alert ${alertClass} alert-dismissible fade show" role="alert">

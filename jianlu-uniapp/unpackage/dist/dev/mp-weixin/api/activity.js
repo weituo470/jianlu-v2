@@ -3,47 +3,47 @@ const utils_request = require("../utils/request.js");
 const activityApi = {
   // 获取活动列表
   getList(params = {}) {
-    return utils_request.get("/wechat/activities", params);
+    return utils_request.get("/miniapp/activities", params);
   },
   // 获取活动详情
   getDetail(id) {
-    return utils_request.get(`/wechat/activities/${id}`);
+    return utils_request.get(`/miniapp/activities/${id}`);
   },
   // 创建活动
   create(data) {
-    return utils_request.post("/wechat/activities", data);
+    return utils_request.post("/miniapp/activities", data);
   },
   // 更新活动
   update(id, data) {
-    return utils_request.put(`/wechat/activities/${id}`, data);
+    return utils_request.put(`/miniapp/activities/${id}`, data);
   },
   // 删除活动
   delete(id) {
-    return utils_request.del(`/wechat/activities/${id}`);
+    return utils_request.del(`/miniapp/activities/${id}`);
   },
   // 报名活动
   register(id, data) {
-    return utils_request.post(`/wechat/activities/${id}/register`, data);
+    return utils_request.post(`/miniapp/activities/${id}/register`, data);
   },
   // 取消报名
   cancelRegistration(id) {
-    return utils_request.del(`/wechat/activities/${id}/register`);
+    return utils_request.del(`/miniapp/activities/${id}/register`);
   },
   // 获取我的报名列表
   getMyRegistrations(params = {}) {
-    return utils_request.get("/wechat/my-registrations", params);
+    return utils_request.get("/miniapp/my-registrations", params);
   },
   // 获取活动报名列表（管理员）
   getRegistrations(id, params = {}) {
-    return utils_request.get(`/wechat/activities/${id}/registrations`, params);
+    return utils_request.get(`/miniapp/activities/${id}/registrations`, params);
   },
   // 审核报名（管理员）
   approveRegistration(registrationId, approved = true) {
-    return utils_request.post(`/wechat/registrations/${registrationId}/approve`, { approved });
+    return utils_request.post(`/miniapp/registrations/${registrationId}/approve`, { approved });
   },
   // 批量审核报名（管理员）
   batchApproveRegistrations(registrationIds, approved = true) {
-    return utils_request.post("/wechat/registrations/batch-approve", {
+    return utils_request.post("/miniapp/registrations/batch-approve", {
       registration_ids: registrationIds,
       approved
     });

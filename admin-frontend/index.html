@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="/css/responsive.css">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Swiper CSS for banner showcase -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
 </head>
 
 <body>
@@ -172,7 +174,7 @@
 
         // 脚本加载计数器
         let scriptsLoaded = 0;
-        const totalScripts = 7;
+        const totalScripts = 9;
         const loadedScripts = new Set();
 
         function onScriptLoad(scriptName) {
@@ -234,6 +236,9 @@
     </script>
 
     <!-- JavaScript模块 -->
+    <!-- 加载外部依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    
     <script>
         // 动态加载脚本
         function loadScript(src) {
@@ -266,6 +271,8 @@
                 await loadScript('/js/api.js');
                 await loadScript('/js/auth.js');
                 await loadScript('/js/components.js');
+                await loadScript('/js/banners-manager.js');
+                await loadScript('/js/banner-showcase.js');
                 await loadScript('/js/router.js');
                 await loadScript('/js/app.js');
             } catch (error) {

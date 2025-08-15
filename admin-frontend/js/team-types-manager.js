@@ -1,3 +1,4 @@
+/* 最后修改时间: 2025-01-12 14:45:00 */
 // 团队类型管理器 - 重写版本
 // 简化设计，专注核心功能
 
@@ -14,13 +15,14 @@ class TeamTypesManager {
     }
 
     // 加载团队类型数据
+    // TODO: 函数复杂度较高(70行)，建议拆分为多个小函数：loadFromAPI、loadFromFetch、processResponse
     async loadTypes() {
         if (this.isLoading) return;
-        
+
         this.isLoading = true;
         try {
             console.log('正在加载团队类型数据...');
-            
+
             // 使用现有系统的API调用方式
             if (typeof API !== 'undefined' && API.teams && API.teams.getTypes) {
                 const response = await API.teams.getTypes();
@@ -51,7 +53,7 @@ class TeamTypesManager {
                 }
 
                 const data = await response.json();
-                
+
                 if (data.success) {
                     this.types = data.data.map(type => ({
                         id: type.value,
@@ -111,12 +113,12 @@ class TeamTypesManager {
                                     </span>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary me-1" 
+                                    <button class="btn btn-sm btn-warning me-1" 
                                             onclick="teamTypesManager.editType('${type.id}')"
                                             title="编辑">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" 
+                                    <button class="btn btn-sm btn-danger" 
                                             onclick="teamTypesManager.deleteType('${type.id}')"
                                             title="删除">
                                         <i class="fas fa-trash"></i>
@@ -133,7 +135,7 @@ class TeamTypesManager {
     // 显示新增弹窗
     showAddModal() {
         console.log('showAddModal被调用');
-        
+
         const modalContent = `
             <form id="addTypeForm">
                 <div class="form-group">
@@ -178,7 +180,7 @@ class TeamTypesManager {
             this.createSimpleModal(modalContent);
         }
     }
-    
+
     // 简单模态框实现（降级方案）
     createSimpleModal(content) {
         const modalHtml = `
@@ -235,9 +237,9 @@ class TeamTypesManager {
                 </div>
             </div>
         `;
-        
+
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
+
         // 点击背景关闭
         const modal = document.getElementById('addTypeModal');
         modal.addEventListener('click', (e) => {
@@ -246,9 +248,9 @@ class TeamTypesManager {
             }
         });
     }
-    
 
-    
+
+
     // 关闭模态框
     closeModal() {
         if (this.currentModal && this.currentModal.close) {
@@ -268,7 +270,7 @@ class TeamTypesManager {
     async submitAdd() {
         const form = document.getElementById('addTypeForm');
         const formData = new FormData(form);
-        
+
         const typeData = {
             id: formData.get('id').trim(),
             name: formData.get('name').trim(),
@@ -293,7 +295,7 @@ class TeamTypesManager {
 
         try {
             console.log('正在新增团队类型:', typeData);
-            
+
             let result;
             // 使用现有系统的API调用方式
             if (typeof API !== 'undefined' && API.teams && API.teams.createType) {
@@ -311,13 +313,15 @@ class TeamTypesManager {
                 });
                 result = await response.json();
             }
-            
+
             if (result.success) {
                 this.showMessage('团队类型新增成功', 'success');
-                
-                // 关闭模态框
-                this.closeModal();
-                
+
+                // 使用FormUtils安全关闭模态框，避免浏览器未保存数据警告
+                FormUtils.onFormSubmitSuccess('createTeamTypeForm', () => {
+                    this.closeModal();
+                });
+
                 // 重新加载数据
                 await this.loadTypes();
                 this.refreshPage();
@@ -361,7 +365,7 @@ class TeamTypesManager {
 
         try {
             console.log('正在删除团队类型:', typeId);
-            
+
             let result;
             // 使用现有系统的API调用方式
             if (typeof API !== 'undefined' && API.teams && API.teams.deleteType) {
@@ -377,10 +381,10 @@ class TeamTypesManager {
                 });
                 result = await response.json();
             }
-            
+
             if (result.success) {
                 this.showMessage('团队类型删除成功', 'success');
-                
+
                 // 重新加载数据
                 await this.loadTypes();
                 this.refreshPage();

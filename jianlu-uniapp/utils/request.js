@@ -1,5 +1,7 @@
 // HTTP请求工具
-const BASE_URL = 'http://localhost:3458/api'
+import envConfig from '../config/env.js'
+
+const BASE_URL = envConfig.API_BASE_URL
 
 // 请求拦截器
 const request = (options) => {

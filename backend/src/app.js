@@ -16,11 +16,14 @@ const userRoutes = require('./routes/users');
 const teamRoutes = require('./routes/teams');
 
 const app = express();
-const PORT = process.env.PORT || 3458;
+const PORT = process.env.PORT || 3459;
 
-// 临时禁用CSP以排查问题
+// 配置helmet，允许小程序和跨域访问
 app.use(helmet({
-  contentSecurityPolicy: false
+  contentSecurityPolicy: false,
+  frameguard: false,  // 禁用X-Frame-Options限制
+  crossOriginResourcePolicy: false,  // 禁用跨域资源策略限制
+  crossOriginOpenerPolicy: false     // 禁用跨域开启策略限制
 }));
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
@@ -61,12 +64,19 @@ app.get('/health', (req, res) => {
 // 静态文件服务 - 提供管理端前端文件
 app.use(express.static(path.join(__dirname, '../../admin-frontend')));
 
+// 静态文件服务 - 提供上传的文件
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // API路由
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/activities', require('./routes/activities'));
 app.use('/api/user-activities', require('./routes/userActivities'));
+app.use('/api/banners', require('./routes/banners')); // 轮播图API路由
+app.use('/api/miniapp', require('./routes/miniapp')); // 小程序API路由
+app.use('/api/accounts', require('./routes/accounts')); // 用户余额管理API路由
+app.use('/api/registrations', require('./routes/registrations')); // 活动报名API路由
 
 // SPA fallback - 处理路由
 app.get('*', (req, res) => {

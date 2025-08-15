@@ -105,6 +105,39 @@ window.API = {
         });
     },
 
+    // 文件上传请求
+    async upload(url, formData, method = 'POST') {
+        const config = {
+            method: method,
+            // 不设置Content-Type，让浏览器自动设置multipart/form-data
+            body: formData
+        };
+
+        // 添加认证头
+        const token = localStorage.getItem(AppConfig.TOKEN_KEY);
+        if (token) {
+            const cleanToken = token.replace(/^"|"$/g, '');
+            config.headers = {
+                'Authorization': `Bearer ${cleanToken}`
+            };
+        }
+
+        try {
+            const response = await fetch(`${AppConfig.API_BASE_URL}${url}`, config);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Upload request failed:', error);
+            throw error;
+        }
+    },
+
     // 认证相关API
     auth: {
         // 用户登录
@@ -144,6 +177,11 @@ window.API = {
         // 获取用户详情
         getDetail(id) {
             return API.get(`/users/${id}`);
+        },
+
+        // 获取用户详细信息（包含关联数据）
+        getDetails(id) {
+            return API.get(`/users/${id}/details`);
         },
 
         // 创建用户
@@ -330,6 +368,38 @@ window.API = {
         // 删除活动类型
         deleteType(typeId) {
             return API.delete(`/activities/types/${typeId}`);
+        },
+
+        // ==================== 费用管理相关接口 ====================
+        
+        // 创建带费用的活动
+        createWithCost(data) {
+            return API.post('/activities/with-cost', data);
+        },
+
+        // 更新活动费用信息
+        updateCost(id, data) {
+            return API.put(`/activities/${id}/cost`, data);
+        },
+
+        // 获取活动费用详情
+        getCostDetails(id) {
+            return API.get(`/activities/${id}/cost-details`);
+        },
+
+        // 获取活动费用统计
+        getCostSummary(id) {
+            return API.get(`/activities/${id}/cost-summary`);
+        },
+
+        // 获取活动支付状态列表
+        getPaymentStatus(id) {
+            return API.get(`/activities/${id}/payment-status`);
+        },
+
+        // 更新参与者支付状态
+        updatePaymentStatus(participantId, data) {
+            return API.put(`/activities/participant/${participantId}/payment`, data);
         }
     },
 
@@ -413,7 +483,7 @@ window.API = {
     },
 
     // 文件上传API
-    upload: {
+    fileUpload: {
         // 上传单个文件
         async single(file, onProgress) {
             const formData = new FormData();
@@ -484,6 +554,50 @@ window.API = {
             }
 
             return results;
+        }
+    },
+
+    // 轮播图管理API
+    banners: {
+        // 获取轮播图列表
+        getList(params = {}) {
+            return window.API.get('/banners', params);
+        },
+
+        // 创建轮播图
+        create(formData) {
+            // 对于文件上传，使用特殊的请求方法
+            return window.API.upload('/banners', formData);
+        },
+
+        // 获取轮播图详情
+        getDetail(id) {
+            return window.API.get(`/banners/${id}`);
+        },
+
+        // 更新轮播图
+        update(id, formData) {
+            return window.API.upload(`/banners/${id}`, formData, 'PUT');
+        },
+
+        // 更新轮播图状态
+        updateStatus(id, status) {
+            return window.API.put(`/banners/${id}/status`, { status });
+        },
+
+        // 更新轮播图排序
+        updateSort(id, sortOrder) {
+            return window.API.put(`/banners/${id}/sort`, { sort_order: sortOrder });
+        },
+
+        // 批量更新排序
+        batchUpdateSort(sortData) {
+            return window.API.put('/banners/batch-sort', { items: sortData });
+        },
+
+        // 删除轮播图
+        delete(id) {
+            return window.API.delete(`/banners/${id}`);
         }
     }
 };
