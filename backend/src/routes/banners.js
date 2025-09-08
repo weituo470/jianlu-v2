@@ -368,7 +368,7 @@ router.get('/public/active', async (req, res) => {
                         if (localIP !== 'localhost') break;
                     }
                     
-                    imageUrl = `${protocol}://${localIP}:${host.split(':')[1] || '3458'}${banner.image_url}`;
+                    imageUrl = `${protocol}://${localIP}:${host.split(':')[1] || process.env.PORT || '3459'}${banner.image_url}`;
                 } else {
                     imageUrl = `${protocol}://${host}${banner.image_url}`;
                 }
