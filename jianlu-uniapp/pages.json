@@ -67,6 +67,13 @@
 			}
 		},
 		{
+			"path": "pages/dinner-party-create/dinner-party-create",
+			"style": {
+				"navigationBarTitleText": "创建聚餐活动",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
 			"path": "pages/profile/profile",
 			"style": {
 				"navigationBarTitleText": "我的"
@@ -76,6 +83,12 @@
 			"path": "pages/test/test",
 			"style": {
 				"navigationBarTitleText": "网络测试"
+			}
+		},
+		{
+			"path": "pages/test-wechat/test-wechat",
+			"style": {
+				"navigationBarTitleText": "微信登录测试"
 			}
 		}
 	],

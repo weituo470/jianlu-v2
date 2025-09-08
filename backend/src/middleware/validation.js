@@ -221,6 +221,21 @@ const batchOperationSchema = Joi.object({
     })
 });
 
+/**
+ * 微信登录验证模式
+ */
+const wechatLoginSchema = Joi.object({
+  code: Joi.string()
+    .min(10)
+    .max(100)
+    .required()
+    .messages({
+      'string.min': '授权码格式不正确',
+      'string.max': '授权码格式不正确',
+      'any.required': '微信授权码不能为空'
+    })
+});
+
 module.exports = {
   validate,
   validateRequest,
@@ -230,5 +245,6 @@ module.exports = {
   paginationSchema,
   idParamSchema,
   resetPasswordSchema,
-  batchOperationSchema
+  batchOperationSchema,
+  wechatLoginSchema
 };

@@ -890,4 +890,414 @@ router.put('/participant/:participantId/payment', authenticateToken, async (req,
   }
 });
 
+// ==================== 聚餐活动专用接口 ====================
+
+// 创建聚餐活动验证模式
+const createDinnerPartySchema = Joi.object({
+  title: Joi.string()
+    .min(2)
+    .max(200)
+    .required()
+    .messages({
+      'string.min': '活动标题至少2个字符',
+      'string.max': '活动标题最多200个字符',
+      'any.required': '活动标题不能为空'
+    }),
+  description: Joi.string()
+    .max(1000)
+    .allow('')
+    .default('')
+    .messages({
+      'string.max': '活动描述不能超过1000字符'
+    }),
+  team_id: Joi.string()
+    .required()
+    .messages({
+      'string.base': '团队ID必须是字符串',
+      'any.required': '聚餐活动必须指定团队'
+    }),
+  start_time: Joi.date()
+    .required()
+    .messages({
+      'date.base': '开始时间格式不正确',
+      'any.required': '开始时间不能为空'
+    }),
+  end_time: Joi.date()
+    .required()
+    .min(Joi.ref('start_time'))
+    .messages({
+      'date.base': '结束时间格式不正确',
+      'date.min': '结束时间必须晚于开始时间',
+      'any.required': '结束时间不能为空'
+    }),
+  location: Joi.string()
+    .max(255)
+    .required()
+    .messages({
+      'string.max': '活动地点不能超过255字符',
+      'any.required': '活动地点不能为空'
+    }),
+  min_participants: Joi.number()
+    .integer()
+    .min(1)
+    .required()
+    .messages({
+      'number.min': '最少参与人数至少为1',
+      'any.required': '最少参与人数不能为空'
+    }),
+  max_participants: Joi.number()
+    .integer()
+    .min(Joi.ref('min_participants'))
+    .required()
+    .messages({
+      'number.min': '最多参与人数不能少于最少参与人数',
+      'any.required': '最多参与人数不能为空'
+    }),
+  company_budget: Joi.number()
+    .precision(2)
+    .min(0)
+    .required()
+    .messages({
+      'number.min': '公司预算不能为负数',
+      'any.required': '公司预算不能为空'
+    }),
+  total_cost: Joi.number()
+    .precision(2)
+    .min(0)
+    .allow(null)
+    .messages({
+      'number.min': '预计总费用不能为负数'
+    }),
+  payment_deadline: Joi.date()
+    .min(Joi.ref('start_time'))
+    .max(Joi.ref('end_time'))
+    .allow(null)
+    .messages({
+      'date.min': '支付截止时间不能早于活动开始时间',
+      'date.max': '支付截止时间不能晚于活动结束时间'
+    }),
+  cost_description: Joi.string()
+    .max(500)
+    .allow('')
+    .messages({
+      'string.max': '费用说明不能超过500字符'
+    }),
+  auto_cancel_threshold: Joi.string()
+    .valid('min_participants', 'max_participants', 'both')
+    .default('both')
+    .messages({
+      'any.only': '自动取消条件必须是: min_participants, max_participants, both'
+    })
+});
+
+// 创建聚餐活动
+router.post('/dinner-party', authenticateToken, requirePermission('activity:create'), validate(createDinnerPartySchema), async (req, res) => {
+  try {
+    const { Activity } = require('../models');
+    
+    const {
+      title,
+      description,
+      team_id,
+      start_time,
+      end_time,
+      location,
+      min_participants,
+      max_participants,
+      company_budget,
+      total_cost,
+      payment_deadline,
+      cost_description,
+      auto_cancel_threshold
+    } = req.body;
+
+    // 验证团队是否存在
+    const team = await require('../models').Team.findByPk(team_id);
+    if (!team) {
+      return error(res, '指定的团队不存在', 400);
+    }
+
+    // 验证用户是否属于该团队
+    const userTeamMember = await require('../models').TeamMember.findOne({
+      where: {
+        user_id: req.user.id,
+        team_id: team_id
+      }
+    });
+
+    if (!userTeamMember && !req.user.permissions.includes('activity:create')) {
+      return error(res, '您不是该团队成员，无法创建聚餐活动', 403);
+    }
+
+    // 创建聚餐活动数据
+    const dinnerPartyData = {
+      id: require('uuid').v4(),
+      title: title.trim(),
+      description: description ? description.trim() : '',
+      type: 'social',
+      team_id,
+      start_time: new Date(start_time),
+      end_time: new Date(end_time),
+      location: location.trim(),
+      min_participants,
+      max_participants,
+      company_budget,
+      total_cost: total_cost || 0,
+      company_ratio: 100, // 聚餐活动默认公司100%承担预算内费用
+      payment_deadline: payment_deadline ? new Date(payment_deadline) : null,
+      cost_description: cost_description ? cost_description.trim() : '',
+      creator_id: req.user.id,
+      status: 'draft',
+      activity_special_type: 'dinner_party',
+      auto_cancel_threshold
+    };
+
+    // 创建聚餐活动
+    const activity = await Activity.createDinnerParty(dinnerPartyData);
+
+    // 计算费用信息
+    const costs = await activity.calculateDinnerPartyCosts();
+
+    logger.info(`用户 ${req.user.username} 创建聚餐活动: ${title}`);
+
+    return success(res, {
+      activity: {
+        id: activity.id,
+        title: activity.title,
+        description: activity.description,
+        type: activity.type,
+        start_time: activity.start_time,
+        end_time: activity.end_time,
+        location: activity.location,
+        min_participants: activity.min_participants,
+        max_participants: activity.max_participants,
+        current_participants: activity.current_participants,
+        status: activity.status,
+        team_id: activity.team_id,
+        company_budget: activity.company_budget,
+        total_cost: activity.total_cost,
+        activity_special_type: activity.activity_special_type,
+        created_at: activity.created_at
+      },
+      costs,
+      message: '聚餐活动创建成功，请设置活动详情后发布'
+    }, '聚餐活动创建成功', 201);
+
+  } catch (err) {
+    logger.error('创建聚餐活动失败:', err);
+    
+    if (err.name === 'SequelizeValidationError') {
+      const messages = err.errors.map(e => e.message);
+      return error(res, messages.join(', '), 400);
+    }
+    
+    return error(res, '创建聚餐活动失败: ' + err.message, 500);
+  }
+});
+
+// 获取聚餐活动详情
+router.get('/dinner-party/:id', authenticateToken, async (req, res) => {
+  try {
+    const { Activity } = require('../models');
+    const { id } = req.params;
+
+    const activity = await Activity.findByPk(id, {
+      include: [
+        {
+          model: require('../models').Team,
+          as: 'team',
+          attributes: ['id', 'name', 'description']
+        },
+        {
+          model: require('../models').User,
+          as: 'creator',
+          attributes: ['id', 'username', 'email']
+        }
+      ]
+    });
+
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    if (activity.activity_special_type !== 'dinner_party') {
+      return error(res, '不是聚餐活动', 400);
+    }
+
+    // 计算聚餐费用
+    const costs = await activity.calculateDinnerPartyCosts();
+
+    // 检查是否应该取消
+    const cancelCheck = await activity.shouldCancelDinnerParty();
+
+    // 检查是否可以参与
+    const joinCheck = await activity.canJoinDinnerParty();
+
+    logger.info(`用户 ${req.user.username} 查看聚餐活动: ${activity.title}`);
+
+    return success(res, {
+      activity: {
+        id: activity.id,
+        title: activity.title,
+        description: activity.description,
+        type: activity.type,
+        team: activity.team,
+        creator: activity.creator,
+        start_time: activity.start_time,
+        end_time: activity.end_time,
+        location: activity.location,
+        min_participants: activity.min_participants,
+        max_participants: activity.max_participants,
+        current_participants: activity.current_participants,
+        status: activity.status,
+        company_budget: activity.company_budget,
+        total_cost: activity.total_cost,
+        payment_deadline: activity.payment_deadline,
+        cost_description: activity.cost_description,
+        activity_special_type: activity.activity_special_type,
+        auto_cancel_threshold: activity.auto_cancel_threshold,
+        created_at: activity.created_at,
+        updated_at: activity.updated_at
+      },
+      costs,
+      cancelCheck,
+      joinCheck
+    }, '获取聚餐活动详情成功');
+
+  } catch (err) {
+    logger.error('获取聚餐活动详情失败:', err);
+    return error(res, '获取活动详情失败: ' + err.message, 500);
+  }
+});
+
+// 检查并处理聚餐活动自动取消
+router.post('/dinner-party/:id/check-cancel', authenticateToken, requirePermission('activity:update'), async (req, res) => {
+  try {
+    const { Activity } = require('../models');
+    const { id } = req.params;
+
+    const activity = await Activity.findByPk(id);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    if (activity.activity_special_type !== 'dinner_party') {
+      return error(res, '不是聚餐活动', 400);
+    }
+
+    // 检查是否应该取消
+    const cancelCheck = await activity.shouldCancelDinnerParty();
+
+    if (cancelCheck.shouldCancel) {
+      // 取消活动
+      await activity.update({
+        status: 'cancelled'
+      });
+
+      logger.info(`聚餐活动自动取消: ${activity.title} - ${cancelCheck.reason}`);
+
+      return success(res, {
+        cancelled: true,
+        reason: cancelCheck.reason,
+        activity: {
+          id: activity.id,
+          title: activity.title,
+          status: activity.status
+        }
+      }, `活动已自动取消: ${cancelCheck.reason}`);
+    }
+
+    return success(res, {
+      cancelled: false,
+      reason: cancelCheck.reason || '活动正常进行中'
+    }, '活动无需取消');
+
+  } catch (err) {
+    logger.error('检查聚餐活动取消状态失败:', err);
+    return error(res, '检查失败: ' + err.message, 500);
+  }
+});
+
+// 获取用户可参与的聚餐活动列表
+router.get('/dinner-party/available', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, TeamMember } = require('../models');
+    
+    // 获取用户所属的团队
+    const userTeams = await TeamMember.findAll({
+      where: { user_id: req.user.id },
+      attributes: ['team_id']
+    });
+
+    const teamIds = userTeams.map(tm => tm.team_id);
+
+    if (teamIds.length === 0) {
+      return success(res, {
+        activities: [],
+        message: '您还没有加入任何团队'
+      }, '获取可用聚餐活动成功');
+    }
+
+    // 查找用户团队中的可用聚餐活动
+    const activities = await Activity.findAll({
+      where: {
+        team_id: { [Op.in]: teamIds },
+        activity_special_type: 'dinner_party',
+        status: 'published'
+      },
+      include: [
+        {
+          model: require('../models').Team,
+          as: 'team',
+          attributes: ['id', 'name']
+        },
+        {
+          model: require('../models').User,
+          as: 'creator',
+          attributes: ['id', 'username']
+        }
+      ],
+      order: [['start_time', 'ASC']]
+    });
+
+    // 为每个活动计算费用和状态
+    const activitiesWithDetails = await Promise.all(
+      activities.map(async activity => {
+        const costs = await activity.calculateDinnerPartyCosts();
+        const joinCheck = await activity.canJoinDinnerParty();
+        
+        return {
+          id: activity.id,
+          title: activity.title,
+          description: activity.description,
+          start_time: activity.start_time,
+          end_time: activity.end_time,
+          location: activity.location,
+          min_participants: activity.min_participants,
+          max_participants: activity.max_participants,
+          current_participants: activity.current_participants,
+          status: activity.status,
+          team: activity.team,
+          creator: activity.creator,
+          company_budget: activity.company_budget,
+          total_cost: activity.total_cost,
+          costs,
+          joinCheck,
+          created_at: activity.created_at
+        };
+      })
+    );
+
+    logger.info(`用户 ${req.user.username} 获取可用聚餐活动列表，共 ${activitiesWithDetails.length} 个活动`);
+
+    return success(res, {
+      activities: activitiesWithDetails
+    }, '获取可用聚餐活动成功');
+
+  } catch (err) {
+    logger.error('获取可用聚餐活动失败:', err);
+    return error(res, '获取失败: ' + err.message, 500);
+  }
+});
+
 module.exports = router;

@@ -16,7 +16,7 @@ const userRoutes = require('./routes/users');
 const teamRoutes = require('./routes/teams');
 
 const app = express();
-const PORT = process.env.PORT || 3459;
+const PORT = process.env.PORT || 3460;
 
 // 配置helmet，允许小程序和跨域访问
 app.use(helmet({
@@ -75,8 +75,8 @@ app.use('/api/organizations', require('./routes/organizations')); // 机构管�
 app.use('/api/organizations', require('./routes/organizationMembers')); // 机构成员管理API路由
 app.use('/api/organizations', require('./routes/organizationInvitations')); // 机构邀请管理API路由
 app.use('/api/organizations', require('./routes/organizationRoles')); // 机构角色管理API路由
-app.use('/api/activities', require('./routes/activityRoles')); // 活动角色管理API路由
-app.use('/api/activities', require('./routes/activities'));
+app.use('/api/activities', require('./routes/activities')); // 活动管理API路由
+app.use('/api/activity-roles', require('./routes/activityRoles')); // 活动角色管理API路由
 app.use('/api/user-activities', require('./routes/userActivities'));
 app.use('/api/banners', require('./routes/banners')); // 轮播图API路由
 app.use('/api/miniapp', require('./routes/miniapp')); // 小程序API路由

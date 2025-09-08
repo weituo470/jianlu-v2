@@ -41,6 +41,28 @@ const User = sequelize.define('User', {
     type: DataTypes.JSON,
     defaultValue: {}
   },
+  // 微信相关字段暂时注释，待数据库升级后再启用
+  // wechat_openid: {
+  //   type: DataTypes.STRING(100),
+  //   allowNull: true,
+  //   unique: true,
+  //   comment: '微信OpenID'
+  // },
+  // wechat_unionid: {
+  //   type: DataTypes.STRING(100),
+  //   allowNull: true,
+  //   comment: '微信UnionID'
+  // },
+  // wechat_nickname: {
+  //   type: DataTypes.STRING(100),
+  //   allowNull: true,
+  //   comment: '微信昵称'
+  // },
+  // wechat_avatar: {
+  //   type: DataTypes.TEXT,
+  //   allowNull: true,
+  //   comment: '微信头像URL'
+  // },
   last_login_at: {
     type: DataTypes.DATE,
     allowNull: true

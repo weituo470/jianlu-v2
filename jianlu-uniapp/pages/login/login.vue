@@ -44,6 +44,21 @@
 				>
 					{{ loading ? '登录中...' : '登录' }}
 				</button>
+				
+				<!-- 微信登录按钮 -->
+				<view class="wechat-login-section">
+					<view class="divider">
+						<text class="divider-text">或</text>
+					</view>
+					<button 
+						class="btn btn-wechat login-btn" 
+						@tap="handleWechatLogin"
+						:disabled="loading"
+					>
+						<text class="wechat-icon">📱</text>
+						{{ loading ? '登录中...' : '微信登录' }}
+					</button>
+				</view>
 			</view>
 			
 			<!-- 注册表单 -->
@@ -264,6 +279,82 @@
 			loading.value = false
 		}
 	}
+
+	// 微信登录处理
+	const handleWechatLogin = async () => {
+		loading.value = true
+		try {
+			console.log('开始微信登录')
+
+			// 检查网络状态
+			const networkType = await uni.getNetworkType()
+			if (networkType.networkType === 'none') {
+				throw new Error('网络不可用，请检查网络连接')
+			}
+			
+			// 1. 获取微信登录code
+			const loginResult = await uni.login({
+				provider: 'weixin',
+				onlyAuthorize: true,
+				timeout: 10000 // 10秒超时
+			})
+
+			if (loginResult.errMsg !== 'login:ok') {
+				throw new Error('微信登录授权失败')
+			}
+
+			const { code } = loginResult
+			console.log('获取微信登录code成功:', code)
+
+			// 2. 发送code到后端进行微信登录
+			const response = await authApi.wechatLogin({ code })
+			console.log('微信登录响应:', response)
+
+			if (response.success) {
+				// 保存token和用户信息
+				uni.setStorageSync('token', response.data.token)
+				uni.setStorageSync('userInfo', response.data.user)
+
+				console.log('微信登录成功，token已保存')
+				showSuccess('登录成功')
+
+				// 跳转到首页
+				setTimeout(() => {
+					uni.switchTab({
+						url: '/pages/home/home'
+					})
+				}, 1000)
+			} else {
+				console.error('微信登录失败，响应:', response)
+				showError(response.message || '微信登录失败')
+			}
+		} catch (error) {
+			console.error('微信登录异常:', error)
+			
+			// 处理各种错误情况
+			if (error.errMsg) {
+				if (error.errMsg.includes('auth deny')) {
+					showError('请授权微信登录以继续使用')
+				} else if (error.errMsg.includes('timeout')) {
+					showError('微信登录超时，请重试')
+				} else if (error.errMsg.includes('network')) {
+					showError('网络连接失败，请检查网络设置')
+				} else {
+					showError(`微信登录失败: ${error.errMsg}`)
+				}
+			} else if (error.message) {
+				if (error.message.includes('网络')) {
+					showError('网络连接失败，请检查网络设置')
+				} else {
+					showError(error.message)
+				}
+			} else {
+				showError('微信登录失败，请重试')
+			}
+		} finally {
+			loading.value = false
+		}
+	}
 </script>
 
 <style scoped>
@@ -355,6 +446,51 @@
 		margin-top: 40rpx;
 		font-size: 32rpx;
 		font-weight: bold;
+	}
+	
+	.wechat-login-section {
+		margin-top: 40rpx;
+	}
+	
+	.divider {
+		position: relative;
+		text-align: center;
+		margin: 30rpx 0;
+	}
+	
+	.divider::before {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 0;
+		right: 0;
+		height: 1px;
+		background: #e0e0e0;
+	}
+	
+	.divider-text {
+		position: relative;
+		background: rgba(255, 255, 255, 0.95);
+		padding: 0 20rpx;
+		color: #999;
+		font-size: 24rpx;
+	}
+	
+	.btn-wechat {
+		background: #07c160;
+		color: white;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 10rpx;
+	}
+	
+	.btn-wechat:active {
+		background: #06ad56;
+	}
+	
+	.wechat-icon {
+		font-size: 32rpx;
 	}
 	
 	.switch-section {

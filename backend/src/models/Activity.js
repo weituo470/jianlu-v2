@@ -85,6 +85,31 @@ const Activity = sequelize.define('Activity', {
     type: DataTypes.TEXT,
     allowNull: true,
     comment: '费用说明'
+  },
+  // 聚餐活动特殊字段
+  min_participants: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: null,
+    comment: '最少参与人数，低于此人数活动自动取消'
+  },
+  company_budget: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: null,
+    comment: '公司预算上限'
+  },
+  auto_cancel_threshold: {
+    type: DataTypes.ENUM('min_participants', 'max_participants', 'both'),
+    allowNull: true,
+    defaultValue: null,
+    comment: '自动取消条件：min_participants(最低人数不足), max_participants(超过最大人数), both(两者都检查)'
+  },
+  activity_special_type: {
+    type: DataTypes.ENUM('dinner_party', 'team_building', 'company_event', 'normal'),
+    allowNull: true,
+    defaultValue: 'normal',
+    comment: '活动特殊类型：dinner_party(聚餐), team_building(团建), company_event(公司事件), normal(普通)'
   }
 }, {
   tableName: 'activities',
@@ -207,6 +232,113 @@ Activity.createWithCost = async function(activityData) {
   // 如果有费用信息，计算每人费用
   if (activityData.total_cost && activityData.total_cost > 0) {
     await activity.updateCostPerPerson();
+  }
+  
+  return activity;
+};
+
+// 实例方法：检查聚餐活动是否应该取消
+Activity.prototype.shouldCancelDinnerParty = async function() {
+  if (this.activity_special_type !== 'dinner_party') {
+    return { shouldCancel: false, reason: '' };
+  }
+  
+  const participantCount = await this.getParticipantCount();
+  let shouldCancel = false;
+  let reason = '';
+  
+  // 检查最低人数限制
+  if (this.min_participants && participantCount < this.min_participants) {
+    shouldCancel = true;
+    reason = `报名人数不足${this.min_participants}人，当前${participantCount}人`;
+  }
+  
+  // 检查最高人数限制（如果设置了自动取消条件）
+  if (this.auto_cancel_threshold && this.max_participants && 
+      (this.auto_cancel_threshold === 'max_participants' || this.auto_cancel_threshold === 'both')) {
+    if (participantCount > this.max_participants) {
+      shouldCancel = true;
+      reason = `报名人数超过${this.max_participants}人限制，当前${participantCount}人`;
+    }
+  }
+  
+  return { shouldCancel, reason };
+};
+
+// 实例方法：计算聚餐活动费用（包含公司预算和AA分摊）
+Activity.prototype.calculateDinnerPartyCosts = async function() {
+  if (this.activity_special_type !== 'dinner_party') {
+    throw new Error('此方法仅适用于聚餐活动');
+  }
+  
+  const participantCount = await this.getParticipantCount();
+  const totalCost = parseFloat(this.total_cost) || 0;
+  const companyBudget = parseFloat(this.company_budget) || 0;
+  
+  // 计算公司承担部分（不超过预算）
+  const companyCost = Math.min(totalCost, companyBudget);
+  
+  // 计算员工需要承担的部分
+  const employeeTotalCost = totalCost - companyCost;
+  
+  // 计算每人AA费用（如果有人参与）
+  const costPerPerson = participantCount > 0 ? employeeTotalCost / participantCount : 0;
+  
+  return {
+    totalCost: totalCost.toFixed(2),
+    companyCost: companyCost.toFixed(2),
+    employeeTotalCost: employeeTotalCost.toFixed(2),
+    costPerPerson: costPerPerson.toFixed(2),
+    participantCount,
+    companyBudget: companyBudget.toFixed(2),
+    remainingBudget: (companyBudget - companyCost).toFixed(2),
+    withinBudget: companyCost <= companyBudget
+  };
+};
+
+// 实例方法：检查是否可以参与聚餐活动
+Activity.prototype.canJoinDinnerParty = async function() {
+  if (this.activity_special_type !== 'dinner_party') {
+    return { canJoin: false, reason: '不是聚餐活动' };
+  }
+  
+  if (this.status !== 'published') {
+    return { canJoin: false, reason: '活动当前不接受报名' };
+  }
+  
+  const participantCount = await this.getParticipantCount();
+  
+  // 检查是否已达到最大人数
+  if (this.max_participants && participantCount >= this.max_participants) {
+    return { canJoin: false, reason: `活动人数已满（${this.max_participants}人）` };
+  }
+  
+  // 检查是否已超过报名截止时间
+  if (this.payment_deadline && new Date() > new Date(this.payment_deadline)) {
+    return { canJoin: false, reason: '报名已截止' };
+  }
+  
+  return { canJoin: true };
+};
+
+// 静态方法：创建聚餐活动
+Activity.createDinnerParty = async function(activityData) {
+  const dinnerPartyData = {
+    ...activityData,
+    activity_special_type: 'dinner_party',
+    type: 'social', // 设置为社交类型
+    auto_cancel_threshold: activityData.auto_cancel_threshold || 'both'
+  };
+  
+  const activity = await this.createWithCost(dinnerPartyData);
+  
+  // 验证聚餐活动必要参数
+  if (!activityData.min_participants || !activityData.max_participants) {
+    throw new Error('聚餐活动必须设置最少和最多参与人数');
+  }
+  
+  if (!activityData.company_budget) {
+    throw new Error('聚餐活动必须设置公司预算');
   }
   
   return activity;

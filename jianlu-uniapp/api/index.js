@@ -6,7 +6,10 @@ export const authApi = {
 	login: (data) => post('/auth/login', data),
 	
 	// 用户注册
-	register: (data) => post('/auth/register', data)
+	register: (data) => post('/auth/register', data),
+	
+	// 微信登录
+	wechatLogin: (data) => post('/auth/wechat-login', data)
 }
 
 // 轮播图相关API
@@ -126,6 +129,4 @@ export const userApi = {
 	// 搜索用户
 	search: (query) => get(`/user/search?q=${encodeURIComponent(query)}`),
 	
-	// 获取用户统计
-	getStats: () => get('/user/stats')
-}
+	}

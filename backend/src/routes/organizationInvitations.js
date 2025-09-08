@@ -181,7 +181,7 @@ router.post('/:organizationId/qrcode',
         created_by: req.user.id,
         created_at: new Date(),
         expires_at: expiresAt,
-        join_url: `${process.env.FRONTEND_URL || 'http://localhost:3459'}/join/${inviteCode}`
+        join_url: `${process.env.FRONTEND_URL || 'http://localhost:3460'}/join/${inviteCode}`
       };
 
       // TODO: 将二维码信息存储到Redis或数据库中

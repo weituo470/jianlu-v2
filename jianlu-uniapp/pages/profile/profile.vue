@@ -5,17 +5,17 @@
 			<view class="user-header">
 				<view class="user-avatar">
 					<image 
-						v-if="userInfo.avatar" 
-						:src="userInfo.avatar" 
+						v-if="userInfo.wechat_avatar || userInfo.avatar" 
+						:src="userInfo.wechat_avatar || userInfo.avatar" 
 						class="avatar-image"
 						mode="aspectFill"
 					/>
 					<text v-else class="avatar-text">
-						{{ (userInfo.nickname || userInfo.username || '').charAt(0) }}
+						{{ (userInfo.wechat_nickname || userInfo.nickname || userInfo.username || '').charAt(0) }}
 					</text>
 				</view>
 				<view class="user-info">
-					<text class="user-name">{{ userInfo.nickname || userInfo.username }}</text>
+					<text class="user-name">{{ userInfo.wechat_nickname || userInfo.nickname || userInfo.username }}</text>
 					<text class="user-email">{{ userInfo.email }}</text>
 				</view>
 				<button class="edit-btn" @tap="showEditModal">
@@ -28,25 +28,7 @@
 			</view>
 		</view>
 		
-		<!-- 统计信息 -->
-		<view class="stats-card card">
-			<text class="card-title">使用统计</text>
-			<view class="stats-grid">
-				<view class="stat-item">
-					<text class="stat-number">{{ stats.teamCount || 0 }}</text>
-					<text class="stat-label">加入团队</text>
-				</view>
-				<view class="stat-item">
-					<text class="stat-number">{{ stats.activityCount || 0 }}</text>
-					<text class="stat-label">参与活动</text>
-				</view>
-				<view class="stat-item">
-					<text class="stat-number">{{ stats.messageCount || 0 }}</text>
-					<text class="stat-label">消息数量</text>
-				</view>
-			</view>
-		</view>
-		
+				
 		<!-- 功能菜单 -->
 		<view class="menu-card card">
 			<view class="menu-item" @tap="goToPage('/pages/home/home')">
@@ -149,7 +131,6 @@
 		data() {
 			return {
 				userInfo: {},
-				stats: {},
 				showModal: false,
 				saving: false,
 				editForm: {
@@ -161,28 +142,14 @@
 		},
 		onLoad() {
 			this.loadUserInfo()
-			this.loadStats()
 		},
 		onShow() {
 			this.loadUserInfo()
-			this.loadStats()
 		},
 		methods: {
 			// 加载用户信息
 			loadUserInfo() {
 				this.userInfo = uni.getStorageSync('userInfo') || {}
-			},
-			
-			// 加载统计信息
-			async loadStats() {
-				try {
-					const response = await userApi.getStats()
-					if (response.success) {
-						this.stats = response.data
-					}
-				} catch (error) {
-					console.error('获取统计信息失败:', error)
-				}
 			},
 			
 			// 显示编辑弹窗
@@ -345,42 +312,7 @@
 		border-radius: 12rpx;
 	}
 	
-	.stats-card {
-		margin-bottom: 20rpx;
-		padding: 30rpx;
-	}
-	
-	.card-title {
-		font-size: 32rpx;
-		font-weight: bold;
-		color: #333;
-		display: block;
-		margin-bottom: 24rpx;
-	}
-	
-	.stats-grid {
-		display: flex;
-		justify-content: space-around;
-	}
-	
-	.stat-item {
-		text-align: center;
-	}
-	
-	.stat-number {
-		font-size: 48rpx;
-		font-weight: bold;
-		color: #007aff;
-		display: block;
-		margin-bottom: 8rpx;
-	}
-	
-	.stat-label {
-		font-size: 24rpx;
-		color: #666;
-		display: block;
-	}
-	
+		
 	.menu-card {
 		margin-bottom: 20rpx;
 		padding: 0;
