@@ -24,8 +24,9 @@ const Activity = sequelize.define('Activity', {
     allowNull: true
   },
   type: {
-    type: DataTypes.ENUM('meeting', 'event', 'training', 'other'),
-    allowNull: false
+    type: DataTypes.STRING(100),
+    allowNull: false,
+    defaultValue: 'other'
   },
   start_time: {
     type: DataTypes.DATE,
@@ -114,10 +115,10 @@ Activity.associate = (models) => {
     as: 'participants'
   });
 
-  // 活动属于活动类型
+  // 活动属于活动类型 - 现在通过name关联而不是id
   Activity.belongsTo(models.ActivityType, {
     foreignKey: 'type',
-    targetKey: 'id',
+    targetKey: 'name', // 改为通过name关联
     as: 'activityType'
   });
 };

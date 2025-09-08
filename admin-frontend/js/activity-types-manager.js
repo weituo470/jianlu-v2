@@ -178,6 +178,15 @@ class ActivityTypesManager {
         } else {
             // 降级到简单的模态框实现
             this.createSimpleModal(modalContent);
+            // 设置当前模态框引用
+            this.currentModal = { 
+                close: () => {
+                    const modalElement = document.getElementById('addTypeModal');
+                    if (modalElement) {
+                        modalElement.remove();
+                    }
+                }
+            };
         }
     }
     
@@ -277,19 +286,26 @@ class ActivityTypesManager {
 
         // 验证
         if (!typeData.id || !typeData.name) {
-            this.showMessage('请填写必填字段', 'error');
+            this.showFormError('请填写所有必填字段');
             return;
         }
 
         if (!/^[a-z_]+$/.test(typeData.id)) {
-            this.showMessage('类型ID只能包含小写字母和下划线', 'error');
+            this.showFormError('类型ID只能包含小写字母和下划线');
             return;
         }
 
         if (this.types.find(t => t.id === typeData.id)) {
-            this.showMessage('类型ID已存在', 'error');
+            this.showFormError('类型ID已存在，请使用其他ID');
             return;
         }
+
+        // 检查名称是否重复
+        if (this.types.find(t => t.name === typeData.name)) {
+            this.showFormError('类型名称已存在，请使用其他名称');
+            return;
+        }
+
 
         try {
             console.log('正在新增活动类型:', typeData);
@@ -313,16 +329,21 @@ class ActivityTypesManager {
             }
             
             if (result.success) {
+                console.log('活动类型新增成功，开始处理后续操作');
+                
+                // 1. 先重新加载数据
+                await this.loadTypes();
+                
+                // 2. 刷新页面显示
+                this.refreshPage();
+                
+                // 3. 显示成功消息
                 this.showMessage('活动类型新增成功', 'success');
                 
-                // 使用FormUtils安全关闭模态框，避免浏览器未保存数据警告
-                FormUtils.onFormSubmitSuccess('createActivityTypeForm', () => {
+                // 4. 延迟关闭模态框，确保用户看到成功消息
+                setTimeout(() => {
                     this.closeModal();
-                });
-                
-                // 重新加载数据
-                await this.loadTypes();
-                this.refreshPage();
+                }, 1000);
             } else {
                 throw new Error(result.message || '新增失败');
             }
@@ -396,6 +417,45 @@ class ActivityTypesManager {
         const container = document.getElementById('activity-types-container');
         if (container) {
             container.innerHTML = this.renderList();
+        }
+    }
+
+    // 显示表单错误（在模态框内显示）
+    showFormError(message) {
+        // 清除之前的错误提示
+        const existingError = document.querySelector('.form-error-alert');
+        if (existingError) {
+            existingError.remove();
+        }
+
+        // 创建醒目的错误提示
+        const errorHtml = `
+            <div class="form-error-alert alert alert-danger alert-dismissible fade show" role="alert" style="
+                margin: 15px 0;
+                border-left: 4px solid #dc3545;
+                background-color: #f8d7da;
+                border-color: #f5c6cb;
+                font-weight: 500;
+            ">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>错误：</strong>${message}
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+            </div>
+        `;
+
+        // 在表单顶部显示错误
+        const form = document.getElementById('addTypeForm');
+        if (form) {
+            form.insertAdjacentHTML('afterbegin', errorHtml);
+            
+            // 滚动到错误提示位置
+            const errorAlert = form.querySelector('.form-error-alert');
+            if (errorAlert) {
+                errorAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        } else {
+            // 降级到普通消息提示
+            this.showMessage(message, 'error');
         }
     }
 

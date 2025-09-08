@@ -2601,11 +2601,15 @@ const getPublicInstance = (i) => {
     return getExposeProxy(i) || i.proxy;
   return getPublicInstance(i.parent);
 };
+function getComponentInternalInstance(i) {
+  return i;
+}
 const publicPropertiesMap = (
   // Move PURE marker to new line to workaround compiler discarding it
   // due to type annotation
   /* @__PURE__ */ extend(/* @__PURE__ */ Object.create(null), {
-    $: (i) => i,
+    // fixed by xxxxxx
+    $: getComponentInternalInstance,
     // fixed by xxxxxx vue-i18n 在 dev 模式，访问了 $el，故模拟一个假的
     // $el: i => i.vnode.el,
     $el: (i) => i.__$el || (i.__$el = {}),
@@ -4470,6 +4474,7 @@ function warnRef(ref2) {
 const queuePostRenderEffect = queuePostFlushCb;
 function mountComponent(initialVNode, options) {
   const instance = initialVNode.component = createComponentInstance(initialVNode, options.parentComponent, null);
+  instance.renderer = options.mpType ? options.mpType : "component";
   {
     instance.ctx.$onApplyOptions = onApplyOptions;
     instance.ctx.$children = [];
@@ -4808,7 +4813,8 @@ function injectLifecycleHook(name, hook, publicThis, instance) {
 }
 function initHooks$1(options, instance, publicThis) {
   const mpType = options.mpType || publicThis.$mpType;
-  if (!mpType || mpType === "component") {
+  if (!mpType || mpType === "component" || // instance.renderer 标识页面是否作为组件渲染
+  mpType === "page" && instance.renderer === "component") {
     return;
   }
   Object.keys(options).forEach((name) => {
@@ -5145,9 +5151,10 @@ function createApp$1(rootComponent, rootProps = null) {
 }
 const createSSRApp = createApp$1;
 function getLocaleLanguage$1() {
+  var _a;
   let localeLanguage = "";
   {
-    const appBaseInfo = wx.getAppBaseInfo();
+    const appBaseInfo = ((_a = wx.getAppBaseInfo) === null || _a === void 0 ? void 0 : _a.call(wx)) || wx.getSystemInfoSync();
     const language = appBaseInfo && appBaseInfo.language ? appBaseInfo.language : LOCALE_EN;
     localeLanguage = normalizeLocale(language) || LOCALE_EN;
   }
@@ -5457,10 +5464,10 @@ function handlePromise(promise) {
 function promisify$1(name, fn) {
   return (args = {}, ...rest) => {
     if (hasCallback(args)) {
-      return wrapperReturnValue(name, invokeApi(name, fn, args, rest));
+      return wrapperReturnValue(name, invokeApi(name, fn, extend({}, args), rest));
     }
     return wrapperReturnValue(name, handlePromise(new Promise((resolve, reject) => {
-      invokeApi(name, fn, extend(args, { success: resolve, fail: reject }), rest);
+      invokeApi(name, fn, extend({}, args, { success: resolve, fail: reject }), rest);
     })));
   };
 }
@@ -5558,9 +5565,15 @@ let isIOS = false;
 let deviceWidth = 0;
 let deviceDPR = 0;
 function checkDeviceWidth() {
-  const { windowWidth, pixelRatio, platform } = Object.assign({}, wx.getWindowInfo(), {
-    platform: wx.getDeviceInfo().platform
-  });
+  var _a, _b;
+  let windowWidth, pixelRatio, platform;
+  {
+    const windowInfo = ((_a = wx.getWindowInfo) === null || _a === void 0 ? void 0 : _a.call(wx)) || wx.getSystemInfoSync();
+    const deviceInfo = ((_b = wx.getDeviceInfo) === null || _b === void 0 ? void 0 : _b.call(wx)) || wx.getSystemInfoSync();
+    windowWidth = windowInfo.windowWidth;
+    pixelRatio = windowInfo.pixelRatio;
+    platform = deviceInfo.platform;
+  }
   deviceWidth = windowWidth;
   deviceDPR = pixelRatio;
   isIOS = platform === "ios";
@@ -5851,7 +5864,7 @@ function promisify(name, api) {
   }
   return function promiseApi(options = {}, ...rest) {
     if (isFunction(options.success) || isFunction(options.fail) || isFunction(options.complete)) {
-      return wrapperReturnValue(name, invokeApi(name, api, options, rest));
+      return wrapperReturnValue(name, invokeApi(name, api, extend({}, options), rest));
     }
     return wrapperReturnValue(name, handlePromise(new Promise((resolve, reject) => {
       invokeApi(name, api, extend({}, options, {
@@ -6015,11 +6028,29 @@ function getOSInfo(system, platform) {
     osName = platform;
     osVersion = system;
   } else {
-    osName = system.split(" ")[0] || "";
+    osName = system.split(" ")[0] || platform;
     osVersion = system.split(" ")[1] || "";
   }
+  osName = osName.toLowerCase();
+  switch (osName) {
+    case "harmony":
+    case "ohos":
+    case "openharmony":
+      osName = "harmonyos";
+      break;
+    case "iphone os":
+      osName = "ios";
+      break;
+    case "mac":
+    case "darwin":
+      osName = "macos";
+      break;
+    case "windows_nt":
+      osName = "windows";
+      break;
+  }
   return {
-    osName: osName.toLocaleLowerCase(),
+    osName,
     osVersion
   };
 }
@@ -6040,9 +6071,9 @@ function populateParameters(fromRes, toRes) {
     appVersion: "1.0.0",
     appVersionCode: "100",
     appLanguage: getAppLanguage(hostLanguage),
-    uniCompileVersion: "4.57",
-    uniCompilerVersion: "4.57",
-    uniRuntimeVersion: "4.57",
+    uniCompileVersion: "4.76",
+    uniCompilerVersion: "4.76",
+    uniRuntimeVersion: "4.76",
     uniPlatform: "mp-weixin",
     deviceBrand,
     deviceModel: model,
@@ -6079,7 +6110,7 @@ function getGetDeviceType(fromRes, model) {
       mac: "pc"
     };
     const deviceTypeMapsKeys = Object.keys(deviceTypeMaps);
-    const _model = model.toLocaleLowerCase();
+    const _model = model.toLowerCase();
     for (let index2 = 0; index2 < deviceTypeMapsKeys.length; index2++) {
       const _m = deviceTypeMapsKeys[index2];
       if (_model.indexOf(_m) !== -1) {
@@ -6093,7 +6124,7 @@ function getGetDeviceType(fromRes, model) {
 function getDeviceBrand(brand) {
   let deviceBrand = brand;
   if (deviceBrand) {
-    deviceBrand = deviceBrand.toLocaleLowerCase();
+    deviceBrand = deviceBrand.toLowerCase();
   }
   return deviceBrand;
 }
@@ -6191,9 +6222,9 @@ const getAppBaseInfo = {
       appLanguage: getAppLanguage(hostLanguage),
       isUniAppX: false,
       uniPlatform: "mp-weixin",
-      uniCompileVersion: "4.57",
-      uniCompilerVersion: "4.57",
-      uniRuntimeVersion: "4.57"
+      uniCompileVersion: "4.76",
+      uniCompilerVersion: "4.76",
+      uniRuntimeVersion: "4.76"
     };
     extend(toRes, parameters);
   }
@@ -6474,6 +6505,91 @@ function tryConnectSocket(host2, port, id) {
     });
   });
 }
+const CONSOLE_TYPES = ["log", "warn", "error", "info", "debug"];
+const originalConsole = /* @__PURE__ */ CONSOLE_TYPES.reduce((methods, type) => {
+  methods[type] = console[type].bind(console);
+  return methods;
+}, {});
+let sendError = null;
+const errorQueue = /* @__PURE__ */ new Set();
+const errorExtra = {};
+function sendErrorMessages(errors) {
+  if (sendError == null) {
+    errors.forEach((error) => {
+      errorQueue.add(error);
+    });
+    return;
+  }
+  const data = errors.map((err) => {
+    if (typeof err === "string") {
+      return err;
+    }
+    const isPromiseRejection = err && "promise" in err && "reason" in err;
+    const prefix = isPromiseRejection ? "UnhandledPromiseRejection: " : "";
+    if (isPromiseRejection) {
+      err = err.reason;
+    }
+    if (err instanceof Error && err.stack) {
+      if (err.message && !err.stack.includes(err.message)) {
+        return `${prefix}${err.message}
+${err.stack}`;
+      }
+      return `${prefix}${err.stack}`;
+    }
+    if (typeof err === "object" && err !== null) {
+      try {
+        return prefix + JSON.stringify(err);
+      } catch (err2) {
+        return prefix + String(err2);
+      }
+    }
+    return prefix + String(err);
+  }).filter(Boolean);
+  if (data.length > 0) {
+    sendError(JSON.stringify(Object.assign({
+      type: "error",
+      data
+    }, errorExtra)));
+  }
+}
+function setSendError(value, extra = {}) {
+  sendError = value;
+  Object.assign(errorExtra, extra);
+  if (value != null && errorQueue.size > 0) {
+    const errors = Array.from(errorQueue);
+    errorQueue.clear();
+    sendErrorMessages(errors);
+  }
+}
+function initOnError() {
+  function onError2(error) {
+    try {
+      if (typeof PromiseRejectionEvent !== "undefined" && error instanceof PromiseRejectionEvent && error.reason instanceof Error && error.reason.message && error.reason.message.includes(`Cannot create property 'errMsg' on string 'taskId`)) {
+        return;
+      }
+      if (true) {
+        originalConsole.error(error);
+      }
+      sendErrorMessages([error]);
+    } catch (err) {
+      originalConsole.error(err);
+    }
+  }
+  if (typeof index.onError === "function") {
+    index.onError(onError2);
+  }
+  if (typeof index.onUnhandledRejection === "function") {
+    index.onUnhandledRejection(onError2);
+  }
+  return function offError2() {
+    if (typeof index.offError === "function") {
+      index.offError(onError2);
+    }
+    if (typeof index.offUnhandledRejection === "function") {
+      index.offUnhandledRejection(onError2);
+    }
+  };
+}
 function formatMessage(type, args) {
   try {
     return {
@@ -6506,7 +6622,16 @@ function formatArg(arg, depth = 0) {
     case "boolean":
       return formatBoolean(arg);
     case "object":
-      return formatObject(arg, depth);
+      try {
+        return formatObject(arg, depth);
+      } catch (e2) {
+        return {
+          type: "object",
+          value: {
+            properties: []
+          }
+        };
+      }
     case "undefined":
       return formatUndefined();
     case "function":
@@ -6652,13 +6777,20 @@ function formatObject(value, depth) {
       }
     }
   }
+  let entries = Object.entries(value);
+  if (isHarmonyBuilderParams(value)) {
+    entries = entries.filter(([key]) => key !== "modifier" && key !== "nodeContent");
+  }
   return {
     type: "object",
     className,
     value: {
-      properties: Object.entries(value).map((entry) => formatObjectProperty(entry[0], entry[1], depth + 1))
+      properties: entries.map((entry) => formatObjectProperty(entry[0], entry[1], depth + 1))
     }
   };
+}
+function isHarmonyBuilderParams(value) {
+  return value.modifier && value.modifier._attribute && value.nodeContent;
 }
 function isComponentPublicInstance(value) {
   return value.$ && isComponentInternalInstance(value.$);
@@ -6737,10 +6869,11 @@ function formatMapEntry(value, depth) {
     value: formatArg(value[1], depth)
   };
 }
-const CONSOLE_TYPES = ["log", "warn", "error", "info", "debug"];
 let sendConsole = null;
 const messageQueue = [];
 const messageExtra = {};
+const EXCEPTION_BEGIN_MARK = "---BEGIN:EXCEPTION---";
+const EXCEPTION_END_MARK = "---END:EXCEPTION---";
 function sendConsoleMessages(messages) {
   if (sendConsole == null) {
     messageQueue.push(...messages);
@@ -6760,23 +6893,31 @@ function setSendConsole(value, extra = {}) {
     sendConsoleMessages(messages);
   }
 }
-const originalConsole = /* @__PURE__ */ CONSOLE_TYPES.reduce((methods, type) => {
-  methods[type] = console[type].bind(console);
-  return methods;
-}, {});
 const atFileRegex = /^\s*at\s+[\w/./-]+:\d+$/;
 function rewriteConsole() {
   function wrapConsole(type) {
     return function(...args) {
-      const originalArgs = [...args];
-      if (originalArgs.length) {
-        const maybeAtFile = originalArgs[originalArgs.length - 1];
-        if (typeof maybeAtFile === "string" && atFileRegex.test(maybeAtFile)) {
-          originalArgs.pop();
-        }
-      }
       {
+        const originalArgs = [...args];
+        if (originalArgs.length) {
+          const maybeAtFile = originalArgs[originalArgs.length - 1];
+          if (typeof maybeAtFile === "string" && atFileRegex.test(maybeAtFile)) {
+            originalArgs.pop();
+          }
+        }
         originalConsole[type](...originalArgs);
+      }
+      if (type === "error" && args.length === 1) {
+        const arg = args[0];
+        if (typeof arg === "string" && arg.startsWith(EXCEPTION_BEGIN_MARK)) {
+          const startIndex = EXCEPTION_BEGIN_MARK.length;
+          const endIndex = arg.length - EXCEPTION_END_MARK.length;
+          sendErrorMessages([arg.slice(startIndex, endIndex)]);
+          return;
+        } else if (arg instanceof Error) {
+          sendErrorMessages([arg]);
+          return;
+        }
       }
       sendConsoleMessages([formatMessage(type, args)]);
     };
@@ -6822,87 +6963,10 @@ function isConsoleWritable() {
   console.log = value;
   return isWritable;
 }
-let sendError = null;
-const errorQueue = /* @__PURE__ */ new Set();
-const errorExtra = {};
-function sendErrorMessages(errors) {
-  if (sendError == null) {
-    errors.forEach((error) => {
-      errorQueue.add(error);
-    });
-    return;
-  }
-  const data = errors.map((err) => {
-    const isPromiseRejection = err && "promise" in err && "reason" in err;
-    const prefix = isPromiseRejection ? "UnhandledPromiseRejection: " : "";
-    if (isPromiseRejection) {
-      err = err.reason;
-    }
-    if (err instanceof Error && err.stack) {
-      if (err.message && !err.stack.includes(err.message)) {
-        return `${prefix}${err.message}
-${err.stack}`;
-      }
-      return `${prefix}${err.stack}`;
-    }
-    if (typeof err === "object" && err !== null) {
-      try {
-        return prefix + JSON.stringify(err);
-      } catch (err2) {
-        return prefix + String(err2);
-      }
-    }
-    return prefix + String(err);
-  }).filter(Boolean);
-  if (data.length > 0) {
-    sendError(JSON.stringify(Object.assign({
-      type: "error",
-      data
-    }, errorExtra)));
-  }
-}
-function setSendError(value, extra = {}) {
-  sendError = value;
-  Object.assign(errorExtra, extra);
-  if (value != null && errorQueue.size > 0) {
-    const errors = Array.from(errorQueue);
-    errorQueue.clear();
-    sendErrorMessages(errors);
-  }
-}
-function initOnError() {
-  function onError2(error) {
-    try {
-      if (typeof PromiseRejectionEvent !== "undefined" && error instanceof PromiseRejectionEvent && error.reason instanceof Error && error.reason.message && error.reason.message.includes(`Cannot create property 'errMsg' on string 'taskId`)) {
-        return;
-      }
-      if (true) {
-        originalConsole.error(error);
-      }
-      sendErrorMessages([error]);
-    } catch (err) {
-      originalConsole.error(err);
-    }
-  }
-  if (typeof index.onError === "function") {
-    index.onError(onError2);
-  }
-  if (typeof index.onUnhandledRejection === "function") {
-    index.onUnhandledRejection(onError2);
-  }
-  return function offError2() {
-    if (typeof index.offError === "function") {
-      index.offError(onError2);
-    }
-    if (typeof index.offUnhandledRejection === "function") {
-      index.offUnhandledRejection(onError2);
-    }
-  };
-}
 function initRuntimeSocketService() {
-  const hosts = "192.168.100.2,127.0.0.1,172.21.208.1";
+  const hosts = "192.168.100.4,127.0.0.1,172.17.32.1,172.28.16.1";
   const port = "8090";
-  const id = "mp-weixin_PXmGGG";
+  const id = "mp-weixin_00jO9o";
   const lazy = typeof swan !== "undefined";
   let restoreError = lazy ? () => {
   } : initOnError();
@@ -6918,13 +6982,19 @@ function initRuntimeSocketService() {
         restoreError();
         restoreConsole();
         originalConsole.error(wrapError("开发模式下日志通道建立 socket 连接失败。"));
-        originalConsole.error(wrapError("如果是小程序平台，请勾选不校验合法域名配置。"));
+        {
+          originalConsole.error(wrapError("小程序平台，请勾选不校验合法域名配置。"));
+        }
         originalConsole.error(wrapError("如果是运行到真机，请确认手机与电脑处于同一网络。"));
         return false;
       }
-      initMiniProgramGlobalFlag();
+      {
+        initMiniProgramGlobalFlag();
+      }
       socket.onClose(() => {
-        originalConsole.error(wrapError("开发模式下日志通道 socket 连接关闭，请在 HBuilderX 中重新运行。"));
+        {
+          originalConsole.error(wrapError("开发模式下日志通道 socket 连接关闭，请在 HBuilderX 中重新运行。"));
+        }
         restoreError();
         restoreConsole();
       });
@@ -7065,9 +7135,10 @@ function findVmByVueId(instance, vuePid) {
   }
 }
 function getLocaleLanguage() {
+  var _a;
   let localeLanguage = "";
   {
-    const appBaseInfo = wx.getAppBaseInfo();
+    const appBaseInfo = ((_a = wx.getAppBaseInfo) === null || _a === void 0 ? void 0 : _a.call(wx)) || wx.getSystemInfoSync();
     const language = appBaseInfo && appBaseInfo.language ? appBaseInfo.language : LOCALE_EN;
     localeLanguage = normalizeLocale(language) || LOCALE_EN;
   }

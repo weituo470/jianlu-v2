@@ -71,6 +71,11 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/organizations', require('./routes/organizations')); // 机构管理API路由
+app.use('/api/organizations', require('./routes/organizationMembers')); // 机构成员管理API路由
+app.use('/api/organizations', require('./routes/organizationInvitations')); // 机构邀请管理API路由
+app.use('/api/organizations', require('./routes/organizationRoles')); // 机构角色管理API路由
+app.use('/api/activities', require('./routes/activityRoles')); // 活动角色管理API路由
 app.use('/api/activities', require('./routes/activities'));
 app.use('/api/user-activities', require('./routes/userActivities'));
 app.use('/api/banners', require('./routes/banners')); // 轮播图API路由

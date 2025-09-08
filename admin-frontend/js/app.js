@@ -1894,16 +1894,31 @@ window.ActivityManager = {
             const teamsResponse = await API.teams.getList({ limit: 100 });
             const teams = teamsResponse.data?.teams || [];
             
-            // 获取所有活动类型（包括自定义类型）
-            // TODO: 将硬编码替换为从API获取的系统默认类型
-            const defaultTypesTemp = [
-                { value: 'meeting', label: '会议' },
-                { value: 'event', label: '活动' },
-                { value: 'training', label: '培训' },
-                { value: 'other', label: '其他' }
-            ];
-            const customTypes = Utils.storage.get('custom_activity_types', []);
-            const allTypes = [...defaultTypesTemp, ...customTypes];
+            // 获取所有活动类型（从API获取真实数据）
+            let allTypes = [];
+            try {
+                const typesResponse = await API.activities.getTypes();
+                if (typesResponse.success) {
+                    allTypes = typesResponse.data || [];
+                    console.log('ActivityManager: 成功加载活动类型:', allTypes);
+                } else {
+                    console.warn('ActivityManager: 加载活动类型失败:', typesResponse.message);
+                    // 降级到默认类型
+                    allTypes = [
+                        { value: 'other', label: '其他' },
+                        { value: 'meeting', label: '会议' },
+                        { value: 'training', label: '培训' }
+                    ];
+                }
+            } catch (error) {
+                console.error('ActivityManager: 获取活动类型失败:', error);
+                // 降级到默认类型
+                allTypes = [
+                    { value: 'other', label: '其他' },
+                    { value: 'meeting', label: '会议' },
+                    { value: 'training', label: '培训' }
+                ];
+            }
 
             const modalContent = `
                 <form id="create-activity-form">
@@ -2059,6 +2074,12 @@ window.ActivityManager = {
 
                 // 刷新列表
                 this.refreshList();
+                
+                // 如果在活动管理页面，也刷新activitiesManager
+                if (window.activitiesManager && typeof window.activitiesManager.refreshList === 'function') {
+                    console.log('刷新activitiesManager列表');
+                    window.activitiesManager.refreshList();
+                }
             } else {
                 throw new Error(response.message || '创建活动失败');
             }
@@ -2393,13 +2414,13 @@ window.ActivityManager = {
 
         // 表单验证
         if (!typeData.value || !typeData.label) {
-            Utils.toast.error('请填写所有必填字段');
+            this.showFormError('请填写所有必填字段');
             return;
         }
 
         // 验证类型值格式
         if (!/^[a-zA-Z0-9_]+$/.test(typeData.value)) {
-            Utils.toast.error('类型值只能包含字母、数字和下划线');
+            this.showFormError('类型值只能包含字母、数字和下划线');
             return;
         }
 
@@ -2407,7 +2428,7 @@ window.ActivityManager = {
         // TODO: 将硬编码替换为从API获取的系统默认类型值列表
         const defaultTypesTemp = ['meeting', 'event', 'training', 'other'];
         if (defaultTypesTemp.includes(typeData.value)) {
-            Utils.toast.error('不能添加与系统默认类型相同的类型值');
+            this.showFormError('不能添加与系统默认类型相同的类型值');
             return;
         }
 
@@ -2417,7 +2438,13 @@ window.ActivityManager = {
             
             // 检查是否已存在相同的类型值
             if (customTypes.some(type => type.value === typeData.value)) {
-                Utils.toast.error('该类型值已存在');
+                this.showFormError('该类型值已存在，请使用其他值');
+                return;
+            }
+            
+            // 检查是否已存在相同的类型名称
+            if (customTypes.some(type => type.label === typeData.label)) {
+                this.showFormError('该类型名称已存在，请使用其他名称');
                 return;
             }
             
@@ -2524,6 +2551,60 @@ window.ActivityManager = {
 
         } catch (error) {
             Utils.toast.error(`删除活动类型失败: ${error.message}`);
+        }
+    },
+
+    // 显示表单错误（在模态框内显示）
+    showFormError(message) {
+        // 清除之前的错误提示
+        const existingError = document.querySelector('.form-error-alert');
+        if (existingError) {
+            existingError.remove();
+        }
+
+        // 创建醒目的错误提示
+        const errorHtml = `
+            <div class="form-error-alert alert alert-danger alert-dismissible fade show" role="alert" style="
+                margin: 15px 0;
+                border-left: 4px solid #dc3545;
+                background-color: #f8d7da;
+                border-color: #f5c6cb;
+                font-weight: 500;
+                animation: shake 0.5s ease-in-out;
+            ">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>错误：</strong>${message}
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+            </div>
+        `;
+
+        // 在表单顶部显示错误
+        const form = document.getElementById('add-activity-type-form');
+        if (form) {
+            form.insertAdjacentHTML('afterbegin', errorHtml);
+            
+            // 滚动到错误提示位置
+            const errorAlert = form.querySelector('.form-error-alert');
+            if (errorAlert) {
+                errorAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+                // 添加震动效果的CSS
+                if (!document.getElementById('shake-animation')) {
+                    const style = document.createElement('style');
+                    style.id = 'shake-animation';
+                    style.textContent = `
+                        @keyframes shake {
+                            0%, 100% { transform: translateX(0); }
+                            25% { transform: translateX(-5px); }
+                            75% { transform: translateX(5px); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            }
+        } else {
+            // 降级到普通toast提示
+            Utils.toast.error(message);
         }
     }
 };

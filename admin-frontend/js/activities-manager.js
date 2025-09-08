@@ -92,10 +92,13 @@ class ActivitiesManager {
     // 加载活动类型数据
     async loadActivityTypes() {
         try {
+            console.log('开始加载活动类型数据...');
             const response = await API.activities.getTypes();
+            console.log('活动类型API响应:', response);
+            
             if (response.success) {
                 this.activityTypes = response.data || [];
-                console.log(`成功加载 ${this.activityTypes.length} 个活动类型`);
+                console.log(`成功加载 ${this.activityTypes.length} 个活动类型:`, this.activityTypes);
                 return true;
             } else {
                 this.activityTypes = [];
@@ -358,6 +361,10 @@ class ActivitiesManager {
 
     // 创建活动模态框（包含AA制功能）
     async showCreateActivityModal() {
+        // 调试：检查活动类型数据
+        console.log('创建活动模态框时的活动类型数据:', this.activityTypes);
+        console.log('活动类型数组长度:', this.activityTypes ? this.activityTypes.length : 'undefined');
+        
         const modalContent = `
             <form id="createActivityForm">
                 <div class="row">
@@ -372,12 +379,10 @@ class ActivitiesManager {
                         <div class="form-group mb-3">
                             <label for="activityType" class="form-label">活动类型</label>
                             <select class="form-control" id="activityType" name="type">
-                                <option value="other">其他</option>
-                                <option value="meeting">会议</option>
-                                <option value="training">培训</option>
-                                <option value="workshop">工作坊</option>
-                                <option value="team_building">团建</option>
-                                <option value="presentation">演示</option>
+                                <option value="">请选择活动类型</option>
+                                ${this.activityTypes.map(type => `
+                                    <option value="${type.value}">${type.label}</option>
+                                `).join('')}
                             </select>
                         </div>
                     </div>

@@ -115,7 +115,7 @@ router.get('/types', authenticateToken, async (req, res) => {
     
     // 转换为前端需要的格式
     const formattedTypes = activityTypes.map(type => ({
-      value: type.id,
+      value: type.name, // 改为使用name而不是id
       label: type.name,
       description: type.description,
       isDefault: type.is_default
@@ -399,6 +399,12 @@ router.post('/types', authenticateToken, requirePermission('system:update'), val
       return error(res, '类型ID已存在', 400);
     }
 
+    // 检查名称是否已存在
+    const existingName = await ActivityType.findOne({ where: { name } });
+    if (existingName) {
+      return error(res, '类型名称已存在', 400);
+    }
+
     // 创建新的活动类型
     const newType = await ActivityType.create({
       id,
@@ -411,7 +417,7 @@ router.post('/types', authenticateToken, requirePermission('system:update'), val
 
     // 转换为前端需要的格式
     const formattedType = {
-      value: newType.id,
+      value: newType.name, // 改为使用name
       label: newType.name,
       description: newType.description,
       isDefault: newType.is_default
@@ -472,7 +478,7 @@ router.put('/types/:id', authenticateToken, requirePermission('system:update'), 
 
     // 转换为前端需要的格式
     const formattedType = {
-      value: activityType.id,
+      value: activityType.name, // 改为使用name
       label: activityType.name,
       description: activityType.description,
       isDefault: activityType.is_default
