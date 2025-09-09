@@ -10,8 +10,10 @@
     "pages/activity/activity",
     "pages/activity-detail/activity-detail",
     "pages/activity-create/activity-create",
+    "pages/dinner-party-create/dinner-party-create",
     "pages/profile/profile",
-    "pages/test/test"
+    "pages/test/test",
+    "pages/test-wechat/test-wechat"
   ],
   "window": {
     "navigationBarTextStyle": "black",

@@ -4,7 +4,9 @@ const authApi = {
   // 用户登录
   login: (data) => utils_request.post("/auth/login", data),
   // 用户注册
-  register: (data) => utils_request.post("/auth/register", data)
+  register: (data) => utils_request.post("/auth/register", data),
+  // 微信登录
+  wechatLogin: (data) => utils_request.post("/auth/wechat-login", data)
 };
 const bannerApi = {
   // 获取轮播图列表（只获取激活的）
@@ -14,7 +16,7 @@ const groupApi = {
   // 获取群组列表（所有可加入的团队）
   getList: () => utils_request.get("/miniapp/teams"),
   // 获取我的团队列表
-  getMyTeams: () => utils_request.get("/miniapp/teams"),
+  getMyTeams: () => utils_request.get("/miniapp/my-teams"),
   // 获取群组详情
   getDetail: (id) => utils_request.get(`/miniapp/teams/${id}`),
   // 创建群组
@@ -71,9 +73,7 @@ const userApi = {
   // 更新用户信息
   updateProfile: (data) => utils_request.put("/user/profile", data),
   // 搜索用户
-  search: (query) => utils_request.get(`/user/search?q=${encodeURIComponent(query)}`),
-  // 获取用户统计
-  getStats: () => utils_request.get("/user/stats")
+  search: (query) => utils_request.get(`/user/search?q=${encodeURIComponent(query)}`)
 };
 exports.activityApi = activityApi;
 exports.authApi = authApi;

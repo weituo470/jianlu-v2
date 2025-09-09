@@ -1,16 +1,25 @@
 <script>
 	export default {
 		onLaunch: function() {
-			console.log('简庐日记小程序启动')
+			// 开发环境才打印启动日志
+			if (process.env.NODE_ENV === 'development') {
+				console.log('简庐日记小程序启动')
+			}
 
 			// 检查登录状态
 			this.checkLoginStatus()
 		},
 		onShow: function() {
-			console.log('简庐日记小程序显示')
+			// 开发环境才打印显示日志
+			if (process.env.NODE_ENV === 'development') {
+				console.log('简庐日记小程序显示')
+			}
 		},
 		onHide: function() {
-			console.log('简庐日记小程序隐藏')
+			// 开发环境才打印隐藏日志
+			if (process.env.NODE_ENV === 'development') {
+				console.log('简庐日记小程序隐藏')
+			}
 		},
 		methods: {
 			checkLoginStatus() {

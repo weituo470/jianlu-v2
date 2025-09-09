@@ -43,12 +43,18 @@ const _sfc_main = {
     // 加载我的团队列表
     async loadMyTeams() {
       try {
-        const response = await api_index.groupApi.getMyTeams();
+        const response = await api_index.groupApi.getList();
         if (response.success) {
-          this.myTeams = response.data;
+          this.myTeams = response.data.teams.map((team) => ({
+            ...team,
+            role: "admin",
+            // 临时设置角色为admin
+            joined_at: (/* @__PURE__ */ new Date()).toISOString()
+          }));
+          common_vendor.index.__f__("log", "at pages/activity-create/activity-create.vue:277", "加载到的团队列表:", this.myTeams);
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:273", "加载团队列表失败:", error);
+        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:280", "加载团队列表失败:", error);
       }
     },
     // 选择活动类型
@@ -200,7 +206,7 @@ const _sfc_main = {
           common_vendor.index.navigateBack();
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:455", "保存草稿失败:", error);
+        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:462", "保存草稿失败:", error);
         utils_index.showError("保存草稿失败");
       } finally {
         this.submitting = false;
@@ -219,7 +225,7 @@ const _sfc_main = {
           common_vendor.index.navigateBack();
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:475", "发布活动失败:", error);
+        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:482", "发布活动失败:", error);
         utils_index.showError("发布活动失败");
       } finally {
         this.submitting = false;

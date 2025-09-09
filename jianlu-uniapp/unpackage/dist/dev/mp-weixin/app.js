@@ -12,19 +12,27 @@ if (!Math) {
   "./pages/activity/activity.js";
   "./pages/activity-detail/activity-detail.js";
   "./pages/activity-create/activity-create.js";
+  "./pages/dinner-party-create/dinner-party-create.js";
   "./pages/profile/profile.js";
   "./pages/test/test.js";
+  "./pages/test-wechat/test-wechat.js";
 }
 const _sfc_main = {
   onLaunch: function() {
-    common_vendor.index.__f__("log", "at App.vue:4", "简庐日记小程序启动");
+    {
+      common_vendor.index.__f__("log", "at App.vue:6", "简庐日记小程序启动");
+    }
     this.checkLoginStatus();
   },
   onShow: function() {
-    common_vendor.index.__f__("log", "at App.vue:10", "简庐日记小程序显示");
+    {
+      common_vendor.index.__f__("log", "at App.vue:15", "简庐日记小程序显示");
+    }
   },
   onHide: function() {
-    common_vendor.index.__f__("log", "at App.vue:13", "简庐日记小程序隐藏");
+    {
+      common_vendor.index.__f__("log", "at App.vue:21", "简庐日记小程序隐藏");
+    }
   },
   methods: {
     checkLoginStatus() {

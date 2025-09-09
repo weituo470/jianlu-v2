@@ -1,0 +1,72 @@
+
+.test-container.data-v-c430c098 {
+	padding: 20px;
+	background-color: #f5f5f5;
+	min-height: 100vh;
+}
+.header.data-v-c430c098 {
+	text-align: center;
+	margin-bottom: 30px;
+}
+.title.data-v-c430c098 {
+	font-size: 24px;
+	font-weight: bold;
+	color: #333;
+}
+.test-section.data-v-c430c098 {
+	margin-bottom: 30px;
+}
+.test-btn.data-v-c430c098 {
+	width: 100%;
+	height: 50px;
+	margin-bottom: 15px;
+	border-radius: 8px;
+	font-size: 16px;
+	color: white;
+	border: none;
+}
+.wechat-btn.data-v-c430c098 {
+	background: linear-gradient(45deg, #07c160, #95ec69);
+}
+.network-btn.data-v-c430c098 {
+	background: linear-gradient(45deg, #1890ff, #69c0ff);
+}
+.api-btn.data-v-c430c098 {
+	background: linear-gradient(45deg, #722ed1, #b37feb);
+}
+.test-btn.data-v-c430c098:disabled {
+	opacity: 0.6;
+}
+.result-section.data-v-c430c098, .info-section.data-v-c430c098 {
+	background: white;
+	border-radius: 8px;
+	padding: 15px;
+	margin-bottom: 20px;
+}
+.result-title.data-v-c430c098, .info-title.data-v-c430c098 {
+	font-size: 18px;
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 10px;
+	display: block;
+}
+.result-content.data-v-c430c098 {
+	min-height: 100px;
+	background: #f8f9fa;
+	padding: 10px;
+	border-radius: 4px;
+}
+.result-text.data-v-c430c098 {
+	font-size: 14px;
+	color: #666;
+	white-space: pre-wrap;
+}
+.info-content.data-v-c430c098 {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+.info-text.data-v-c430c098 {
+	font-size: 14px;
+	color: #666;
+}

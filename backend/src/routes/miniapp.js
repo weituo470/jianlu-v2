@@ -545,6 +545,89 @@ router.get('/teams', authenticateToken, async (req, res) => {
 });
 
 /**
+ * 获取我的团队列表 (小程序版本)
+ * GET /api/miniapp/my-teams
+ */
+router.get('/my-teams', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    try {
+      // 首先尝试从数据库查询真实团队数据
+      const { Team, TeamMember, User } = require('../models');
+      
+      // 查询用户所属的团队
+      const { count, rows: teamRows } = await Team.findAndCountAll({
+        where: {
+          status: 'active'
+        },
+        include: [
+          {
+            model: TeamMember,
+            as: 'members',
+            where: {
+              user_id: userId
+            },
+            required: true // 确保只返回用户所属的团队
+          },
+          {
+            model: User,
+            as: 'creator',
+            attributes: ['id', 'username']
+          }
+        ],
+        order: [['created_at', 'DESC']]
+      });
+
+      // 格式化返回数据，包含用户在团队中的角色
+      const teams = teamRows.map(team => {
+        const member = team.members.find(m => m.user_id === userId);
+        return {
+          id: team.id,
+          name: team.name,
+          description: team.description,
+          avatar_url: team.avatar_url,
+          team_type: team.team_type,
+          status: team.status,
+          member_count: team.member_count || 0,
+          role: member ? member.role : 'member',
+          joined_at: member ? member.joined_at : null,
+          creator: team.creator ? {
+            id: team.creator.id,
+            username: team.creator.username
+          } : null,
+          created_at: team.created_at
+        };
+      });
+
+      logger.info(`小程序用户 ${req.user.username} 获取我的团队列表，共 ${count} 个团队 (数据库查询)`);
+      return success(res, { teams }, '获取我的团队列表成功');
+
+    } catch (dbError) {
+      logger.warn('数据库查询失败，使用临时测试数据:', dbError.message);
+      
+      // 数据库查询失败时，降级到测试数据
+      // 模拟用户属于所有团队（临时数据逻辑）
+      const myTeams = teamsTemp.map(team => ({
+        ...team,
+        role: team.creator && team.creator.id === userId ? 'admin' : 'member',
+        joined_at: new Date().toISOString()
+      }));
+
+      logger.info(`小程序用户 ${req.user.username} 获取我的团队列表，共 ${myTeams.length} 个团队 (临时数据)`);
+      return success(res, { 
+        teams: myTeams,
+        _warning: "此数据为临时测试数据，非真实数据库数据"
+      }, '获取我的团队列表成功');
+    }
+
+  } catch (err) {
+    logger.error('获取我的团队列表失败:', err);
+    return error(res, '获取我的团队列表失败', 500);
+  }
+});
+
+/**
  * 获取团队详情 (小程序版本)
  * GET /api/miniapp/teams/:id
  */

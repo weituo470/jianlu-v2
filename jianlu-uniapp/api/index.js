@@ -42,7 +42,7 @@ export const groupApi = {
 	getList: () => get('/miniapp/teams'),
 
 	// 获取我的团队列表
-	getMyTeams: () => get('/miniapp/teams'),
+	getMyTeams: () => get('/miniapp/my-teams'),
 
 	// 获取群组详情
 	getDetail: (id) => get(`/miniapp/teams/${id}`),

@@ -50,16 +50,16 @@ const _sfc_main = {
         return;
       }
       loading.value = true;
-      common_vendor.index.__f__("log", "at pages/login/login.vue:188", "开始登录，用户名:", loginForm.username);
+      common_vendor.index.__f__("log", "at pages/login/login.vue:203", "开始登录，用户名:", loginForm.username);
       try {
-        common_vendor.index.__f__("log", "at pages/login/login.vue:191", "发送登录请求到:", "http://localhost:3458/api/auth/login");
-        common_vendor.index.__f__("log", "at pages/login/login.vue:192", "登录数据:", loginForm);
+        common_vendor.index.__f__("log", "at pages/login/login.vue:206", "发送登录请求到:", "http://localhost:3458/api/auth/login");
+        common_vendor.index.__f__("log", "at pages/login/login.vue:207", "登录数据:", loginForm);
         const response = await api_index.authApi.login(loginForm);
-        common_vendor.index.__f__("log", "at pages/login/login.vue:195", "登录响应:", response);
+        common_vendor.index.__f__("log", "at pages/login/login.vue:210", "登录响应:", response);
         if (response.success) {
           common_vendor.index.setStorageSync("token", response.data.token);
           common_vendor.index.setStorageSync("userInfo", response.data.user);
-          common_vendor.index.__f__("log", "at pages/login/login.vue:202", "登录成功，token已保存");
+          common_vendor.index.__f__("log", "at pages/login/login.vue:217", "登录成功，token已保存");
           utils_index.showSuccess("登录成功");
           setTimeout(() => {
             common_vendor.index.switchTab({
@@ -67,11 +67,11 @@ const _sfc_main = {
             });
           }, 1e3);
         } else {
-          common_vendor.index.__f__("error", "at pages/login/login.vue:212", "登录失败，响应:", response);
+          common_vendor.index.__f__("error", "at pages/login/login.vue:227", "登录失败，响应:", response);
           utils_index.showError(response.message || "登录失败");
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/login/login.vue:216", "登录异常:", error);
+        common_vendor.index.__f__("error", "at pages/login/login.vue:231", "登录异常:", error);
         utils_index.showError(`登录失败: ${error.message || "网络错误"}`);
       } finally {
         loading.value = false;
@@ -113,6 +113,66 @@ const _sfc_main = {
         loading.value = false;
       }
     };
+    const handleWechatLogin = async () => {
+      loading.value = true;
+      try {
+        common_vendor.index.__f__("log", "at pages/login/login.vue:287", "开始微信登录");
+        const networkType = await common_vendor.index.getNetworkType();
+        if (networkType.networkType === "none") {
+          throw new Error("网络不可用，请检查网络连接");
+        }
+        const loginResult = await common_vendor.index.login({
+          provider: "weixin",
+          onlyAuthorize: true,
+          timeout: 1e4
+          // 10秒超时
+        });
+        if (loginResult.errMsg !== "login:ok") {
+          throw new Error("微信登录授权失败");
+        }
+        const { code } = loginResult;
+        common_vendor.index.__f__("log", "at pages/login/login.vue:307", "获取微信登录code成功:", code);
+        const response = await api_index.authApi.wechatLogin({ code });
+        common_vendor.index.__f__("log", "at pages/login/login.vue:311", "微信登录响应:", response);
+        if (response.success) {
+          common_vendor.index.setStorageSync("token", response.data.token);
+          common_vendor.index.setStorageSync("userInfo", response.data.user);
+          common_vendor.index.__f__("log", "at pages/login/login.vue:318", "微信登录成功，token已保存");
+          utils_index.showSuccess("登录成功");
+          setTimeout(() => {
+            common_vendor.index.switchTab({
+              url: "/pages/home/home"
+            });
+          }, 1e3);
+        } else {
+          common_vendor.index.__f__("error", "at pages/login/login.vue:328", "微信登录失败，响应:", response);
+          utils_index.showError(response.message || "微信登录失败");
+        }
+      } catch (error) {
+        common_vendor.index.__f__("error", "at pages/login/login.vue:332", "微信登录异常:", error);
+        if (error.errMsg) {
+          if (error.errMsg.includes("auth deny")) {
+            utils_index.showError("请授权微信登录以继续使用");
+          } else if (error.errMsg.includes("timeout")) {
+            utils_index.showError("微信登录超时，请重试");
+          } else if (error.errMsg.includes("network")) {
+            utils_index.showError("网络连接失败，请检查网络设置");
+          } else {
+            utils_index.showError(`微信登录失败: ${error.errMsg}`);
+          }
+        } else if (error.message) {
+          if (error.message.includes("网络")) {
+            utils_index.showError("网络连接失败，请检查网络设置");
+          } else {
+            utils_index.showError(error.message);
+          }
+        } else {
+          utils_index.showError("微信登录失败，请重试");
+        }
+      } finally {
+        loading.value = false;
+      }
+    };
     return (_ctx, _cache) => {
       return common_vendor.e({
         a: statusBarHeight.value + "px",
@@ -130,29 +190,32 @@ const _sfc_main = {
         l: common_vendor.o(togglePassword),
         m: common_vendor.t(loading.value ? "登录中..." : "登录"),
         n: common_vendor.o(handleLogin),
-        o: loading.value
+        o: loading.value,
+        p: common_vendor.t(loading.value ? "登录中..." : "微信登录"),
+        q: common_vendor.o(handleWechatLogin),
+        r: loading.value
       } : {
-        p: loading.value,
-        q: registerForm.username,
-        r: common_vendor.o(($event) => registerForm.username = $event.detail.value),
         s: loading.value,
-        t: registerForm.email,
-        v: common_vendor.o(($event) => registerForm.email = $event.detail.value),
+        t: registerForm.username,
+        v: common_vendor.o(($event) => registerForm.username = $event.detail.value),
         w: loading.value,
-        x: registerForm.nickname,
-        y: common_vendor.o(($event) => registerForm.nickname = $event.detail.value),
+        x: registerForm.email,
+        y: common_vendor.o(($event) => registerForm.email = $event.detail.value),
         z: loading.value,
-        A: registerForm.password,
-        B: common_vendor.o(($event) => registerForm.password = $event.detail.value),
+        A: registerForm.nickname,
+        B: common_vendor.o(($event) => registerForm.nickname = $event.detail.value),
         C: loading.value,
-        D: registerForm.confirmPassword,
-        E: common_vendor.o(($event) => registerForm.confirmPassword = $event.detail.value),
-        F: common_vendor.t(loading.value ? "注册中..." : "注册"),
-        G: common_vendor.o(handleRegister),
-        H: loading.value
+        D: registerForm.password,
+        E: common_vendor.o(($event) => registerForm.password = $event.detail.value),
+        F: loading.value,
+        G: registerForm.confirmPassword,
+        H: common_vendor.o(($event) => registerForm.confirmPassword = $event.detail.value),
+        I: common_vendor.t(loading.value ? "注册中..." : "注册"),
+        J: common_vendor.o(handleRegister),
+        K: loading.value
       }, {
-        I: common_vendor.t(isLogin.value ? "没有账户？立即注册" : "已有账户？立即登录"),
-        J: common_vendor.o(toggleMode)
+        L: common_vendor.t(isLogin.value ? "没有账户？立即注册" : "已有账户？立即登录"),
+        M: common_vendor.o(toggleMode)
       });
     };
   }

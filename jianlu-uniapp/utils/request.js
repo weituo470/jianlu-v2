@@ -18,12 +18,15 @@ const request = (options) => {
 		}
 		
 		const fullUrl = BASE_URL + options.url
-		console.log('发送请求:', {
-			url: fullUrl,
-			method: options.method || 'GET',
-			data: options.data,
-			header
-		})
+		// 开发环境才打印详细请求日志
+		if (process.env.NODE_ENV === 'development') {
+			console.log('发送请求:', {
+				url: fullUrl,
+				method: options.method || 'GET',
+				data: options.data,
+				header
+			})
+		}
 
 		uni.request({
 			url: fullUrl,
@@ -31,11 +34,14 @@ const request = (options) => {
 			data: options.data || {},
 			header,
 			success: (res) => {
+			// 开发环境才打印详细响应日志
+			if (process.env.NODE_ENV === 'development') {
 				console.log('请求响应:', {
 					url: fullUrl,
 					statusCode: res.statusCode,
 					data: res.data
 				})
+			}
 
 				// 处理响应
 				if (res.statusCode >= 200 && res.statusCode < 300) {

@@ -12,7 +12,9 @@
       "Bash(npm install:*)",
       "Bash(TASKKILL:*)",
       "Bash(grep:*)",
-      "Bash(wmic:*)"
+      "Bash(wmic:*)",
+      "Bash(PORT=3461 npm start)",
+      "Bash(PORT=3463 npm start)"
     ],
     "deny": [],
     "ask": []

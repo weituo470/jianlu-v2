@@ -34,25 +34,25 @@
 			<view class="menu-item" @tap="goToPage('/pages/home/home')">
 				<text class="menu-icon">🏠</text>
 				<text class="menu-text">首页</text>
-				<text class="menu-arrow">></text>
+				<uni-icons type="right" size="16" color="#999"></uni-icons>
 			</view>
 
 			<view class="menu-item" @tap="goToPage('/pages/team/team')">
 				<text class="menu-icon">👥</text>
 				<text class="menu-text">我的团队</text>
-				<text class="menu-arrow">></text>
+				<uni-icons type="right" size="16" color="#999"></uni-icons>
 			</view>
 
 			<view class="menu-item" @tap="goToPage('/pages/activity/activity')">
 				<text class="menu-icon">📅</text>
 				<text class="menu-text">我的活动</text>
-				<text class="menu-arrow">></text>
+				<uni-icons type="right" size="16" color="#999"></uni-icons>
 			</view>
 
 			<view class="menu-item" @tap="goToPage('/pages/message/message')">
 				<text class="menu-icon">💬</text>
 				<text class="menu-text">消息中心</text>
-				<text class="menu-arrow">></text>
+				<uni-icons type="right" size="16" color="#999"></uni-icons>
 			</view>
 		</view>
 		
@@ -61,13 +61,13 @@
 			<view class="menu-item" @tap="showAbout">
 				<text class="menu-icon">ℹ️</text>
 				<text class="menu-text">关于简庐团队</text>
-				<text class="menu-arrow">></text>
+				<uni-icons type="right" size="16" color="#999"></uni-icons>
 			</view>
 
 			<view class="menu-item" @tap="logout">
 				<text class="menu-icon">🚪</text>
 				<text class="menu-text">退出登录</text>
-				<text class="menu-arrow">></text>
+				<uni-icons type="right" size="16" color="#999"></uni-icons>
 			</view>
 		</view>
 		
@@ -342,11 +342,7 @@
 		flex: 1;
 	}
 	
-	.menu-arrow {
-		font-size: 24rpx;
-		color: #999;
-	}
-	
+		
 	.modal-overlay {
 		position: fixed;
 		top: 0;

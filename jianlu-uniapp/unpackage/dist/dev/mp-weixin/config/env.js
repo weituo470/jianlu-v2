@@ -2,8 +2,8 @@
 const config = {
   // 开发环境：使用本机IP地址，小程序无法访问localhost
   development: {
-    API_BASE_URL: "http://192.168.100.2:3458/api",
-    IMAGE_BASE_URL: "http://192.168.100.2:3458",
+    API_BASE_URL: "http://192.168.100.4:8081/api",
+    IMAGE_BASE_URL: "http://192.168.100.4:8081",
     // 是否忽略HTTPS检查（仅开发环境）
     ignoreHttps: true
   },

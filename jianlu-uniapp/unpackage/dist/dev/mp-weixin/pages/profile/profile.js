@@ -6,7 +6,6 @@ const _sfc_main = {
   data() {
     return {
       userInfo: {},
-      stats: {},
       showModal: false,
       saving: false,
       editForm: {
@@ -18,27 +17,14 @@ const _sfc_main = {
   },
   onLoad() {
     this.loadUserInfo();
-    this.loadStats();
   },
   onShow() {
     this.loadUserInfo();
-    this.loadStats();
   },
   methods: {
     // 加载用户信息
     loadUserInfo() {
       this.userInfo = common_vendor.index.getStorageSync("userInfo") || {};
-    },
-    // 加载统计信息
-    async loadStats() {
-      try {
-        const response = await api_index.userApi.getStats();
-        if (response.success) {
-          this.stats = response.data;
-        }
-      } catch (error) {
-        common_vendor.index.__f__("error", "at pages/profile/profile.vue:184", "获取统计信息失败:", error);
-      }
     },
     // 显示编辑弹窗
     showEditModal() {
@@ -103,46 +89,77 @@ const _sfc_main = {
     }
   }
 };
+if (!Array) {
+  const _component_uni_icons = common_vendor.resolveComponent("uni-icons");
+  _component_uni_icons();
+}
 function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
   return common_vendor.e({
-    a: $data.userInfo.avatar
-  }, $data.userInfo.avatar ? {
-    b: $data.userInfo.avatar
+    a: $data.userInfo.wechat_avatar || $data.userInfo.avatar
+  }, $data.userInfo.wechat_avatar || $data.userInfo.avatar ? {
+    b: $data.userInfo.wechat_avatar || $data.userInfo.avatar
   } : {
-    c: common_vendor.t(($data.userInfo.nickname || $data.userInfo.username || "").charAt(0))
+    c: common_vendor.t(($data.userInfo.wechat_nickname || $data.userInfo.nickname || $data.userInfo.username || "").charAt(0))
   }, {
-    d: common_vendor.t($data.userInfo.nickname || $data.userInfo.username),
+    d: common_vendor.t($data.userInfo.wechat_nickname || $data.userInfo.nickname || $data.userInfo.username),
     e: common_vendor.t($data.userInfo.email),
     f: common_vendor.o((...args) => $options.showEditModal && $options.showEditModal(...args)),
     g: $data.userInfo.bio
   }, $data.userInfo.bio ? {
     h: common_vendor.t($data.userInfo.bio)
   } : {}, {
-    i: common_vendor.t($data.stats.teamCount || 0),
-    j: common_vendor.t($data.stats.activityCount || 0),
-    k: common_vendor.t($data.stats.messageCount || 0),
-    l: common_vendor.o(($event) => $options.goToPage("/pages/home/home")),
-    m: common_vendor.o(($event) => $options.goToPage("/pages/team/team")),
-    n: common_vendor.o(($event) => $options.goToPage("/pages/activity/activity")),
-    o: common_vendor.o(($event) => $options.goToPage("/pages/message/message")),
-    p: common_vendor.o((...args) => $options.showAbout && $options.showAbout(...args)),
-    q: common_vendor.o((...args) => $options.logout && $options.logout(...args)),
-    r: $data.showModal
-  }, $data.showModal ? {
-    s: common_vendor.o((...args) => $options.hideModal && $options.hideModal(...args)),
-    t: $data.editForm.nickname,
-    v: common_vendor.o(($event) => $data.editForm.nickname = $event.detail.value),
-    w: $data.editForm.avatar,
-    x: common_vendor.o(($event) => $data.editForm.avatar = $event.detail.value),
-    y: $data.editForm.bio,
-    z: common_vendor.o(($event) => $data.editForm.bio = $event.detail.value),
-    A: common_vendor.o((...args) => $options.hideModal && $options.hideModal(...args)),
-    B: common_vendor.t($data.saving ? "保存中..." : "保存"),
-    C: common_vendor.o((...args) => $options.saveProfile && $options.saveProfile(...args)),
-    D: $data.saving,
-    E: common_vendor.o(() => {
+    i: common_vendor.p({
+      type: "right",
+      size: "16",
+      color: "#999"
     }),
-    F: common_vendor.o((...args) => $options.hideModal && $options.hideModal(...args))
+    j: common_vendor.o(($event) => $options.goToPage("/pages/home/home")),
+    k: common_vendor.p({
+      type: "right",
+      size: "16",
+      color: "#999"
+    }),
+    l: common_vendor.o(($event) => $options.goToPage("/pages/team/team")),
+    m: common_vendor.p({
+      type: "right",
+      size: "16",
+      color: "#999"
+    }),
+    n: common_vendor.o(($event) => $options.goToPage("/pages/activity/activity")),
+    o: common_vendor.p({
+      type: "right",
+      size: "16",
+      color: "#999"
+    }),
+    p: common_vendor.o(($event) => $options.goToPage("/pages/message/message")),
+    q: common_vendor.p({
+      type: "right",
+      size: "16",
+      color: "#999"
+    }),
+    r: common_vendor.o((...args) => $options.showAbout && $options.showAbout(...args)),
+    s: common_vendor.p({
+      type: "right",
+      size: "16",
+      color: "#999"
+    }),
+    t: common_vendor.o((...args) => $options.logout && $options.logout(...args)),
+    v: $data.showModal
+  }, $data.showModal ? {
+    w: common_vendor.o((...args) => $options.hideModal && $options.hideModal(...args)),
+    x: $data.editForm.nickname,
+    y: common_vendor.o(($event) => $data.editForm.nickname = $event.detail.value),
+    z: $data.editForm.avatar,
+    A: common_vendor.o(($event) => $data.editForm.avatar = $event.detail.value),
+    B: $data.editForm.bio,
+    C: common_vendor.o(($event) => $data.editForm.bio = $event.detail.value),
+    D: common_vendor.o((...args) => $options.hideModal && $options.hideModal(...args)),
+    E: common_vendor.t($data.saving ? "保存中..." : "保存"),
+    F: common_vendor.o((...args) => $options.saveProfile && $options.saveProfile(...args)),
+    G: $data.saving,
+    H: common_vendor.o(() => {
+    }),
+    I: common_vendor.o((...args) => $options.hideModal && $options.hideModal(...args))
   } : {});
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-dd383ca2"]]);
