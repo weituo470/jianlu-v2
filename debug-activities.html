@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试活动列表</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .card { border: 1px solid #ccc; border-radius: 5px; padding: 15px; margin: 10px 0; }
+        .debug { background: #f5f5f5; padding: 10px; margin: 10px 0; border-left: 4px solid #007bff; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>活动列表调试页面</h1>
+    
+    <div id="debug-output"></div>
+    
+    <div id="activities-container"></div>
+    
+    <script>
+        // 模拟后端API响应
+        const mockActivitiesResponse = {
+            success: true,
+            data: [
+                {
+                    id: "fd4d9964-e784-40a9-9030-0beb61340221",
+                    title: "聚餐",
+                    description: "聚餐活动",
+                    type: "social",
+                    start_time: "2025-09-15T10:00:00.000Z",
+                    end_time: "2025-09-15T12:00:00.000Z",
+                    location: "餐厅",
+                    max_participants: 10,
+                    current_participants: 0,
+                    status: "published",
+                    team_id: "c3a2b6d2-78f5-4202-8614-10c30df39504",
+                    team_name: "示例企业",
+                    creator_id: "0ab641cc-6d0b-11f0-b14d-60cf84cc0cb8",
+                    creator_name: "admin",
+                    created_at: "2025-09-10T02:03:41.150Z",
+                    updated_at: "2025-09-10T02:03:41.150Z"
+                }
+            ]
+        };
+        
+        const mockTeamsResponse = {
+            success: true,
+            data: {
+                teams: [
+                    {
+                        id: "99ddf78d-901c-4045-a60a-61fc7532cf4e",
+                        name: "测试团队",
+                        description: "这是一个测试团队"
+                    },
+                    {
+                        id: "c3a2b6d2-78f5-4202-8614-10c30df39504",
+                        name: "示例企业",
+                        description: "123"
+                    }
+                ]
+            }
+        };
+        
+        // 模拟ActivitiesManager类
+        class ActivitiesManager {
+            constructor() {
+                this.activities = [];
+                this.teams = [];
+                this.debugLog = [];
+            }
+            
+            log(message, data = null) {
+                const logEntry = { message, data, timestamp: new Date().toISOString() };
+                this.debugLog.push(logEntry);
+                console.log(message, data);
+                this.renderDebug();
+            }
+            
+            renderDebug() {
+                const debugOutput = document.getElementById('debug-output');
+                debugOutput.innerHTML = this.debugLog.map(entry => `
+                    <div class="debug">
+                        <strong>${entry.timestamp}</strong>: ${entry.message}
+                        ${entry.data ? `<pre>${JSON.stringify(entry.data, null, 2)}</pre>` : ''}
+                    </div>
+                `).join('');
+            }
+            
+            async loadActivities() {
+                this.log('加载活动数据...');
+                // 模拟API调用
+                this.activities = mockActivitiesResponse.data || [];
+                this.log(`成功加载 ${this.activities.length} 个活动`, this.activities);
+            }
+            
+            async loadTeams() {
+                this.log('加载团队数据...');
+                // 模拟API调用
+                this.teams = mockTeamsResponse.data?.teams || [];
+                this.log(`成功加载 ${this.teams.length} 个团队`, this.teams);
+            }
+            
+            getTeamName(teamId) {
+                this.log('=== getTeamName 调试 ===');
+                this.log('teamId:', teamId);
+                this.log('this.teams type:', typeof this.teams);
+                this.log('this.teams isArray:', Array.isArray(this.teams));
+                this.log('this.teams length:', this.teams ? this.teams.length : 'N/A');
+                
+                if (!Array.isArray(this.teams)) {
+                    this.log('teams 不是数组，返回"未知团队"');
+                    return '未知团队';
+                }
+                
+                const team = this.teams.find(t => t.id === teamId);
+                this.log('找到的团队:', team);
+                
+                return team ? team.name : '未知团队';
+            }
+            
+            createActivityCard(activity) {
+                this.log('=== createActivityCard 调试 ===');
+                this.log('活动数据:', activity);
+                this.log('team_name:', activity.team_name);
+                this.log('creator_name:', activity.creator_name);
+                
+                // 使用新的逻辑：直接从活动对象获取名称
+                const teamName = activity.team_name || '未知团队';
+                const creatorName = activity.creator_name || '未知用户';
+                
+                this.log('最终显示的团队名称:', teamName);
+                this.log('最终显示的创建者名称:', creatorName);
+                
+                return `
+                    <div class="card">
+                        <h3>${activity.title}</h3>
+                        <p><strong>团队:</strong> <span class="${teamName === '未知团队' ? 'error' : 'success'}">${teamName}</span></p>
+                        <p><strong>创建者:</strong> ${creatorName}</p>
+                        <p><strong>描述:</strong> ${activity.description || '暂无描述'}</p>
+                        <p><strong>状态:</strong> ${activity.status}</p>
+                        <p><strong>team_id:</strong> ${activity.team_id}</p>
+                        <p><strong>creator_id:</strong> ${activity.creator_id}</p>
+                        <p><strong>调试 - team_name 原始值:</strong> "${activity.team_name}"</p>
+                        <p><strong>调试 - creator_name 原始值:</strong> "${activity.creator_name}"</p>
+                    </div>
+                `;
+            }
+            
+            renderActivitiesList() {
+                const container = document.getElementById('activities-container');
+                
+                if (this.activities.length === 0) {
+                    container.innerHTML = '<p>暂无活动数据</p>';
+                    return;
+                }
+                
+                const activitiesHtml = this.activities.map(activity => 
+                    this.createActivityCard(activity)
+                ).join('');
+                
+                container.innerHTML = activitiesHtml;
+            }
+            
+            async init() {
+                this.log('初始化 ActivitiesManager...');
+                
+                try {
+                    await this.loadActivities();
+                    await this.loadTeams();
+                    this.renderActivitiesList();
+                } catch (error) {
+                    this.log('初始化失败:', error.message);
+                }
+            }
+        }
+        
+        // 初始化
+        const activitiesManager = new ActivitiesManager();
+        activitiesManager.init();
+    </script>
+</body>
+</html>

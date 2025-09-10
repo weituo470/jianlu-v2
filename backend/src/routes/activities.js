@@ -115,8 +115,8 @@ router.get('/types', authenticateToken, async (req, res) => {
     
     // 转换为前端需要的格式
     const formattedTypes = activityTypes.map(type => ({
-      value: type.name, // 改为使用name而不是id
-      label: type.name,
+      value: type.id, // 使用id作为值（如travel, meeting）
+      label: type.name, // 使用name作为显示标签（中文）
       description: type.description,
       isDefault: type.is_default
     }));

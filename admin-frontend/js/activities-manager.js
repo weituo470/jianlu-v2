@@ -54,9 +54,19 @@ class ActivitiesManager {
             console.log('正在加载活动数据...');
             
             const response = await API.activities.getList(this.currentFilters);
+            console.log('API响应:', response);
+            
             if (response.success) {
                 this.activities = response.data || [];
                 console.log(`成功加载 ${this.activities.length} 个活动`);
+                
+                // 打印第一个活动的详细信息
+                if (this.activities.length > 0) {
+                    console.log('第一个活动详细信息:', this.activities[0]);
+                    console.log('team_name:', this.activities[0].team_name);
+                    console.log('creator_name:', this.activities[0].creator_name);
+                }
+                
                 return true;
             } else {
                 throw new Error(response.message || '加载失败');
@@ -73,7 +83,7 @@ class ActivitiesManager {
         try {
             const response = await API.teams.getList();
             if (response.success) {
-                // 团队API返回的数据结构是 {teams: [...], pagination: {...}}
+                // 团队API返回的数据结构是 {data: {teams: [...], pagination: {...}}}
                 this.teams = response.data?.teams || [];
                 console.log(`成功加载 ${this.teams.length} 个团队`);
                 return true;
@@ -169,10 +179,19 @@ class ActivitiesManager {
 
     // 创建活动卡片
     createActivityCard(activity) {
+        console.log('\n=== createActivityCard 调试 ===');
+        console.log('活动数据:', activity);
+        console.log('team_name:', activity.team_name);
+        console.log('creator_name:', activity.creator_name);
+        
         const statusBadgeClass = this.getStatusBadgeClass(activity.status);
         const statusText = this.getStatusText(activity.status);
         const typeText = this.getTypeText(activity.type);
-        const teamName = this.getTeamName(activity.team_id);
+        const teamName = activity.team_name || '未知团队';
+        const creatorName = activity.creator_name || '未知用户';
+        
+        console.log('最终显示的团队名称:', teamName);
+        console.log('最终显示的创建者名称:', creatorName);
         
         return `
             <div class="col-md-6 col-lg-4 mb-4">
@@ -206,6 +225,16 @@ class ActivitiesManager {
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="badge bg-secondary">${typeText}</span>
                                 <small class="text-muted">${teamName}</small>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-user"></i>
+                                    ${creatorName}
+                                </small>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i>
+                                    ${Utils.date.format(activity.created_at, 'MM-DD HH:mm')}
+                                </small>
                             </div>
                             
                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -277,15 +306,7 @@ class ActivitiesManager {
         return activityType ? activityType.label : type;
     }
 
-    // 获取团队名称
-    getTeamName(teamId) {
-        if (!Array.isArray(this.teams)) {
-            return '未知团队';
-        }
-        const team = this.teams.find(t => t.id === teamId);
-        return team ? team.name : '未知团队';
-    }
-
+  
     // 处理搜索
     async handleSearch(searchValue = null) {
         if (searchValue !== null) {
@@ -427,9 +448,31 @@ class ActivitiesManager {
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enableParticipantLimit" 
+                                       name="enable_participant_limit" checked onchange="activitiesManager.toggleParticipantLimit()">
+                                <label class="form-check-label" for="enableParticipantLimit">
+                                    开启人数限制
+                                </label>
+                            </div>
+                            <small class="text-muted">开启后需要设置最低和最高参与人数</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
                             <label for="activityMaxParticipants" class="form-label">最大参与人数</label>
                             <input type="number" class="form-control" id="activityMaxParticipants" name="max_participants" 
-                                   min="1" placeholder="不限制请留空">
+                                   min="1" value="30" placeholder="不限制请留空">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row" id="participantLimitRow">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="activityMinParticipants" class="form-label">最低参与人数</label>
+                            <input type="number" class="form-control" id="activityMinParticipants" name="min_participants" 
+                                   min="1" value="3" placeholder="默认3人">
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -1094,6 +1137,24 @@ class ActivitiesManager {
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     }
 
+    // 切换人数限制开关
+    toggleParticipantLimit() {
+        const enableLimit = document.getElementById('enableParticipantLimit').checked;
+        const limitRow = document.getElementById('participantLimitRow');
+        const minInput = document.getElementById('activityMinParticipants');
+        const maxInput = document.getElementById('activityMaxParticipants');
+        
+        if (enableLimit) {
+            limitRow.style.display = 'flex';
+            minInput.value = minInput.value || 3;
+            maxInput.value = maxInput.value || 30;
+        } else {
+            limitRow.style.display = 'none';
+            minInput.value = '';
+            maxInput.value = '';
+        }
+    }
+
     // 计算费用预览
     calculateCosts() {
         const totalCostInput = document.getElementById('activityTotalCost');
@@ -1132,7 +1193,9 @@ class ActivitiesManager {
             start_time: formData.get('start_time'),
             end_time: formData.get('end_time'),
             location: formData.get('location').trim(),
-            max_participants: formData.get('max_participants') ? parseInt(formData.get('max_participants')) : null,
+            enable_participant_limit: formData.get('enable_participant_limit') === 'on',
+            min_participants: formData.get('min_participants') ? parseInt(formData.get('min_participants')) : 3,
+            max_participants: formData.get('max_participants') ? parseInt(formData.get('max_participants')) : 30,
             need_approval: formData.get('need_approval') === 'true',
             // AA制费用相关字段
             total_cost: formData.get('total_cost') ? parseFloat(formData.get('total_cost')) : 0,
