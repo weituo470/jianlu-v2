@@ -9,7 +9,7 @@ const Activity = sequelize.define('Activity', {
   },
   team_id: {
     type: DataTypes.UUID,
-    allowNull: false,
+    allowNull: true, // 改为允许空值，因为公开活动可能不属于特定团队
     references: {
       model: 'teams',
       key: 'id'
@@ -28,6 +28,12 @@ const Activity = sequelize.define('Activity', {
     allowNull: false,
     defaultValue: 'other'
   },
+  visibility: {
+    type: DataTypes.ENUM('public', 'team'),
+    allowNull: false,
+    defaultValue: 'public',
+    comment: '活动可见性：public(公开活动), team(团队活动)'
+  },
   start_time: {
     type: DataTypes.DATE,
     allowNull: true
@@ -42,7 +48,21 @@ const Activity = sequelize.define('Activity', {
   },
   max_participants: {
     type: DataTypes.INTEGER,
-    allowNull: true
+    allowNull: true,
+    defaultValue: 30,
+    comment: '最大参与人数，默认30人'
+  },
+  enable_participant_limit: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    allowNull: false,
+    comment: '是否开启人数限制，默认开启'
+  },
+  min_participants: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 3,
+    comment: '最少参与人数，默认3人'
   },
   current_participants: {
     type: DataTypes.INTEGER,
@@ -87,12 +107,6 @@ const Activity = sequelize.define('Activity', {
     comment: '费用说明'
   },
   // 聚餐活动特殊字段
-  min_participants: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    defaultValue: null,
-    comment: '最少参与人数，低于此人数活动自动取消'
-  },
   company_budget: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,

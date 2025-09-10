@@ -110,36 +110,7 @@
 				activeTab: 'all',
 				searchKeyword: '',
 				loading: false,
-				messages: [
-					// 模拟数据
-					{
-						id: 1,
-						type: 'team',
-						sender_name: '张三',
-						title: '团队邀请',
-						content: '邀请您加入"产品开发团队"',
-						team_name: '产品开发团队',
-						created_at: new Date().toISOString(),
-						is_read: false
-					},
-					{
-						id: 2,
-						type: 'activity',
-						title: '活动提醒',
-						content: '您参与的"团队建设活动"将在明天下午2点开始',
-						team_name: '产品开发团队',
-						created_at: new Date(Date.now() - 3600000).toISOString(),
-						is_read: false
-					},
-					{
-						id: 3,
-						type: 'system',
-						title: '系统通知',
-						content: '您的个人资料已更新成功',
-						created_at: new Date(Date.now() - 7200000).toISOString(),
-						is_read: true
-					}
-				]
+				messages: [] // 清除模拟数据，仅使用从API获取的真实数据
 			}
 		},
 		computed: {

@@ -35,127 +35,15 @@ const miniappLoginSchema = Joi.object({
     })
 });
 
-// 临时测试数据 (与小程序前端页面显示的测试账号保持一致)
-const testUsersTemp = [
-  {
-    id: 'test-admin-id',
-    username: 'admin',
-    password: 'admin123',  // 与小程序前端显示的测试账号一致
-    email: 'admin@example.com',
-    role: 'admin',
-    status: 'active',
-    profile: { name: '管理员' }
-  },
-  {
-    id: 'test-user-id',
-    username: 'testuser',  // 与小程序前端显示的测试账号一致
-    password: 'testpass123',  // 与小程序前端显示的测试账号一致
-    email: 'testuser@example.com',
-    role: 'user',
-    status: 'active',
-    profile: { name: '测试用户' }
-  }
-];
+// 临时数据已清除 - 仅依赖数据库
 
-const activitiesTemp = [
-  {
-    id: 'activity-1',
-    title: '团队周会',
-    description: '讨论本周工作进展和下周计划',
-    type: 'meeting',
-    start_time: '2025-01-15T09:00:00.000Z',
-    end_time: '2025-01-15T10:00:00.000Z',
-    location: '会议室A',
-    max_participants: 20,
-    current_participants: 8,
-    status: 'published',
-    team: { id: 'team-1', name: '开发团队', avatar_url: null },
-    creator: { id: 'test-admin-id', username: 'admin' },
-    created_at: '2025-01-12T06:50:00.000Z'
-  },
-  {
-    id: 'activity-2',
-    title: '技术分享会',
-    description: '分享最新的前端技术趋势',
-    type: 'training',
-    start_time: '2025-01-16T14:00:00.000Z',
-    end_time: '2025-01-16T16:00:00.000Z',
-    location: '培训室B',
-    max_participants: 30,
-    current_participants: 15,
-    status: 'published',
-    team: { id: 'team-1', name: '开发团队', avatar_url: null },
-    creator: { id: 'test-admin-id', username: 'admin' },
-    created_at: '2025-01-12T07:30:00.000Z'
-  },
-  {
-    id: 'activity-3',
-    title: '团建活动',
-    description: '户外团建，增进团队感情',
-    type: 'event',
-    start_time: '2025-01-18T10:00:00.000Z',
-    end_time: '2025-01-18T18:00:00.000Z',
-    location: '公园',
-    max_participants: 50,
-    current_participants: 25,
-    status: 'published',
-    team: { id: 'team-2', name: '运营团队', avatar_url: null },
-    creator: { id: 'test-user-id', username: 'user' },
-    created_at: '2025-01-12T08:15:00.000Z'
-  }
-];
+// 活动临时数据已清除
 
-const teamsTemp = [
-  {
-    id: 'team-1',
-    name: '开发团队',
-    description: '负责产品开发和技术实现',
-    avatar_url: null,
-    team_type: 'development',
-    status: 'active',
-    member_count: 8,
-    creator: { id: 'test-admin-id', username: 'admin' },
-    created_at: '2025-01-10T09:00:00.000Z'
-  },
-  {
-    id: 'team-2',
-    name: '运营团队',
-    description: '负责产品运营和市场推广',
-    avatar_url: null,
-    team_type: 'operation',
-    status: 'active',
-    member_count: 5,
-    creator: { id: 'test-user-id', username: 'user' },
-    created_at: '2025-01-10T10:30:00.000Z'
-  },
-  {
-    id: 'team-3',
-    name: '设计团队',
-    description: '负责UI/UX设计',
-    avatar_url: null,
-    team_type: 'design',
-    status: 'active',
-    member_count: 3,
-    creator: { id: 'test-admin-id', username: 'admin' },
-    created_at: '2025-01-10T11:15:00.000Z'
-  }
-];
+// 团队临时数据已清除
 
-const activityTypesTemp = [
-  { id: 'meeting', name: '会议', description: '团队会议、讨论会等', isDefault: true },
-  { id: 'training', name: '培训', description: '技能培训、学习分享等', isDefault: true },
-  { id: 'event', name: '活动', description: '团建、聚会等活动', isDefault: true },
-  { id: 'workshop', name: '工作坊', description: '实践性学习活动', isDefault: true },
-  { id: 'other', name: '其他', description: '其他类型活动', isDefault: true }
-];
+// 活动类型临时数据已清除
 
-const teamTypesTemp = [
-  { id: 'general', name: '通用团队', description: '通用类型的团队', isDefault: true },
-  { id: 'development', name: '开发团队', description: '软件开发团队', isDefault: true },
-  { id: 'operation', name: '运营团队', description: '产品运营团队', isDefault: true },
-  { id: 'design', name: '设计团队', description: 'UI/UX设计团队', isDefault: true },
-  { id: 'testing', name: '测试团队', description: '质量保证团队', isDefault: true }
-];
+// 团队类型临时数据已清除
 
 /**
  * 小程序用户登录
@@ -166,41 +54,13 @@ router.post('/login', validate(miniappLoginSchema), async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    let user;
+    let user = null;
     
     try {
-      // 首先尝试从数据库查找真实用户
+      // 从数据库查找用户
       const { User } = require('../models');
       user = await User.findByUsername(username);
       
-      if (user) {
-        // 检查账户状态
-        if (user.status !== 'active') {
-          return unauthorized(res, '账户已被禁用，请联系管理员');
-        }
-
-        // 检查账户是否被锁定
-        if (user.isLocked()) {
-          return unauthorized(res, '账户已被锁定，请15分钟后重试');
-        }
-
-        // 验证密码
-        const isValidPassword = await user.validatePassword(password);
-        if (!isValidPassword) {
-          await user.incrementLoginAttempts();
-          return unauthorized(res, '用户名或密码错误');
-        }
-
-        // 重置登录尝试次数
-        await user.resetLoginAttempts();
-        
-        logger.info(`管理后台用户通过小程序登录成功: ${username} - IP: ${req.ip}`);
-      }
-    } catch (dbError) {
-      logger.warn('数据库查询失败，使用临时测试数据:', dbError.message);
-      
-      // 数据库查询失败时，降级到测试用户
-      user = testUsersTemp.find(u => u.username === username);
       if (!user) {
         return unauthorized(res, '用户名或密码错误');
       }
@@ -210,12 +70,25 @@ router.post('/login', validate(miniappLoginSchema), async (req, res) => {
         return unauthorized(res, '账户已被禁用，请联系管理员');
       }
 
-      // 验证密码 (简单比较)
-      if (user.password !== password) {
+      // 检查账户是否被锁定
+      if (user.isLocked()) {
+        return unauthorized(res, '账户已被锁定，请15分钟后重试');
+      }
+
+      // 验证密码
+      const isValidPassword = await user.validatePassword(password);
+      if (!isValidPassword) {
+        await user.incrementLoginAttempts();
         return unauthorized(res, '用户名或密码错误');
       }
+
+      // 重置登录尝试次数
+      await user.resetLoginAttempts();
       
-      logger.info(`测试用户通过小程序登录成功: ${username} - IP: ${req.ip}`);
+      logger.info(`小程序用户登录成功: ${username} - IP: ${req.ip}`);
+    } catch (dbError) {
+      logger.error('数据库查询失败:', dbError.message);
+      return error(res, '登录失败，请检查数据库连接', 500);
     }
 
     if (!user) {
@@ -292,117 +165,83 @@ router.get('/activities', authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '', status = '', type = '' } = req.query;
 
-    try {
-      // 首先尝试从数据库获取真实数据
-      const { Activity, Team, User } = require('../models');
-      const { Op } = require('sequelize');
+    // 从数据库获取活动数据
+    const { Activity, Team, User } = require('../models');
+    const { Op } = require('sequelize');
 
-      // 构建查询条件
-      const whereConditions = {};
-      
-      if (search) {
-        whereConditions[Op.or] = [
-          { title: { [Op.like]: `%${search}%` } },
-          { description: { [Op.like]: `%${search}%` } }
-        ];
-      }
-      
-      if (status) {
-        whereConditions.status = status;
-      }
-      
-      if (type) {
-        whereConditions.activity_type = type;
-      }
-
-      // 查询活动数据
-      const { count, rows: activityRows } = await Activity.findAndCountAll({
-        where: whereConditions,
-        include: [
-          {
-            model: Team,
-            as: 'team',
-            attributes: ['id', 'name', 'avatar_url']
-          },
-          {
-            model: User,
-            as: 'creator',
-            attributes: ['id', 'username']
-          }
-        ],
-        order: [['created_at', 'DESC']],
-        limit: parseInt(limit),
-        offset: (parseInt(page) - 1) * parseInt(limit)
-      });
-
-      // 格式化返回数据 (适合小程序显示)
-      const activities = activityRows.map(activity => ({
-        id: activity.id,
-        title: activity.title,
-        description: activity.description,
-        activity_type: activity.activity_type,
-        start_time: activity.start_time,
-        end_time: activity.end_time,
-        location: activity.location,
-        max_participants: activity.max_participants,
-        registration_count: activity.registration_count || 0,
-        status: activity.status,
-        team: activity.team ? {
-          id: activity.team.id,
-          name: activity.team.name,
-          avatar_url: activity.team.avatar_url
-        } : null,
-        creator: activity.creator ? {
-          id: activity.creator.id,
-          username: activity.creator.username
-        } : null,
-        creator_name: activity.creator ? activity.creator.username : '未知',
-        created_at: activity.created_at
-      }));
-
-      const pagination = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: count,
-        pages: Math.ceil(count / parseInt(limit))
-      };
-
-      logger.info(`小程序用户 ${req.user.username} 获取活动列表，共 ${count} 个活动 (数据库查询)`);
-      return success(res, { activities, pagination }, '获取活动列表成功');
-
-    } catch (dbError) {
-      logger.warn('数据库查询失败，使用临时测试数据:', dbError.message);
-      
-      // 数据库查询失败时，降级到测试数据
-      let filteredActivities = activitiesTemp;
-      
-      if (search) {
-        filteredActivities = filteredActivities.filter(activity => 
-          activity.title.includes(search) || activity.description.includes(search)
-        );
-      }
-      
-      if (status) {
-        filteredActivities = filteredActivities.filter(activity => activity.status === status);
-      }
-      
-      if (type) {
-        filteredActivities = filteredActivities.filter(activity => activity.type === type);
-      }
-
-      const offset = (parseInt(page) - 1) * parseInt(limit);
-      const paginatedActivities = filteredActivities.slice(offset, offset + parseInt(limit));
-
-      const pagination = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: filteredActivities.length,
-        pages: Math.ceil(filteredActivities.length / parseInt(limit))
-      };
-
-      logger.info(`小程序用户 ${req.user.username} 获取活动列表，共 ${filteredActivities.length} 个活动 (临时数据)`);
-      return success(res, { activities: paginatedActivities, pagination }, '获取活动列表成功');
+    // 构建查询条件
+    const whereConditions = {};
+    
+    if (search) {
+      whereConditions[Op.or] = [
+        { title: { [Op.like]: `%${search}%` } },
+        { description: { [Op.like]: `%${search}%` } }
+      ];
     }
+    
+    if (status) {
+      whereConditions.status = status;
+    }
+    
+    if (type) {
+      whereConditions.type = type;
+    }
+
+    // 查询活动数据
+    const { count, rows: activityRows } = await Activity.findAndCountAll({
+      where: whereConditions,
+      include: [
+        {
+          model: Team,
+          as: 'team',
+          attributes: ['id', 'name', 'avatar_url']
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username']
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit)
+    });
+
+    // 格式化返回数据
+    const activities = activityRows.map(activity => ({
+      id: activity.id,
+      title: activity.title,
+      description: activity.description,
+      activity_type: activity.type,
+      visibility: activity.visibility,
+      start_time: activity.start_time,
+      end_time: activity.end_time,
+      location: activity.location,
+      max_participants: activity.max_participants,
+      registration_count: activity.registration_count || 0,
+      status: activity.status,
+      team: activity.team ? {
+        id: activity.team.id,
+        name: activity.team.name,
+        avatar_url: activity.team.avatar_url
+      } : null,
+      creator: activity.creator ? {
+        id: activity.creator.id,
+        username: activity.creator.username
+      } : null,
+      creator_name: activity.creator ? activity.creator.username : '未知',
+      created_at: activity.created_at
+    }));
+
+    const pagination = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: count,
+      pages: Math.ceil(count / parseInt(limit))
+    };
+
+    logger.info(`小程序用户 ${req.user.username} 获取活动列表，共 ${count} 个活动`);
+    return success(res, { activities, pagination }, '获取活动列表成功');
 
   } catch (err) {
     logger.error('获取活动列表失败:', err);
@@ -417,14 +256,55 @@ router.get('/activities', authenticateToken, async (req, res) => {
 router.get('/activities/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const activity = activitiesTemp.find(a => a.id === id);
+    const { Activity, Team, User } = require('../models');
+    
+    const activity = await Activity.findByPk(id, {
+      include: [
+        {
+          model: Team,
+          as: 'team',
+          attributes: ['id', 'name', 'avatar_url']
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username']
+        }
+      ]
+    });
 
     if (!activity) {
       return error(res, '活动不存在', 404);
     }
 
+    // 格式化返回数据
+    const formattedActivity = {
+      id: activity.id,
+      title: activity.title,
+      description: activity.description,
+      activity_type: activity.type,
+      visibility: activity.visibility,
+      start_time: activity.start_time,
+      end_time: activity.end_time,
+      location: activity.location,
+      max_participants: activity.max_participants,
+      registration_count: activity.registration_count || 0,
+      status: activity.status,
+      team: activity.team ? {
+        id: activity.team.id,
+        name: activity.team.name,
+        avatar_url: activity.team.avatar_url
+      } : null,
+      creator: activity.creator ? {
+        id: activity.creator.id,
+        username: activity.creator.username
+      } : null,
+      creator_name: activity.creator ? activity.creator.username : '未知',
+      created_at: activity.created_at
+    };
+
     logger.info(`小程序用户 ${req.user.username} 查看活动详情: ${activity.title}`);
-    return success(res, activity, '获取活动详情成功');
+    return success(res, formattedActivity, '获取活动详情成功');
 
   } catch (err) {
     logger.error('获取活动详情失败:', err);
@@ -440,103 +320,68 @@ router.get('/teams', authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '', team_type = '' } = req.query;
 
-    let teams;
+    // 从数据库查询团队数据
+    const { Team, User } = require('../models');
     
-    try {
-      // 首先尝试从数据库查询真实团队数据
-      const { Team, User } = require('../models');
-      
-      // 构建查询条件
-      const where = {
-        status: 'active' // 只显示活跃的团队
+    // 构建查询条件
+    const where = {
+      status: 'active' // 只显示活跃的团队
+    };
+    
+    if (search) {
+      where.name = {
+        [require('sequelize').Op.like]: `%${search}%`
       };
-      
-      if (search) {
-        where.name = {
-          [require('sequelize').Op.like]: `%${search}%`
-        };
-      }
-      
-      if (team_type) {
-        where.team_type = team_type;
-      }
-
-      // 分页参数
-      const offset = (parseInt(page) - 1) * parseInt(limit);
-
-      // 查询团队列表
-      const { count, rows: teamRows } = await Team.findAndCountAll({
-        where,
-        include: [
-          {
-            model: User,
-            as: 'creator',
-            attributes: ['id', 'username']
-          }
-        ],
-        order: [['created_at', 'DESC']],
-        limit: parseInt(limit),
-        offset,
-        distinct: true
-      });
-
-      // 格式化返回数据 (适合小程序显示)
-      teams = teamRows.map(team => ({
-        id: team.id,
-        name: team.name,
-        description: team.description,
-        avatar_url: team.avatar_url,
-        team_type: team.team_type,
-        status: team.status,
-        member_count: team.member_count || 0,
-        creator: team.creator ? {
-          id: team.creator.id,
-          username: team.creator.username
-        } : null,
-        created_at: team.created_at
-      }));
-
-      const pagination = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: count,
-        pages: Math.ceil(count / parseInt(limit))
-      };
-
-      logger.info(`小程序用户 ${req.user.username} 获取团队列表，共 ${count} 个团队 (数据库查询)`);
-      return success(res, { teams, pagination }, '获取团队列表成功');
-
-    } catch (dbError) {
-      logger.warn('数据库查询失败，使用临时测试数据:', dbError.message);
-      
-      // 数据库查询失败时，降级到测试数据
-      let filteredTeams = teamsTemp;
-      
-      if (search) {
-        filteredTeams = filteredTeams.filter(team => team.name.includes(search));
-      }
-      
-      if (team_type) {
-        filteredTeams = filteredTeams.filter(team => team.team_type === team_type);
-      }
-
-      const offset = (parseInt(page) - 1) * parseInt(limit);
-      const paginatedTeams = filteredTeams.slice(offset, offset + parseInt(limit));
-
-      const pagination = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: filteredTeams.length,
-        pages: Math.ceil(filteredTeams.length / parseInt(limit))
-      };
-
-      logger.info(`小程序用户 ${req.user.username} 获取团队列表，共 ${filteredTeams.length} 个团队 (临时数据)`);
-      return success(res, { 
-        teams: paginatedTeams, 
-        pagination,
-        _warning: "此数据为临时测试数据，非真实数据库数据"
-      }, '获取团队列表成功');
     }
+    
+    if (team_type) {
+      where.team_type = team_type;
+    }
+
+    // 分页参数
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // 查询团队列表
+    const { count, rows: teamRows } = await Team.findAndCountAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username']
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      limit: parseInt(limit),
+      offset,
+      distinct: true
+    });
+
+    // 格式化返回数据
+    const teams = teamRows.map(team => ({
+      id: team.id,
+      name: team.name,
+      description: team.description,
+      avatar_url: team.avatar_url,
+      team_type: team.team_type,
+      status: team.status,
+      member_count: team.member_count || 0,
+      creator: team.creator ? {
+        id: team.creator.id,
+        username: team.creator.username
+      } : null,
+      created_at: team.created_at
+    }));
+
+    const pagination = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: count,
+      pages: Math.ceil(count / parseInt(limit))
+    };
+
+    logger.info(`小程序用户 ${req.user.username} 获取团队列表，共 ${count} 个团队`);
+    return success(res, { teams, pagination }, '获取团队列表成功');
 
   } catch (err) {
     logger.error('获取团队列表失败:', err);
@@ -552,74 +397,55 @@ router.get('/my-teams', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    try {
-      // 首先尝试从数据库查询真实团队数据
-      const { Team, TeamMember, User } = require('../models');
-      
-      // 查询用户所属的团队
-      const { count, rows: teamRows } = await Team.findAndCountAll({
-        where: {
-          status: 'active'
-        },
-        include: [
-          {
-            model: TeamMember,
-            as: 'members',
-            where: {
-              user_id: userId
-            },
-            required: true // 确保只返回用户所属的团队
+    // 从数据库查询用户所属的团队
+    const { Team, TeamMember, User } = require('../models');
+    
+    // 查询用户所属的团队
+    const { count, rows: teamRows } = await Team.findAndCountAll({
+      where: {
+        status: 'active'
+      },
+      include: [
+        {
+          model: TeamMember,
+          as: 'members',
+          where: {
+            user_id: userId
           },
-          {
-            model: User,
-            as: 'creator',
-            attributes: ['id', 'username']
-          }
-        ],
-        order: [['created_at', 'DESC']]
-      });
+          required: true // 确保只返回用户所属的团队
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
 
-      // 格式化返回数据，包含用户在团队中的角色
-      const teams = teamRows.map(team => {
-        const member = team.members.find(m => m.user_id === userId);
-        return {
-          id: team.id,
-          name: team.name,
-          description: team.description,
-          avatar_url: team.avatar_url,
-          team_type: team.team_type,
-          status: team.status,
-          member_count: team.member_count || 0,
-          role: member ? member.role : 'member',
-          joined_at: member ? member.joined_at : null,
-          creator: team.creator ? {
-            id: team.creator.id,
-            username: team.creator.username
-          } : null,
-          created_at: team.created_at
-        };
-      });
+    // 格式化返回数据，包含用户在团队中的角色
+    const teams = teamRows.map(team => {
+      const member = team.members.find(m => m.user_id === userId);
+      return {
+        id: team.id,
+        name: team.name,
+        description: team.description,
+        avatar_url: team.avatar_url,
+        team_type: team.team_type,
+        status: team.status,
+        member_count: team.member_count || 0,
+        role: member ? member.role : 'member',
+        joined_at: member ? member.joined_at : null,
+        creator: team.creator ? {
+          id: team.creator.id,
+          username: team.creator.username
+        } : null,
+        created_at: team.created_at
+      };
+    });
 
-      logger.info(`小程序用户 ${req.user.username} 获取我的团队列表，共 ${count} 个团队 (数据库查询)`);
-      return success(res, { teams }, '获取我的团队列表成功');
-
-    } catch (dbError) {
-      logger.warn('数据库查询失败，使用临时测试数据:', dbError.message);
-      
-      // 数据库查询失败时，降级到测试数据
-      // 模拟用户属于所有团队（临时数据逻辑）
-      const myTeams = teamsTemp.map(team => ({
-        ...team,
-        role: team.creator && team.creator.id === userId ? 'admin' : 'member',
-        joined_at: new Date().toISOString()
-      }));
-
-      logger.info(`小程序用户 ${req.user.username} 获取我的团队列表，共 ${myTeams.length} 个团队 (临时数据)`);
-      return success(res, { 
-        teams: myTeams,
-        _warning: "此数据为临时测试数据，非真实数据库数据"
-      }, '获取我的团队列表成功');
-    }
+    logger.info(`小程序用户 ${req.user.username} 获取我的团队列表，共 ${count} 个团队`);
+    return success(res, { teams }, '获取我的团队列表成功');
 
   } catch (err) {
     logger.error('获取我的团队列表失败:', err);
@@ -635,61 +461,43 @@ router.get('/teams/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    try {
-      // 首先尝试从数据库查询真实团队数据
-      const { Team, User } = require('../models');
-      
-      const team = await Team.findByPk(id, {
-        include: [
-          {
-            model: User,
-            as: 'creator',
-            attributes: ['id', 'username', 'profile']
-          }
-        ]
-      });
+    // 从数据库查询团队数据
+    const { Team, User } = require('../models');
+    
+    const team = await Team.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username', 'profile']
+        }
+      ]
+    });
 
-      if (!team) {
-        return error(res, '团队不存在', 404);
-      }
-
-      // 格式化返回数据
-      const formattedTeam = {
-        id: team.id,
-        name: team.name,
-        description: team.description,
-        avatar_url: team.avatar_url,
-        team_type: team.team_type,
-        status: team.status,
-        member_count: team.member_count || 0,
-        creator: team.creator ? {
-          id: team.creator.id,
-          username: team.creator.username,
-          profile: team.creator.profile
-        } : null,
-        created_at: team.created_at,
-        updated_at: team.updated_at
-      };
-
-      logger.info(`小程序用户 ${req.user.username} 查看团队详情: ${team.name} (数据库查询)`);
-      return success(res, formattedTeam, '获取团队详情成功');
-
-    } catch (dbError) {
-      logger.warn('数据库查询失败，使用临时测试数据:', dbError.message);
-      
-      // 数据库查询失败时，降级到测试数据
-      const team = teamsTemp.find(t => t.id === id);
-
-      if (!team) {
-        return error(res, '团队不存在', 404);
-      }
-
-      logger.info(`小程序用户 ${req.user.username} 查看团队详情: ${team.name} (临时数据)`);
-      return success(res, {
-        ...team,
-        _warning: "此数据为临时测试数据，非真实数据库数据"
-      }, '获取团队详情成功');
+    if (!team) {
+      return error(res, '团队不存在', 404);
     }
+
+    // 格式化返回数据
+    const formattedTeam = {
+      id: team.id,
+      name: team.name,
+      description: team.description,
+      avatar_url: team.avatar_url,
+      team_type: team.team_type,
+      status: team.status,
+      member_count: team.member_count || 0,
+      creator: team.creator ? {
+        id: team.creator.id,
+        username: team.creator.username,
+        profile: team.creator.profile
+      } : null,
+      created_at: team.created_at,
+      updated_at: team.updated_at
+    };
+
+    logger.info(`小程序用户 ${req.user.username} 查看团队详情: ${team.name}`);
+    return success(res, formattedTeam, '获取团队详情成功');
 
   } catch (err) {
     logger.error('获取团队详情失败:', err);
@@ -703,34 +511,25 @@ router.get('/teams/:id', authenticateToken, async (req, res) => {
  */
 router.get('/activity-types', authenticateToken, async (req, res) => {
   try {
-    // 首先尝试从数据库获取真实数据
-    try {
-      const { ActivityType } = require('../models');
+    // 从数据库获取活动类型
+    const { ActivityType } = require('../models');
+    
+    const activityTypes = await ActivityType.findAll({
+      where: { status: 'active' },
+      order: [['sort_order', 'ASC'], ['created_at', 'ASC']]
+    });
+    
+    // 转换为前端需要的格式
+    const formattedTypes = activityTypes.map(type => ({
+      id: type.id,
+      name: type.name,
+      description: type.description,
+      isDefault: type.is_default || false
+    }));
+    
+    logger.info(`小程序用户 ${req.user.username} 获取活动类型列表，共 ${formattedTypes.length} 个类型`);
+    return success(res, formattedTypes, '获取活动类型成功');
       
-      // 从数据库获取活动类型
-      const activityTypes = await ActivityType.findAll({
-        where: { status: 'active' },
-        order: [['sort_order', 'ASC'], ['created_at', 'ASC']]
-      });
-      
-      // 转换为前端需要的格式
-      const formattedTypes = activityTypes.map(type => ({
-        id: type.id,
-        name: type.name,
-        description: type.description,
-        isDefault: type.is_default || false
-      }));
-      
-      logger.info(`小程序用户 ${req.user.username} 获取活动类型列表，共 ${formattedTypes.length} 个类型 (数据库查询)`);
-      return success(res, formattedTypes, '获取活动类型成功');
-      
-    } catch (dbError) {
-      logger.warn('数据库操作失败，使用临时数据:', dbError.message);
-      
-      // 数据库操作失败时，降级到临时数据
-      logger.info(`小程序用户 ${req.user.username} 获取活动类型列表，共 ${activityTypesTemp.length} 个类型 (临时数据)`);
-      return success(res, activityTypesTemp, '获取活动类型成功');
-    }
   } catch (err) {
     logger.error('获取活动类型失败:', err);
     return error(res, '获取活动类型失败', 500);
@@ -743,8 +542,25 @@ router.get('/activity-types', authenticateToken, async (req, res) => {
  */
 router.get('/team-types', authenticateToken, async (req, res) => {
   try {
-    logger.info(`小程序用户 ${req.user.username} 获取团队类型列表，共 ${teamTypesTemp.length} 个类型`);
-    return success(res, teamTypesTemp, '获取团队类型成功');
+    // 从数据库获取团队类型
+    const { TeamType } = require('../models');
+    
+    const teamTypes = await TeamType.findAll({
+      where: { status: 'active' },
+      order: [['sort_order', 'ASC'], ['created_at', 'ASC']]
+    });
+    
+    // 转换为前端需要的格式
+    const formattedTypes = teamTypes.map(type => ({
+      id: type.id,
+      name: type.name,
+      description: type.description,
+      isDefault: type.is_default || false
+    }));
+    
+    logger.info(`小程序用户 ${req.user.username} 获取团队类型列表，共 ${formattedTypes.length} 个类型`);
+    return success(res, formattedTypes, '获取团队类型成功');
+    
   } catch (err) {
     logger.error('获取团队类型失败:', err);
     return error(res, '获取团队类型失败', 500);
@@ -757,33 +573,118 @@ router.get('/team-types', authenticateToken, async (req, res) => {
  */
 router.post('/activities', authenticateToken, async (req, res) => {
   try {
-    const { title, description, type, team_id, start_time, end_time, location, max_participants } = req.body;
+    const { 
+      title, 
+      description, 
+      activity_type, 
+      visibility,  // ✅ 添加 visibility 字段
+      team_id, 
+      start_time, 
+      end_time, 
+      location, 
+      max_participants,
+      enable_participant_limit,
+      min_participants,
+      registration_deadline,
+      require_approval,
+      is_free,
+      base_fee
+    } = req.body;
+
+    console.log('🔍 创建活动请求数据:', {
+      title,
+      visibility,
+      team_id,
+      activity_type
+    });
 
     if (!title || title.trim().length < 2) {
       return error(res, '活动标题至少2个字符', 400);
     }
 
-    const newActivity = {
-      id: 'activity-' + Date.now(),
+    // ✅ 验证公开活动时不需要团队，团队活动时必须有团队
+    if (visibility === 'team' && !team_id) {
+      return error(res, '团队活动必须指定团队', 400);
+    }
+
+    // 保存到数据库
+    const { Activity, User } = require('../models');
+    const { v4: uuidv4 } = require('uuid');
+
+    // 创建活动数据
+    const activityData = {
+      id: uuidv4(),
       title: title.trim(),
       description: description || '',
-      type: type || 'other',
+      type: activity_type || 'other',
+      visibility: visibility || 'public',
+      team_id: team_id || null,
       start_time: start_time || null,
       end_time: end_time || null,
       location: location || null,
+      enable_participant_limit: enable_participant_limit !== false,
+      min_participants: min_participants || 3,
       max_participants: max_participants || null,
       current_participants: 0,
-      status: 'draft',
-      team: team_id ? teamsTemp.find(t => t.id === team_id) || teamsTemp[0] : teamsTemp[0],
-      creator: { id: req.user.id, username: req.user.username },
-      created_at: new Date().toISOString()
+      status: 'published',
+      creator_id: req.user.id,
+      registration_deadline: registration_deadline || null,
+      require_approval: require_approval || false,
+      is_free: is_free !== false,
+      base_fee: base_fee || 0
     };
 
-    // 模拟添加到数据中
-    activitiesTemp.push(newActivity);
+    console.log('📋 最终活动数据:', activityData);
+
+    // 保存到数据库
+    const activity = await Activity.create(activityData);
+
+    // 获取完整的活动数据（包含关联信息）
+    const createdActivity = await Activity.findByPk(activity.id, {
+      include: [
+        {
+          model: require('../models').Team,
+          as: 'team',
+          attributes: ['id', 'name', 'avatar_url']
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username']
+        }
+      ]
+    });
+
+    // 格式化返回数据
+    const responseData = {
+      id: createdActivity.id,
+      title: createdActivity.title,
+      description: createdActivity.description,
+      activity_type: createdActivity.type,
+      visibility: createdActivity.visibility,
+      start_time: createdActivity.start_time,
+      end_time: createdActivity.end_time,
+      location: createdActivity.location,
+      enable_participant_limit: createdActivity.enable_participant_limit,
+      min_participants: createdActivity.min_participants,
+      max_participants: createdActivity.max_participants,
+      registration_count: createdActivity.registration_count || 0,
+      status: createdActivity.status,
+      team: createdActivity.team ? {
+        id: createdActivity.team.id,
+        name: createdActivity.team.name,
+        avatar_url: createdActivity.team.avatar_url
+      } : null,
+      creator: createdActivity.creator ? {
+        id: createdActivity.creator.id,
+        username: createdActivity.creator.username
+      } : null,
+      creator_name: createdActivity.creator ? createdActivity.creator.username : '未知',
+      created_at: createdActivity.created_at
+    };
 
     logger.info(`小程序用户 ${req.user.username} 创建活动: ${title}`);
-    return success(res, newActivity, '活动创建成功', 201);
+    return success(res, responseData, '活动创建成功', 201);
 
   } catch (err) {
     logger.error('创建活动失败:', err);
@@ -803,94 +704,64 @@ router.post('/teams', authenticateToken, async (req, res) => {
       return error(res, '团队名称至少2个字符', 400);
     }
 
-    try {
-      // 首先尝试真实数据库操作
-      const { Team } = require('../models');
-      const { Op } = require('sequelize');
+    // 从数据库创建团队
+    const { Team } = require('../models');
+    const { Op } = require('sequelize');
 
-      // 检查团队名称是否已存在
-      const existingTeam = await Team.findOne({
-        where: {
-          name: name.trim(),
-          status: {
-            [Op.ne]: 'dissolved'
-          }
+    // 检查团队名称是否已存在
+    const existingTeam = await Team.findOne({
+      where: {
+        name: name.trim(),
+        status: {
+          [Op.ne]: 'dissolved'
         }
-      });
-
-      if (existingTeam) {
-        return error(res, '团队名称已存在', 400);
       }
+    });
 
-      // 创建团队
-      const team = await Team.create({
-        name: name.trim(),
-        description: description || '',
-        avatar_url: avatar_url || null,
-        team_type,
-        creator_id: req.user.id,
-        status: 'active'
-      });
-
-      // 获取完整的团队信息
-      const fullTeam = await Team.findByPk(team.id, {
-        include: [
-          {
-            model: require('../models').User,
-            as: 'creator',
-            attributes: ['id', 'username']
-          }
-        ]
-      });
-
-      // 格式化返回数据
-      const formattedTeam = {
-        id: fullTeam.id,
-        name: fullTeam.name,
-        description: fullTeam.description,
-        avatar_url: fullTeam.avatar_url,
-        team_type: fullTeam.team_type,
-        status: fullTeam.status,
-        member_count: 1, // 创建者自动成为成员
-        creator: fullTeam.creator ? {
-          id: fullTeam.creator.id,
-          username: fullTeam.creator.username
-        } : null,
-        created_at: fullTeam.created_at
-      };
-
-      logger.info(`小程序用户 ${req.user.username} 创建团队: ${name} (数据库保存)`);
-      return success(res, formattedTeam, '团队创建成功', 201);
-
-    } catch (dbError) {
-      logger.warn('数据库操作失败，使用临时数据:', dbError.message);
-      
-      // 数据库操作失败时，降级到临时数据
-      if (teamsTemp.find(t => t.name === name.trim())) {
-        return error(res, '团队名称已存在', 400);
-      }
-
-      const newTeam = {
-        id: 'team-' + Date.now(),
-        name: name.trim(),
-        description: description || '',
-        avatar_url: avatar_url || null,
-        team_type,
-        status: 'active',
-        member_count: 1,
-        creator: { id: req.user.id, username: req.user.username },
-        created_at: new Date().toISOString()
-      };
-
-      // 模拟添加到数据中
-      teamsTemp.push(newTeam);
-
-      logger.info(`小程序用户 ${req.user.username} 创建团队: ${name} (临时数据)`);
-      return success(res, {
-        ...newTeam,
-        _warning: "此数据为临时测试数据，未保存到数据库"
-      }, '团队创建成功', 201);
+    if (existingTeam) {
+      return error(res, '团队名称已存在', 400);
     }
+
+    // 创建团队
+    const team = await Team.create({
+      name: name.trim(),
+      description: description || '',
+      avatar_url: avatar_url || null,
+      team_type,
+      creator_id: req.user.id,
+      status: 'active'
+    });
+
+    // 获取完整的团队信息
+    const fullTeam = await Team.findByPk(team.id, {
+      include: [
+        {
+          model: require('../models').User,
+          as: 'creator',
+          attributes: ['id', 'username']
+        }
+      ]
+    });
+
+    // 格式化返回数据
+    const formattedTeam = {
+      id: fullTeam.id,
+      name: fullTeam.name,
+      description: fullTeam.description,
+      avatar_url: fullTeam.avatar_url,
+      team_type: fullTeam.team_type,
+      status: fullTeam.status,
+      member_count: 1, // 创建者自动成为成员
+      creator: fullTeam.creator ? {
+        id: fullTeam.creator.id,
+        username: fullTeam.creator.username
+      } : null,
+      created_at: fullTeam.created_at
+    };
+
+    logger.info(`小程序用户 ${req.user.username} 创建团队: ${name}`);
+    return success(res, formattedTeam, '团队创建成功', 201);
+
 
   } catch (err) {
     logger.error('创建团队失败:', err);
