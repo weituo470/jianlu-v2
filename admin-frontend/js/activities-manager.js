@@ -51,28 +51,39 @@ class ActivitiesManager {
     // 加载活动数据
     async loadActivities() {
         try {
-            console.log('正在加载活动数据...');
+            console.log('🔄 正在加载活动数据...');
+            console.log('当前筛选条件:', this.currentFilters);
             
             const response = await API.activities.getList(this.currentFilters);
-            console.log('API响应:', response);
+            console.log('📡 API完整响应:', response);
+            console.log('📡 响应类型:', typeof response);
+            console.log('📡 响应成功标志:', response.success);
+            console.log('📡 响应数据:', response.data);
             
             if (response.success) {
                 this.activities = response.data || [];
-                console.log(`成功加载 ${this.activities.length} 个活动`);
+                console.log(`✅ 成功加载 ${this.activities.length} 个活动`);
                 
-                // 打印第一个活动的详细信息
-                if (this.activities.length > 0) {
-                    console.log('第一个活动详细信息:', this.activities[0]);
-                    console.log('team_name:', this.activities[0].team_name);
-                    console.log('creator_name:', this.activities[0].creator_name);
-                }
+                // 打印所有活动的关键信息
+                this.activities.forEach((activity, index) => {
+                    console.log(`\n📋 活动 ${index + 1}:`);
+                    console.log('  ID:', activity.id);
+                    console.log('  标题:', activity.title);
+                    console.log('  team_id:', activity.team_id);
+                    console.log('  team_name:', activity.team_name);
+                    console.log('  team_name类型:', typeof activity.team_name);
+                    console.log('  creator_id:', activity.creator_id);
+                    console.log('  creator_name:', activity.creator_name);
+                    console.log('  creator_name类型:', typeof activity.creator_name);
+                });
                 
                 return true;
             } else {
+                console.error('❌ API返回失败:', response.message);
                 throw new Error(response.message || '加载失败');
             }
         } catch (error) {
-            console.error('加载活动失败:', error);
+            console.error('💥 加载活动失败:', error);
             this.activities = [];
             throw error;
         }
@@ -179,10 +190,29 @@ class ActivitiesManager {
 
     // 创建活动卡片
     createActivityCard(activity) {
-        console.log('\n=== createActivityCard 调试 ===');
-        console.log('活动数据:', activity);
-        console.log('team_name:', activity.team_name);
-        console.log('creator_name:', activity.creator_name);
+        console.log('\n🎯 === createActivityCard 深度调试 ===');
+        console.log('📦 原始活动数据:', activity);
+        console.log('🏢 team_name 值:', activity.team_name);
+        console.log('🏢 team_name 类型:', typeof activity.team_name);
+        console.log('🏢 team_name 长度:', activity.team_name ? activity.team_name.length : 'null/undefined');
+        console.log('🏢 team_name JSON:', JSON.stringify(activity.team_name));
+        console.log('👤 creator_name 值:', activity.creator_name);
+        console.log('👤 creator_name 类型:', typeof activity.creator_name);
+        console.log('👤 creator_name 长度:', activity.creator_name ? activity.creator_name.length : 'null/undefined');
+        console.log('👤 creator_name JSON:', JSON.stringify(activity.creator_name));
+        
+        // 检查是否有null、undefined或空字符串
+        console.log('🔍 team_name 检查:');
+        console.log('  - 是否null:', activity.team_name === null);
+        console.log('  - 是否undefined:', activity.team_name === undefined);
+        console.log('  - 是否空字符串:', activity.team_name === '');
+        console.log('  - 布尔转换:', !!activity.team_name);
+        
+        console.log('🔍 creator_name 检查:');
+        console.log('  - 是否null:', activity.creator_name === null);
+        console.log('  - 是否undefined:', activity.creator_name === undefined);
+        console.log('  - 是否空字符串:', activity.creator_name === '');
+        console.log('  - 布尔转换:', !!activity.creator_name);
         
         const statusBadgeClass = this.getStatusBadgeClass(activity.status);
         const statusText = this.getStatusText(activity.status);
@@ -190,8 +220,9 @@ class ActivitiesManager {
         const teamName = activity.team_name || '未知团队';
         const creatorName = activity.creator_name || '未知用户';
         
-        console.log('最终显示的团队名称:', teamName);
-        console.log('最终显示的创建者名称:', creatorName);
+        console.log('✅ 最终显示的团队名称:', teamName);
+        console.log('✅ 最终显示的创建者名称:', creatorName);
+        console.log('==========================================\n');
         
         return `
             <div class="col-md-6 col-lg-4 mb-4">

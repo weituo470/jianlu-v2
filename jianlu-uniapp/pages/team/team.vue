@@ -288,27 +288,17 @@
 			// 加载团队类型
 			async loadTeamTypes() {
 				try {
-					// ⚠️ 临时硬编码数据 - 生产环境需要替换为数据库查询
-					// TODO: 后续改为从 API.teamTypes.getList() 获取
-					const teamTypesTemp = [
-						{ value: 'general', label: '通用团队' },
-						{ value: 'development', label: '开发团队' },
-						{ value: 'design', label: '设计团队' },
-						{ value: 'marketing', label: '市场团队' },
-						{ value: 'sales', label: '销售团队' },
-						{ value: 'support', label: '客服团队' },
-						{ value: 'hr', label: '人事团队' },
-						{ value: 'finance', label: '财务团队' },
-						{ value: 'other', label: '其他' }
-					]
-					this.teamTypes = teamTypesTemp
+					// 从后台API获取团队类型
+					const response = await groupApi.getTeamTypes()
+					if (response.success) {
+						this.teamTypes = response.data || []
+					}
 				} catch (error) {
 					console.error('加载团队类型失败:', error)
 					// 使用默认类型
-					const defaultTeamTypesTemp = [
+					this.teamTypes = [
 						{ value: 'general', label: '通用团队' }
 					]
-					this.teamTypes = defaultTeamTypesTemp
 				}
 			},
 			

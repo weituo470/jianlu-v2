@@ -75,7 +75,10 @@ export const groupApi = {
 	getTeamMembers: (id, params) => get(`/miniapp/teams/${id}/members`, { params }),
 
 	// 获取团队详情
-	getTeamDetail: (id) => get(`/miniapp/teams/${id}`)
+	getTeamDetail: (id) => get(`/miniapp/teams/${id}`),
+
+	// 获取团队类型列表
+	getTeamTypes: () => get('/miniapp/team-types')
 }
 
 // 活动相关API（使用小程序专用API）

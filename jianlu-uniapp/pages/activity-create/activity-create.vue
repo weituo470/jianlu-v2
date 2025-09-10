@@ -59,7 +59,7 @@
 						<text class="selector-text" :class="{ placeholder: !selectedTeam }">
 							{{ selectedTeam ? selectedTeam.name : '请选择团队' }}
 						</text>
-						<text class="selector-arrow">></text>
+						<text class="selector-arrow">›</text>
 					</view>
 				</view>
 			</view>
@@ -75,7 +75,7 @@
 							<text class="datetime-text" :class="{ placeholder: !startDate }">
 								{{ startDate ? startDate : '请选择开始日期' }}
 							</text>
-							<text class="picker-arrow">></text>
+							<text class="picker-arrow">›</text>
 						</view>
 					</picker>
 				</view>
@@ -87,7 +87,7 @@
 							<text class="datetime-text" :class="{ placeholder: !startTime }">
 								{{ startTime ? startTime : '请选择开始时间' }}
 							</text>
-							<text class="picker-arrow">></text>
+							<text class="picker-arrow">›</text>
 						</view>
 					</picker>
 				</view>
@@ -99,7 +99,7 @@
 							<text class="datetime-text" :class="{ placeholder: !endDate }">
 								{{ endDate ? endDate : '请选择结束日期' }}
 							</text>
-							<text class="picker-arrow">></text>
+							<text class="picker-arrow">›</text>
 						</view>
 					</picker>
 				</view>
@@ -111,7 +111,7 @@
 							<text class="datetime-text" :class="{ placeholder: !endTime }">
 								{{ endTime ? endTime : '请选择结束时间' }}
 							</text>
-							<text class="picker-arrow">></text>
+							<text class="picker-arrow">›</text>
 						</view>
 					</picker>
 				</view>
@@ -127,10 +127,29 @@
 				<text class="section-title">报名设置</text>
 
 				<view class="form-item">
-					<text class="form-label">人数限制</text>
-					<view class="number-input">
-						<input class="form-input" v-model.number="form.max_participants" placeholder="0表示无限制" type="number" />
-						<text class="input-unit">人</text>
+					<view class="switch-item">
+						<text class="switch-label">人数限制</text>
+						<switch :checked="form.enable_participant_limit" @change="toggleParticipantLimit" />
+					</view>
+					<text class="switch-desc">开启后，用户需要设置最低和最高参与人数</text>
+				</view>
+
+				<view class="form-item" v-if="form.enable_participant_limit">
+					<view class="participant-limits">
+						<view class="limit-item">
+							<text class="limit-label">最低人数</text>
+							<view class="number-input">
+								<input class="form-input" v-model.number="form.min_participants" placeholder="3" type="number" />
+								<text class="input-unit">人</text>
+							</view>
+						</view>
+						<view class="limit-item">
+							<text class="limit-label">最高人数</text>
+							<view class="number-input">
+								<input class="form-input" v-model.number="form.max_participants" placeholder="30" type="number" />
+								<text class="input-unit">人</text>
+							</view>
+						</view>
 					</view>
 				</view>
 
@@ -141,7 +160,7 @@
 							<text class="datetime-text" :class="{ placeholder: !deadlineDate }">
 								{{ deadlineDate ? deadlineDate : '请选择截止日期（可选）' }}
 							</text>
-							<text class="picker-arrow">></text>
+							<text class="picker-arrow">›</text>
 						</view>
 					</picker>
 				</view>
@@ -153,7 +172,7 @@
 							<text class="datetime-text" :class="{ placeholder: !deadlineTime }">
 								{{ deadlineTime ? deadlineTime : '请选择截止时间' }}
 							</text>
-							<text class="picker-arrow">></text>
+							<text class="picker-arrow">›</text>
 						</view>
 					</picker>
 				</view>
@@ -234,7 +253,9 @@
 					start_time: '',
 					end_time: '',
 					location: '',
-					max_participants: 0,
+					enable_participant_limit: true,
+					min_participants: 3,
+					max_participants: 30,
 					registration_deadline: '',
 					require_approval: false,
 					is_free: true,
@@ -265,15 +286,10 @@
 			// 加载我的团队列表
 			async loadMyTeams() {
 				try {
-					// 临时解决方案：使用团队列表API，然后模拟用户所属团队
-					const response = await groupApi.getList()
+					// 使用专用的获取我的团队API
+					const response = await groupApi.getMyTeams()
 					if (response.success) {
-						// 模拟用户属于所有团队的场景（临时解决方案）
-						this.myTeams = response.data.teams.map(team => ({
-							...team,
-							role: 'admin', // 临时设置角色为admin
-							joined_at: new Date().toISOString()
-						}))
+						this.myTeams = response.data.teams || []
 						console.log('加载到的团队列表:', this.myTeams)
 					}
 				} catch (error) {
@@ -413,7 +429,21 @@
 				this.form.require_approval = e.detail.value
 			},
 
-			// 切换免费开关
+			// 切换人数限制开关
+			toggleParticipantLimit(e) {
+				this.form.enable_participant_limit = e.detail.value
+				// 如果关闭限制，清空人数设置
+				if (!e.detail.value) {
+					this.form.min_participants = 0
+					this.form.max_participants = 0
+				} else {
+					// 如果开启限制，恢复默认值
+					this.form.min_participants = 3
+					this.form.max_participants = 30
+				}
+			},
+
+		// 切换免费开关
 			toggleFree(e) {
 				this.form.is_free = e.detail.value
 				if (e.detail.value) {
@@ -713,6 +743,23 @@
 		font-size: 24rpx;
 		color: #666;
 		line-height: 1.5;
+	}
+
+	.participant-limits {
+		display: flex;
+		flex-direction: column;
+		gap: 30rpx;
+	}
+
+	.limit-item {
+		display: flex;
+		flex-direction: column;
+		gap: 16rpx;
+	}
+
+	.limit-label {
+		font-size: 26rpx;
+		color: #666;
 	}
 
 	.submit-section {

@@ -1,47 +1,13 @@
 <template>
 	<view class="activity-page">
-		<!-- 顶部筛选栏 -->
-		<view class="filter-bar">
-			<scroll-view class="filter-scroll" scroll-x="true" show-scrollbar="false">
-				<view class="filter-item"
-					:class="{ active: currentFilter === 'all' }"
-					@tap="setFilter('all')">
-					全部
+		<!-- 页面标题 -->
+		<view class="page-header">
+			<text class="page-title">活动</text>
+			<view class="header-actions">
+				<view class="search-btn" @tap="showSearch">
+					<text class="search-icon">🔍</text>
 				</view>
-				<view class="filter-item"
-					:class="{ active: currentFilter === 'public' }"
-					@tap="setFilter('public')">
-					🌍 公开活动
-				</view>
-				<view class="filter-item"
-					:class="{ active: currentFilter === 'team' }"
-					@tap="setFilter('team')">
-					👥 团队活动
-				</view>
-				<view class="filter-item"
-					:class="{ active: currentFilter === 'my' }"
-					@tap="setFilter('my')">
-					📝 我的报名
-				</view>
-			</scroll-view>
-		</view>
-
-		<!-- 活动类型筛选 -->
-		<view class="type-filter" v-if="showTypeFilter">
-			<scroll-view class="type-scroll" scroll-x="true" show-scrollbar="false">
-				<view class="type-item"
-					:class="{ active: currentType === '' }"
-					@tap="setType('')">
-					全部类型
-				</view>
-				<view class="type-item"
-					v-for="(typeInfo, type) in activityTypes"
-					:key="type"
-					:class="{ active: currentType === type }"
-					@tap="setType(type)">
-					{{ typeInfo.icon }} {{ typeInfo.name }}
-				</view>
-			</scroll-view>
+			</view>
 		</view>
 
 		<!-- 活动列表 -->
@@ -120,104 +86,42 @@
 		data() {
 			return {
 				activities: [],
-				activityTypes: {}, // 活动类型数据，从API加载
 				loading: false,
-				currentFilter: 'all',
-				currentType: '',
-				showTypeFilter: false
+				searchVisible: false,
+				searchKeyword: ''
 			}
 		},
 
 		onLoad() {
-			this.loadInitialData()
+			this.loadActivities()
 		},
 
 		onShow() {
-			this.loadInitialData()
+			this.loadActivities()
 		},
 
 		onPullDownRefresh() {
-			this.loadInitialData().finally(() => {
+			this.loadActivities().finally(() => {
 				uni.stopPullDownRefresh()
 			})
 		},
 
 		methods: {
-			// 加载初始数据
-			async loadInitialData() {
-				await Promise.all([
-					this.loadActivities(),
-					this.loadActivityTypes()
-				])
-			},
-
-			// 加载活动类型
-			async loadActivityTypes() {
-				try {
-					// 从后端API获取真实活动类型数据
-					const response = await activityApi.getTypes()
-					if (response.success) {
-						// 转换后端数据格式为前端需要的格式
-						const typesData = {}
-						const types = response.data || []
-						
-						types.forEach(type => {
-							// 为每个类型添加图标
-							const icon = this.getTypeIcon(type.id)
-							typesData[type.id] = {
-								icon: icon,
-								name: type.name
-							}
-						})
-						
-						this.activityTypes = typesData
-						console.log(`成功加载 ${types.length} 个活动类型`)
-					} else {
-						throw new Error(response.message || '获取活动类型失败')
-					}
-				} catch (error) {
-					console.error('加载活动类型失败:', error)
-					// 降级到默认类型
-					this.activityTypes = {
-						other: { icon: '📅', name: '其他' }
-					}
-				}
-			},
-
-			// 根据类型ID获取对应图标
-			getTypeIcon(typeId) {
-				const iconMap = {
-					meeting: '💼',
-					event: '🎉', 
-					training: '📚',
-					social: '🍽️',
-					sports: '⚽',
-					travel: '🏖️',
-					workshop: '🔧',
-					conference: '🎤',
-					other: '📅'
-				}
-				return iconMap[typeId] || '📅'
-			},
-
-			// 设置筛选条件
-			setFilter(filter) {
-				this.currentFilter = filter
-				this.showTypeFilter = filter !== 'all'
-				this.loadActivities()
-			},
-
-			// 设置类型筛选
-			setType(type) {
-				this.currentType = type
-				this.loadActivities()
+			// 显示搜索
+			showSearch() {
+				// TODO: 实现搜索功能
+				console.log('显示搜索')
 			},
 
 			// 加载活动列表
 			async loadActivities() {
 				this.loading = true
 				try {
-					const params = this.buildParams()
+					const params = {}
+					if (this.searchKeyword) {
+						params.search = this.searchKeyword
+					}
+					
 					const response = await activityApi.getList(params)
 					if (response.success) {
 						// 修复：活动数据在 response.data.activities 中
@@ -230,25 +134,6 @@
 				} finally {
 					this.loading = false
 				}
-			},
-
-			// 构建请求参数
-			buildParams() {
-				const params = {}
-				
-				if (this.currentFilter === 'public') {
-					params.visibility = 'public'
-				} else if (this.currentFilter === 'team') {
-					params.visibility = 'team'
-				} else if (this.currentFilter === 'my') {
-					params.my_registrations = true
-				}
-				
-				if (this.currentType) {
-					params.activity_type = this.currentType
-				}
-				
-				return params
 			},
 
 			// 查看活动详情
@@ -287,7 +172,18 @@
 
 			// 获取类型信息
 			getTypeInfo(type) {
-				return this.activityTypes[type] || { icon: '📅', name: '未知' }
+				const typeMap = {
+					meeting: { icon: '💼', name: '会议' },
+					event: { icon: '🎉', name: '活动' },
+					training: { icon: '📚', name: '培训' },
+					social: { icon: '🍽️', name: '社交' },
+					sports: { icon: '⚽', name: '运动' },
+					travel: { icon: '🏖️', name: '旅行' },
+					workshop: { icon: '🔧', name: '工作坊' },
+					conference: { icon: '🎤', name: '会议' },
+					other: { icon: '📅', name: '其他' }
+				}
+				return typeMap[type] || { icon: '📅', name: '未知' }
 			}
 		}
 	}
@@ -300,56 +196,45 @@
 		padding-bottom: 120rpx;
 	}
 
-	.filter-bar {
+	.page-header {
 		background-color: white;
-		padding: 20rpx;
+		padding: 40rpx 30rpx 30rpx;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 		border-bottom: 1rpx solid #f0f0f0;
 	}
 
-	.filter-scroll {
-		white-space: nowrap;
+	.page-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
 	}
 
-	.filter-item {
-		display: inline-block;
-		padding: 16rpx 32rpx;
-		margin-right: 20rpx;
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 20rpx;
+	}
+
+	.search-btn {
+		width: 60rpx;
+		height: 60rpx;
+		border-radius: 30rpx;
 		background-color: #f8f9fa;
-		border-radius: 25rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.3s;
+	}
+
+	.search-btn:active {
+		background-color: #e9ecef;
+	}
+
+	.search-icon {
 		font-size: 28rpx;
 		color: #666;
-		transition: all 0.3s;
-	}
-
-	.filter-item.active {
-		background-color: #007aff;
-		color: white;
-	}
-
-	.type-filter {
-		background-color: white;
-		padding: 20rpx;
-		border-bottom: 1rpx solid #f0f0f0;
-	}
-
-	.type-scroll {
-		white-space: nowrap;
-	}
-
-	.type-item {
-		display: inline-block;
-		padding: 12rpx 24rpx;
-		margin-right: 16rpx;
-		background-color: #f8f9fa;
-		border-radius: 20rpx;
-		font-size: 26rpx;
-		color: #666;
-		transition: all 0.3s;
-	}
-
-	.type-item.active {
-		background-color: #e3f2fd;
-		color: #1976d2;
 	}
 
 	.activity-list {

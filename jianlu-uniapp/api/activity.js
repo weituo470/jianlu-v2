@@ -92,6 +92,12 @@ export const activityTypes = {
     icon: '⚽',
     color: '#FFEAA7',
     description: '健身、比赛等'
+  },
+  other: {
+    name: '其它',
+    icon: '📋',
+    color: '#BDC3C7',
+    description: '其它类型的活动'
   }
 }
 

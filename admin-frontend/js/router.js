@@ -1847,9 +1847,21 @@ window.Router = {
             if (statusFilter) apiParams.status = statusFilter;
             if (typeFilter) apiParams.type = typeFilter;
 
+            console.log('🔍 Router.js - 请求活动列表:', apiParams);
             const response = await API.activities.getList(apiParams);
+            console.log('📡 Router.js - API响应:', response);
+            
             const activities = response.data || [];
             const pagination = response.pagination || {};
+            
+            console.log('📋 Router.js - 处理后的活动数据:', activities);
+            if (activities.length > 0) {
+                console.log('🔍 Router.js - 第一个活动详情:');
+                console.log('  team_name:', activities[0].team_name);
+                console.log('  creator_name:', activities[0].creator_name);
+                console.log('  team对象:', activities[0].team);
+                console.log('  creator对象:', activities[0].creator);
+            }
 
             // 更新表格内容
             const tableContainer = document.getElementById('activities-table-container');
@@ -1967,7 +1979,7 @@ window.Router = {
                                         <span class="badge badge-outline-primary">${type}</span>
                                     </td>
                                     <td>
-                                        <div>${activity.team?.name || '未知团队'}</div>
+                                        <div>${activity.team_name || '未知团队'}</div>
                                     </td>
                                     <td>${startTime}</td>
                                     <td>${endTime}</td>
@@ -1978,7 +1990,7 @@ window.Router = {
                                         <span class="badge badge-${status.class}">${status.text}</span>
                                     </td>
                                     <td>
-                                        <div>${activity.creator?.username || '未知用户'}</div>
+                                        <div>${activity.creator_name || '未知用户'}</div>
                                         <small style="color: var(--text-secondary);">${activity.creator?.email || ''}</small>
                                     </td>
                                     <td>
