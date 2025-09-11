@@ -1,9 +1,9 @@
 // 开发环境配置
 const config = {
-	// 开发环境：使用本机IP地址，小程序无法访问localhost
+	// 开发环境：使用localhost，仅在微信开发者工具中可用
 	development: {
-		API_BASE_URL: 'http://192.168.100.4:3460/api',
-		IMAGE_BASE_URL: 'http://192.168.100.4:3460',
+		API_BASE_URL: 'http://localhost:3461/api',
+		IMAGE_BASE_URL: 'http://localhost:3461',
 		// 是否忽略HTTPS检查（仅开发环境）
 		ignoreHttps: true
 	},

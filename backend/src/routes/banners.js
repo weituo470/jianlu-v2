@@ -349,29 +349,8 @@ router.get('/public/active', async (req, res) => {
                 const host = req.get('host');
                 const protocol = req.protocol;
                 
-                // 如果是localhost，尝试使用实际IP地址（适配小程序）
-                if (host.includes('localhost')) {
-                    // 获取本机IP地址（简单实现）
-                    const os = require('os');
-                    const networkInterfaces = os.networkInterfaces();
-                    let localIP = 'localhost';
-                    
-                    // 查找第一个非内部IPv4地址
-                    for (const interfaceName in networkInterfaces) {
-                        const addresses = networkInterfaces[interfaceName];
-                        for (const addr of addresses) {
-                            if (addr.family === 'IPv4' && !addr.internal) {
-                                localIP = addr.address;
-                                break;
-                            }
-                        }
-                        if (localIP !== 'localhost') break;
-                    }
-                    
-                    imageUrl = `${protocol}://${localIP}:${host.split(':')[1] || process.env.PORT || '3460'}${banner.image_url}`;
-                } else {
-                    imageUrl = `${protocol}://${host}${banner.image_url}`;
-                }
+                // 直接使用请求的host，不进行IP替换
+                imageUrl = `${protocol}://${host}${banner.image_url}`;
             }
             
             return {

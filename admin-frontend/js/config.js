@@ -2,7 +2,7 @@
 
 window.AppConfig = {
     // API配置
-    API_BASE_URL: 'http://localhost:3460/api',
+    API_BASE_URL: 'http://localhost:3461/api',
     
     // 应用信息
     APP_NAME: '简庐管理后台',
@@ -70,9 +70,11 @@ window.AppConfig = {
             'content:read', 'content:create', 'content:update', 'content:delete',
             'system:read', 'system:update'
         ],
-        // 普通用户：可以访问仪表板和管理自己的信息
+        // 普通用户：可以访问仪表板、管理自己的信息、创建和管理自己的团队和活动
         user: [
-            'dashboard:read', 'profile:read', 'profile:update'
+            'dashboard:read', 'profile:read', 'profile:update',
+            'team:read', 'team:create', 'team:update',
+            'activity:read', 'activity:create', 'activity:update'
         ]
     },
     
