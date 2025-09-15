@@ -1415,7 +1415,7 @@ window.Router = {
 
         // 上一页
         if (current > 1) {
-            paginationHtml += `<button class="btn btn-sm btn-secondary" onclick="TeamManager.changePage(${current - 1})">上一页</button>`;
+            paginationHtml += `<button class="btn btn-sm btn-secondary" onclick="Router.loadActivitiesData(${current - 1})">上一页</button>`;
         }
 
         // 页码
@@ -1423,13 +1423,13 @@ window.Router = {
             if (i === current) {
                 paginationHtml += `<button class="btn btn-sm btn-primary">${i}</button>`;
             } else {
-                paginationHtml += `<button class="btn btn-sm btn-outline-primary" onclick="TeamManager.changePage(${i})">${i}</button>`;
+                paginationHtml += `<button class="btn btn-sm btn-outline-primary" onclick="Router.loadActivitiesData(${i})">${i}</button>`;
             }
         }
 
         // 下一页
         if (current < totalPages) {
-            paginationHtml += `<button class="btn btn-sm btn-secondary" onclick="TeamManager.changePage(${current + 1})">下一页</button>`;
+            paginationHtml += `<button class="btn btn-sm btn-secondary" onclick="Router.loadActivitiesData(${current + 1})">下一页</button>`;
         }
 
         paginationHtml += '</div>';
@@ -1851,8 +1851,9 @@ window.Router = {
             const response = await API.activities.getList(apiParams);
             console.log('📡 Router.js - API响应:', response);
             
-            const activities = response.data || [];
-            const pagination = response.pagination || {};
+            // 修复：正确解析返回的数据结构
+            const activities = response.data?.activities || [];
+            const pagination = response.data?.pagination || {};
             
             console.log('📋 Router.js - 处理后的活动数据:', activities);
             if (activities.length > 0) {

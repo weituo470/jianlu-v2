@@ -17,11 +17,13 @@ router.get('/', authenticateToken, async (req, res) => {
     // 获取查询参数
     const {
       page = 1,
-      limit = 20,
+      limit = 30, // 默认每页30条
       search = '',
       status = '',
       type = '',
-      team = ''
+      team = '',
+      sort = 'sequence_number',  // 默认按序号排序
+      order = 'DESC'             // 默认倒序
     } = req.query;
 
     // 构建查询条件
@@ -46,10 +48,17 @@ router.get('/', authenticateToken, async (req, res) => {
       where.team_id = team;
     }
 
+    // 验证排序字段和顺序
+    const allowedSortFields = ['sequence_number', 'created_at', 'start_time', 'title'];
+    const allowedOrder = ['ASC', 'DESC'];
+    
+    const sortField = allowedSortFields.includes(sort) ? sort : 'sequence_number';
+    const sortOrder = allowedOrder.includes(order.toUpperCase()) ? order.toUpperCase() : 'DESC';
+
     // 计算偏移量
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // 查询活动数据
+    // 查询活动数据，按指定字段和顺序排列
     const { count, rows: activities } = await Activity.findAndCountAll({
       where,
       include: [
@@ -64,7 +73,7 @@ router.get('/', authenticateToken, async (req, res) => {
           attributes: ['id', 'username', 'email']
         }
       ],
-      order: [['start_time', 'DESC']],
+      order: [[sortField, sortOrder]], // 按指定字段和顺序排列
       limit: parseInt(limit),
       offset: offset
     });
@@ -86,7 +95,8 @@ router.get('/', authenticateToken, async (req, res) => {
       creator_id: activity.creator_id,
       creator_name: activity.creator?.username,
       created_at: activity.created_at,
-      updated_at: activity.updated_at
+      updated_at: activity.updated_at,
+      sequence_number: activity.sequence_number // 返回序号字段
     }));
 
     const pagination = {
@@ -96,8 +106,9 @@ router.get('/', authenticateToken, async (req, res) => {
       pages: Math.ceil(count / parseInt(limit))
     };
 
-    logger.info(`用户 ${req.user.username} 获取活动列表，共 ${count} 个活动`);
-    return success(res, formattedActivities, '获取活动列表成功');
+    logger.info(`用户 ${req.user.username} 获取活动列表，共 ${count} 个活动，排序字段: ${sortField}, 排序顺序: ${sortOrder}`);
+    // 使用分页响应格式返回数据
+    return success(res, { activities: formattedActivities, pagination }, '获取活动列表成功');
 
   } catch (err) {
     logger.error('获取活动列表失败:', err);
@@ -289,6 +300,10 @@ router.post('/', authenticateToken, requirePermission('activity:create'), valida
       return error(res, '指定的团队不存在', 400);
     }
 
+    // 获取当前最大的序号并加1
+    const maxSequence = await Activity.max('sequence_number') || 0;
+    const nextSequence = maxSequence + 1;
+
     // 创建活动
     const activity = await Activity.create({
       id: uuidv4(),
@@ -302,7 +317,8 @@ router.post('/', authenticateToken, requirePermission('activity:create'), valida
       max_participants: max_participants || null,
       current_participants: 0,
       status: 'draft',
-      creator_id: req.user.id
+      creator_id: req.user.id,
+      sequence_number: nextSequence // 添加序号字段
     });
 
     // 获取完整的活动信息（包含关联数据）
@@ -338,10 +354,11 @@ router.post('/', authenticateToken, requirePermission('activity:create'), valida
       creator_id: fullActivity.creator_id,
       creator_name: fullActivity.creator?.username,
       created_at: fullActivity.created_at,
-      updated_at: fullActivity.updated_at
+      updated_at: fullActivity.updated_at,
+      sequence_number: fullActivity.sequence_number // 返回序号字段
     };
 
-    logger.info(`用户 ${req.user.username} 创建活动: ${title}`);
+    logger.info(`用户 ${req.user.username} 创建活动: ${title} (序号: ${nextSequence})`);
     return success(res, formattedActivity, '活动创建成功');
 
   } catch (err) {
@@ -679,6 +696,10 @@ router.post('/with-cost', authenticateToken, async (req, res) => {
       }
     }
 
+    // 获取当前最大的序号并加1
+    const maxSequence = await Activity.max('sequence_number') || 0;
+    const nextSequence = maxSequence + 1;
+
     const activityData = {
       title: title.trim(),
       description: description ? description.trim() : '',
@@ -693,7 +714,8 @@ router.post('/with-cost', authenticateToken, async (req, res) => {
       payment_deadline: payment_deadline || null,
       cost_description: cost_description ? cost_description.trim() : '',
       creator_id: req.user.id,
-      status: 'draft'
+      status: 'draft',
+      sequence_number: nextSequence // 添加序号字段
     };
 
     const activity = await Activity.createWithCost(activityData);
@@ -1029,6 +1051,10 @@ router.post('/dinner-party', authenticateToken, requirePermission('activity:crea
       return error(res, '您不是该团队成员，无法创建聚餐活动', 403);
     }
 
+    // 获取当前最大的序号并加1
+    const maxSequence = await Activity.max('sequence_number') || 0;
+    const nextSequence = maxSequence + 1;
+
     // 创建聚餐活动数据
     const dinnerPartyData = {
       id: require('uuid').v4(),
@@ -1049,7 +1075,8 @@ router.post('/dinner-party', authenticateToken, requirePermission('activity:crea
       creator_id: req.user.id,
       status: 'draft',
       activity_special_type: 'dinner_party',
-      auto_cancel_threshold
+      auto_cancel_threshold,
+      sequence_number: nextSequence // 添加序号字段
     };
 
     // 创建聚餐活动
@@ -1058,7 +1085,7 @@ router.post('/dinner-party', authenticateToken, requirePermission('activity:crea
     // 计算费用信息
     const costs = await activity.calculateDinnerPartyCosts();
 
-    logger.info(`用户 ${req.user.username} 创建聚餐活动: ${title}`);
+    logger.info(`用户 ${req.user.username} 创建聚餐活动: ${title} (序号: ${nextSequence})`);
 
     return success(res, {
       activity: {
@@ -1077,7 +1104,8 @@ router.post('/dinner-party', authenticateToken, requirePermission('activity:crea
         company_budget: activity.company_budget,
         total_cost: activity.total_cost,
         activity_special_type: activity.activity_special_type,
-        created_at: activity.created_at
+        created_at: activity.created_at,
+        sequence_number: activity.sequence_number // 返回序号字段
       },
       costs,
       message: '聚餐活动创建成功，请设置活动详情后发布'
