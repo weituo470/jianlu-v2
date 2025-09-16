@@ -1810,6 +1810,12 @@ window.Router = {
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <h3 class="card-title">活动列表</h3>
                                 <div class="header-actions" style="display: flex; gap: 6px;">
+                                    ${Auth.hasPermission(['activity:create']) ? `
+                                        <button class="btn btn-warning btn-sm" onclick="activitiesManager.updateSequenceNumbers()" title="按创建时间重新排序所有活动">
+                                            <i class="fas fa-sort-numeric-up"></i>
+                                            更新序号
+                                        </button>
+                                    ` : ''}
                                     ${Auth.hasPermission(['activity:delete']) ? `
                                         <button class="btn btn-danger btn-sm" onclick="activitiesManager.batchDelete()" id="batch-delete-activities-btn" style="display: none;">
                                             <i class="fas fa-trash"></i>
@@ -1949,6 +1955,7 @@ window.Router = {
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <th width="80">序号</th>
                             <th>活动标题</th>
                             <th>类型</th>
                             <th>所属团队</th>
@@ -1972,6 +1979,11 @@ window.Router = {
 
             return `
                                 <tr>
+                                    <td>
+                                        ${activity.sequence_number && activity.sequence_number > 0 ? `
+                                            <span class="activity-sequence-badge">#${activity.sequence_number}</span>
+                                        ` : '-'}
+                                    </td>
                                     <td>
                                         <div style="font-weight: 500;">${activity.title}</div>
                                         ${activity.description ? `<small style="color: var(--text-secondary);">${activity.description.substring(0, 50)}${activity.description.length > 50 ? '...' : ''}</small>` : ''}

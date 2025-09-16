@@ -32,7 +32,7 @@
 					@tap="viewActivity(activity)">
 
 					<view class="activity-header">
-						<view class="activity-sequence">#{{ activity.sequence_number || '0' }}</view>
+						<view class="activity-sequence">#{{ activity.sequence_number }}</view>
 						<view class="activity-type">{{ getTypeInfo(activity.activity_type).icon }}</view>
 						<view class="activity-status" :style="{ color: getStatusInfo(activity).color }">
 							{{ getStatusInfo(activity).text }}
