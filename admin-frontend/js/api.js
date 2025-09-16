@@ -345,6 +345,11 @@ window.API = {
             return API.get(`/activities/${id}/participants`, params);
         },
 
+        // 更新参与者状态（批准/拒绝）
+        updateParticipantStatus(activityId, participantId, data) {
+            return API.put(`/activities/${activityId}/participants/${participantId}/status`, data);
+        },
+
         // 审核活动
         approve(id, status, reason = '') {
             return API.put(`/activities/${id}/approve`, { status, reason });

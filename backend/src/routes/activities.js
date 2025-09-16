@@ -150,7 +150,7 @@ router.get('/types', authenticateToken, async (req, res) => {
 // 获取单个活动详情
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const { Activity, Team, User, ActivityType } = require('../models');
+    const { Activity, Team, User, ActivityType, ActivityParticipant } = require('../models');
     const { id } = req.params;
 
     const activity = await Activity.findByPk(id, {
@@ -171,6 +171,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
     if (!activity) {
       return error(res, '活动不存在', 404);
     }
+
+    // 实时计算当前参与者数量（包括所有状态的参与者）
+    const participantCount = await ActivityParticipant.count({
+      where: { activity_id: id }
+    });
 
     // 格式化活动数据
     const formattedActivity = {
@@ -193,7 +198,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       end_time: activity.end_time,
       location: activity.location,
       max_participants: activity.max_participants,
-      current_participants: activity.current_participants,
+      current_participants: participantCount,
       status: activity.status,
       // 费用相关字段
       total_cost: activity.total_cost || 0,
@@ -1354,6 +1359,238 @@ router.post('/update-sequence', authenticateToken, requirePermission('activity:c
   } catch (err) {
     logger.error('更新活动序号失败:', err);
     return error(res, '更新活动序号失败', 500);
+  }
+});
+
+// 获取活动参与者列表
+router.get('/:id/participants', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityParticipant, User } = require('../models');
+    const { id } = req.params;
+
+    // 验证活动是否存在
+    const activity = await Activity.findByPk(id);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 获取参与者列表
+    const participants = await ActivityParticipant.findAll({
+      where: { activity_id: id },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'username', 'email', 'profile']
+        }
+      ],
+      order: [['registered_at', 'DESC']]
+    });
+
+    // 格式化返回数据
+    const formattedParticipants = participants.map(p => ({
+      id: p.id,
+      user: {
+        id: p.user.id,
+        username: p.user.username,
+        email: p.user.email,
+        profile: p.user.profile || {}
+      },
+      status: p.status,
+      payment_status: p.payment_status,
+      payment_amount: p.payment_amount,
+      registered_at: p.registered_at
+    }));
+
+    logger.info(`用户 ${req.user.username} 获取活动 ${activity.title} 的参与者列表，共 ${participants.length} 人`);
+    return success(res, {
+      activity: {
+        id: activity.id,
+        title: activity.title
+      },
+      participants: formattedParticipants
+    }, '获取参与者列表成功');
+
+  } catch (err) {
+    logger.error('获取参与者列表失败:', err);
+    return error(res, '获取参与者列表失败: ' + err.message, 500);
+  }
+});
+
+// 批准/拒绝报名申请
+router.put('/:id/participants/:participantId/status', authenticateToken, requirePermission('activity:update'), async (req, res) => {
+  try {
+    const { Activity, ActivityParticipant, User } = require('../models');
+    const { id, participantId } = req.params;
+    const { status, reason } = req.body;
+
+    // 验证状态值
+    if (!['approved', 'rejected'].includes(status)) {
+      return error(res, '状态值必须是 approved 或 rejected', 400);
+    }
+
+    // 验证活动是否存在
+    const activity = await Activity.findByPk(id);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 查找参与记录
+    const participant = await ActivityParticipant.findByPk(participantId, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'username', 'email']
+        }
+      ]
+    });
+
+    if (!participant) {
+      return error(res, '参与记录不存在', 404);
+    }
+
+    // 验证参与记录是否属于该活动
+    if (participant.activity_id !== id) {
+      return error(res, '参与记录不属于该活动', 400);
+    }
+
+    // 验证当前状态是否为pending
+    if (participant.status !== 'pending') {
+      return error(res, '只能处理待审核的申请', 400);
+    }
+
+    // 更新参与状态
+    await participant.update({
+      status: status,
+      // 如果拒绝，记录拒绝原因和时间
+      ...(status === 'rejected' && {
+        rejection_reason: reason || '',
+        rejected_at: new Date(),
+        rejected_by: req.user.id
+      })
+    });
+
+    // 如果批准，更新活动的当前参与人数
+    if (status === 'approved') {
+      const approvedCount = await ActivityParticipant.count({
+        where: {
+          activity_id: id,
+          status: 'approved'
+        }
+      });
+
+      await activity.update({
+        current_participants: approvedCount
+      });
+    }
+
+    logger.info(`用户 ${req.user.username} ${status === 'approved' ? '批准' : '拒绝'}了用户 ${participant.user.username} 参与活动 ${activity.title} 的申请`);
+
+    return success(res, {
+      participant: {
+        id: participant.id,
+        status: participant.status,
+        user: participant.user,
+        ...(status === 'rejected' && {
+          rejection_reason: participant.rejection_reason,
+          rejected_at: participant.rejected_at
+        })
+      },
+      activity: {
+        id: activity.id,
+        title: activity.title,
+        current_participants: activity.current_participants
+      }
+    }, status === 'approved' ? '已批准报名申请' : '已拒绝报名申请');
+
+  } catch (err) {
+    logger.error('处理报名申请失败:', err);
+    return error(res, '处理报名申请失败: ' + err.message, 500);
+  }
+});
+
+// 取消报名
+router.delete('/:id/participants/:participantId', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityParticipant, User } = require('../models');
+    const { id, participantId } = req.params;
+    const userId = req.user.id;
+
+    // 验证活动是否存在
+    const activity = await Activity.findByPk(id);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 查找参与记录
+    const participant = await ActivityParticipant.findByPk(participantId);
+    if (!participant) {
+      return error(res, '参与记录不存在', 404);
+    }
+
+    // 验证参与记录是否属于该活动
+    if (participant.activity_id !== id) {
+      return error(res, '参与记录不属于该活动', 400);
+    }
+
+    // 验证权限：只有报名者本人、活动创建者或有活动管理权限的用户才能取消报名
+    const isOwner = participant.user_id === userId;
+    const isActivityCreator = activity.creator_id === userId;
+    const hasPermission = req.user.permissions?.includes('activity:update');
+
+    if (!isOwner && !isActivityCreator && !hasPermission) {
+      return error(res, '没有权限取消此报名', 403);
+    }
+
+    // 检查活动状态是否允许取消报名
+    if (activity.status === 'completed') {
+      return error(res, '活动已结束，无法取消报名', 400);
+    }
+
+    if (activity.status === 'cancelled') {
+      return error(res, '活动已取消，无法取消报名', 400);
+    }
+
+    // 更新参与记录状态为取消
+    await participant.update({
+      status: 'cancelled',
+      // 如果已经支付，记录退款信息（这里可以根据实际需求扩展）
+      cancelled_at: new Date(),
+      cancelled_by: userId
+    });
+
+    // 更新活动的报名人数
+    const registrationCount = await ActivityParticipant.count({
+      where: {
+        activity_id: id,
+        status: {
+          [Op.ne]: 'cancelled'
+        }
+      }
+    });
+
+    await activity.update({
+      registration_count: registrationCount
+    });
+
+    logger.info(`用户 ${req.user.username} 取消了活动 ${activity.title} 的报名，参与者ID: ${participantId}`);
+    return success(res, {
+      participant: {
+        id: participant.id,
+        status: participant.status,
+        cancelled_at: participant.cancelled_at
+      },
+      activity: {
+        id: activity.id,
+        title: activity.title,
+        registration_count: registrationCount
+      }
+    }, '取消报名成功');
+
+  } catch (err) {
+    logger.error('取消报名失败:', err);
+    return error(res, '取消报名失败: ' + err.message, 500);
   }
 });
 

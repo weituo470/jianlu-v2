@@ -24,12 +24,37 @@ const ActivityParticipant = sequelize.define('ActivityParticipant', {
     }
   },
   status: {
-    type: DataTypes.ENUM('registered', 'attended', 'absent', 'cancelled'),
+    type: DataTypes.ENUM('pending', 'registered', 'approved', 'attended', 'absent', 'cancelled', 'rejected'),
     defaultValue: 'registered'
+  },
+  rejection_reason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: '拒绝原因'
+  },
+  rejected_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: '拒绝时间'
+  },
+  rejected_by: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    comment: '拒绝者ID'
   },
   registered_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
+  },
+  cancelled_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: '取消时间'
+  },
+  cancelled_by: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    comment: '取消者ID'
   },
   // 支付相关字段
   payment_status: {
