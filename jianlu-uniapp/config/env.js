@@ -2,10 +2,10 @@
 const config = {
 	// 开发环境：使用localhost，仅在微信开发者工具中可用
 	development: {
-		API_BASE_URL: 'http://localhost:3461/api',
-		IMAGE_BASE_URL: 'http://localhost:3461',
+		API_BASE_URL: 'http://localhost:3460/api',
+		IMAGE_BASE_URL: 'http://localhost:3460',
 		// 是否忽略HTTPS检查（仅开发环境）
-		ignoreHttps: true
+	ignoreHttps: true
 	},
 	
 	// 生产环境：必须使用 HTTPS
