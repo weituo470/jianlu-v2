@@ -38,7 +38,9 @@ const groupApi = {
   // 获取团队成员列表
   getTeamMembers: (id, params) => utils_request.get(`/miniapp/teams/${id}/members`, { params }),
   // 获取团队详情
-  getTeamDetail: (id) => utils_request.get(`/miniapp/teams/${id}`)
+  getTeamDetail: (id) => utils_request.get(`/miniapp/teams/${id}`),
+  // 获取团队类型列表
+  getTeamTypes: () => utils_request.get("/miniapp/team-types")
 };
 const activityApi = {
   // 获取活动列表
@@ -80,4 +82,3 @@ exports.authApi = authApi;
 exports.bannerApi = bannerApi;
 exports.groupApi = groupApi;
 exports.userApi = userApi;
-//# sourceMappingURL=../../.sourcemap/mp-weixin/api/index.js.map

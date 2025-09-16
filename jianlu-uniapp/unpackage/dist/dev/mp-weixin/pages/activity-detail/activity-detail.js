@@ -43,7 +43,7 @@ const _sfc_main = {
           });
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity-detail/activity-detail.vue:241", "加载活动详情失败:", error);
+        console.error("加载活动详情失败:", error);
         utils_index.showError("加载活动详情失败");
       } finally {
         this.loading = false;
@@ -86,7 +86,7 @@ const _sfc_main = {
           this.loadActivityDetail();
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity-detail/activity-detail.vue:289", "报名失败:", error);
+        console.error("报名失败:", error);
         utils_index.showError(((_b = (_a = error.response) == null ? void 0 : _a.data) == null ? void 0 : _b.message) || "报名失败");
       } finally {
         this.submitting = false;
@@ -104,7 +104,7 @@ const _sfc_main = {
           this.loadActivityDetail();
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity-detail/activity-detail.vue:308", "取消报名失败:", error);
+        console.error("取消报名失败:", error);
         utils_index.showError("取消报名失败");
       }
     },
@@ -237,4 +237,3 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-f886daa9"]]);
 wx.createPage(MiniProgramPage);
-//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/activity-detail/activity-detail.js.map

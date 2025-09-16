@@ -50,7 +50,7 @@ const _sfc_main = {
           }
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/dinner-party-create/dinner-party-create.vue:238", "加载团队列表失败:", error);
+        console.error("加载团队列表失败:", error);
       }
     },
     // 显示团队选择器
@@ -165,7 +165,7 @@ const _sfc_main = {
           common_vendor.index.navigateBack();
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/dinner-party-create/dinner-party-create.vue:370", "保存草稿失败:", error);
+        console.error("保存草稿失败:", error);
         utils_index.showError("保存草稿失败");
       } finally {
         this.submitting = false;
@@ -184,7 +184,7 @@ const _sfc_main = {
           common_vendor.index.navigateBack();
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/dinner-party-create/dinner-party-create.vue:390", "发布聚餐活动失败:", error);
+        console.error("发布聚餐活动失败:", error);
         utils_index.showError("发布失败: " + (error.message || "未知错误"));
       } finally {
         this.submitting = false;
@@ -299,4 +299,3 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-f67e48a0"]]);
 wx.createPage(MiniProgramPage);
-//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/dinner-party-create/dinner-party-create.js.map

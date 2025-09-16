@@ -56,24 +56,15 @@ const _sfc_main = {
     // 加载团队类型
     async loadTeamTypes() {
       try {
-        const teamTypesTemp = [
-          { value: "general", label: "通用团队" },
-          { value: "development", label: "开发团队" },
-          { value: "design", label: "设计团队" },
-          { value: "marketing", label: "市场团队" },
-          { value: "sales", label: "销售团队" },
-          { value: "support", label: "客服团队" },
-          { value: "hr", label: "人事团队" },
-          { value: "finance", label: "财务团队" },
-          { value: "other", label: "其他" }
-        ];
-        this.teamTypes = teamTypesTemp;
+        const response = await api_index.groupApi.getTeamTypes();
+        if (response.success) {
+          this.teamTypes = response.data || [];
+        }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/team/team.vue:306", "加载团队类型失败:", error);
-        const defaultTeamTypesTemp = [
+        console.error("加载团队类型失败:", error);
+        this.teamTypes = [
           { value: "general", label: "通用团队" }
         ];
-        this.teamTypes = defaultTeamTypesTemp;
       }
     },
     // 获取团队列表
@@ -87,7 +78,7 @@ const _sfc_main = {
         }
       } catch (error) {
         utils_index.showError("获取团队列表失败");
-        common_vendor.index.__f__("error", "at pages/team/team.vue:328", "获取团队列表失败:", error);
+        console.error("获取团队列表失败:", error);
       } finally {
         this.loading = false;
       }
@@ -147,7 +138,7 @@ const _sfc_main = {
           throw new Error(response.message || "创建失败");
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/team/team.vue:397", "创建团队失败:", error);
+        console.error("创建团队失败:", error);
         utils_index.showError(error.message || "创建失败，请稍后重试");
       } finally {
         this.saving = false;
@@ -186,7 +177,7 @@ const _sfc_main = {
         this.hideDetailModal();
         this.fetchGroups();
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/team/team.vue:443", "离开群组失败:", error);
+        console.error("离开群组失败:", error);
         if (error.message && error.message.includes("负责人")) {
           utils_index.showError("团队负责人不能退出团队，请先转让负责人权限");
         } else if (error.message && error.message.includes("不在该团队中")) {
@@ -226,7 +217,7 @@ const _sfc_main = {
           this.selectedGroup.leader_name = ((_a = response.data.members.find((m) => m.is_leader)) == null ? void 0 : _a.nickname) || "负责人";
         }
       } catch (error) {
-        common_vendor.index.__f__("log", "at pages/team/team.vue:491", "获取成员预览失败:", error);
+        console.log("获取成员预览失败:", error);
       }
     },
     // 团队类型选择相关方法
@@ -347,4 +338,3 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-dc51e287"]]);
 wx.createPage(MiniProgramPage);
-//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/team/team.js.map

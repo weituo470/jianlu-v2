@@ -106,6 +106,13 @@ const Activity = sequelize.define('Activity', {
     allowNull: true,
     comment: '费用说明'
   },
+  // 活动排序字段
+  sequence_number: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    comment: '活动序号，用于排序，数值越大越新'
+  },
   // 聚餐活动特殊字段
   company_budget: {
     type: DataTypes.DECIMAL(10, 2),

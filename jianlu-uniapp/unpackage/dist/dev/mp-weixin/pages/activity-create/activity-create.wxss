@@ -190,6 +190,20 @@
 		color: #666;
 		line-height: 1.5;
 }
+.participant-limits.data-v-095a2a8e {
+		display: flex;
+		flex-direction: column;
+		gap: 30rpx;
+}
+.limit-item.data-v-095a2a8e {
+		display: flex;
+		flex-direction: column;
+		gap: 16rpx;
+}
+.limit-label.data-v-095a2a8e {
+		font-size: 26rpx;
+		color: #666;
+}
 .submit-section.data-v-095a2a8e {
 		display: flex;
 		gap: 20rpx;

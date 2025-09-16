@@ -79,6 +79,12 @@ const activityTypes = {
     icon: "⚽",
     color: "#FFEAA7",
     description: "健身、比赛等"
+  },
+  other: {
+    name: "其它",
+    icon: "📋",
+    color: "#BDC3C7",
+    description: "其它类型的活动"
   }
 };
 const activityStatus = {
@@ -213,4 +219,3 @@ const activityUtils = {
 exports.activityApi = activityApi;
 exports.activityTypes = activityTypes;
 exports.activityUtils = activityUtils;
-//# sourceMappingURL=../../.sourcemap/mp-weixin/api/activity.js.map

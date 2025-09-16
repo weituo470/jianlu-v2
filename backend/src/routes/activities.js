@@ -1328,4 +1328,33 @@ router.get('/dinner-party/available', authenticateToken, async (req, res) => {
   }
 });
 
+// 更新所有活动的序号（管理员功能）
+router.post('/update-sequence', authenticateToken, requirePermission('activity:create'), async (req, res) => {
+  try {
+    const { Activity } = require('../models');
+
+    // 获取所有活动，按创建时间排序
+    const activities = await Activity.findAll({
+      order: [['created_at', 'ASC']]
+    });
+
+    // 更新每个活动的序号
+    for (let i = 0; i < activities.length; i++) {
+      const activity = activities[i];
+      const sequenceNumber = i + 1;
+
+      await activity.update({
+        sequence_number: sequenceNumber
+      });
+    }
+
+    logger.info(`用户 ${req.user.username} 更新了所有活动的序号，共 ${activities.length} 个活动`);
+    return success(res, { updated: activities.length }, '活动序号更新成功');
+
+  } catch (err) {
+    logger.error('更新活动序号失败:', err);
+    return error(res, '更新活动序号失败', 500);
+  }
+});
+
 module.exports = router;

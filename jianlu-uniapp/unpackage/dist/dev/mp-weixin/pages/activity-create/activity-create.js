@@ -15,7 +15,9 @@ const _sfc_main = {
         start_time: "",
         end_time: "",
         location: "",
-        max_participants: 0,
+        enable_participant_limit: true,
+        min_participants: 3,
+        max_participants: 30,
         registration_deadline: "",
         require_approval: false,
         is_free: true,
@@ -43,18 +45,13 @@ const _sfc_main = {
     // 加载我的团队列表
     async loadMyTeams() {
       try {
-        const response = await api_index.groupApi.getList();
+        const response = await api_index.groupApi.getMyTeams();
         if (response.success) {
-          this.myTeams = response.data.teams.map((team) => ({
-            ...team,
-            role: "admin",
-            // 临时设置角色为admin
-            joined_at: (/* @__PURE__ */ new Date()).toISOString()
-          }));
-          common_vendor.index.__f__("log", "at pages/activity-create/activity-create.vue:277", "加载到的团队列表:", this.myTeams);
+          this.myTeams = response.data.teams || [];
+          console.log("加载到的团队列表:", this.myTeams);
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:280", "加载团队列表失败:", error);
+        console.error("加载团队列表失败:", error);
       }
     },
     // 选择活动类型
@@ -162,6 +159,17 @@ const _sfc_main = {
     toggleApproval(e) {
       this.form.require_approval = e.detail.value;
     },
+    // 切换人数限制开关
+    toggleParticipantLimit(e) {
+      this.form.enable_participant_limit = e.detail.value;
+      if (!e.detail.value) {
+        this.form.min_participants = 0;
+        this.form.max_participants = 0;
+      } else {
+        this.form.min_participants = 3;
+        this.form.max_participants = 30;
+      }
+    },
     // 切换免费开关
     toggleFree(e) {
       this.form.is_free = e.detail.value;
@@ -206,7 +214,7 @@ const _sfc_main = {
           common_vendor.index.navigateBack();
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:462", "保存草稿失败:", error);
+        console.error("保存草稿失败:", error);
         utils_index.showError("保存草稿失败");
       } finally {
         this.submitting = false;
@@ -225,7 +233,7 @@ const _sfc_main = {
           common_vendor.index.navigateBack();
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:482", "发布活动失败:", error);
+        console.error("发布活动失败:", error);
         utils_index.showError("发布活动失败");
       } finally {
         this.submitting = false;
@@ -286,39 +294,48 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
   } : {}, {
     G: $data.form.location,
     H: common_vendor.o(($event) => $data.form.location = $event.detail.value),
-    I: $data.form.max_participants,
-    J: common_vendor.o(common_vendor.m(($event) => $data.form.max_participants = $event.detail.value, {
+    I: $data.form.enable_participant_limit,
+    J: common_vendor.o((...args) => $options.toggleParticipantLimit && $options.toggleParticipantLimit(...args)),
+    K: $data.form.enable_participant_limit
+  }, $data.form.enable_participant_limit ? {
+    L: $data.form.min_participants,
+    M: common_vendor.o(common_vendor.m(($event) => $data.form.min_participants = $event.detail.value, {
       number: true
     })),
-    K: common_vendor.t($data.deadlineDate ? $data.deadlineDate : "请选择截止日期（可选）"),
-    L: !$data.deadlineDate ? 1 : "",
-    M: $data.deadlineDate,
-    N: common_vendor.o((...args) => $options.onDeadlineDateChange && $options.onDeadlineDateChange(...args)),
-    O: $data.deadlineDate
-  }, $data.deadlineDate ? {
-    P: common_vendor.t($data.deadlineTime ? $data.deadlineTime : "请选择截止时间"),
-    Q: !$data.deadlineTime ? 1 : "",
-    R: $data.deadlineTime,
-    S: common_vendor.o((...args) => $options.onDeadlineTimeChange && $options.onDeadlineTimeChange(...args))
-  } : {}, {
-    T: $data.form.require_approval,
-    U: common_vendor.o((...args) => $options.toggleApproval && $options.toggleApproval(...args)),
-    V: $data.form.is_free,
-    W: common_vendor.o((...args) => $options.toggleFree && $options.toggleFree(...args)),
-    X: !$data.form.is_free
-  }, !$data.form.is_free ? {
-    Y: $data.form.base_fee,
-    Z: common_vendor.o(common_vendor.m(($event) => $data.form.base_fee = $event.detail.value, {
+    N: $data.form.max_participants,
+    O: common_vendor.o(common_vendor.m(($event) => $data.form.max_participants = $event.detail.value, {
       number: true
     }))
   } : {}, {
-    aa: common_vendor.o((...args) => $options.saveDraft && $options.saveDraft(...args)),
-    ab: common_vendor.o((...args) => $options.publishActivity && $options.publishActivity(...args)),
-    ac: common_vendor.o((...args) => _ctx.submitForm && _ctx.submitForm(...args)),
-    ad: $data.showTeamModal
+    P: common_vendor.t($data.deadlineDate ? $data.deadlineDate : "请选择截止日期（可选）"),
+    Q: !$data.deadlineDate ? 1 : "",
+    R: $data.deadlineDate,
+    S: common_vendor.o((...args) => $options.onDeadlineDateChange && $options.onDeadlineDateChange(...args)),
+    T: $data.deadlineDate
+  }, $data.deadlineDate ? {
+    U: common_vendor.t($data.deadlineTime ? $data.deadlineTime : "请选择截止时间"),
+    V: !$data.deadlineTime ? 1 : "",
+    W: $data.deadlineTime,
+    X: common_vendor.o((...args) => $options.onDeadlineTimeChange && $options.onDeadlineTimeChange(...args))
+  } : {}, {
+    Y: $data.form.require_approval,
+    Z: common_vendor.o((...args) => $options.toggleApproval && $options.toggleApproval(...args)),
+    aa: $data.form.is_free,
+    ab: common_vendor.o((...args) => $options.toggleFree && $options.toggleFree(...args)),
+    ac: !$data.form.is_free
+  }, !$data.form.is_free ? {
+    ad: $data.form.base_fee,
+    ae: common_vendor.o(common_vendor.m(($event) => $data.form.base_fee = $event.detail.value, {
+      number: true
+    }))
+  } : {}, {
+    af: common_vendor.o((...args) => $options.saveDraft && $options.saveDraft(...args)),
+    ag: common_vendor.o((...args) => $options.publishActivity && $options.publishActivity(...args)),
+    ah: common_vendor.o((...args) => _ctx.submitForm && _ctx.submitForm(...args)),
+    ai: $data.showTeamModal
   }, $data.showTeamModal ? {
-    ae: common_vendor.o((...args) => $options.hideTeamModal && $options.hideTeamModal(...args)),
-    af: common_vendor.f($data.myTeams, (team, k0, i0) => {
+    aj: common_vendor.o((...args) => $options.hideTeamModal && $options.hideTeamModal(...args)),
+    ak: common_vendor.f($data.myTeams, (team, k0, i0) => {
       return {
         a: common_vendor.t(team.name),
         b: common_vendor.t(team.role === "admin" ? "负责人" : "成员"),
@@ -326,11 +343,10 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
         d: common_vendor.o(($event) => $options.selectTeam(team), team.id)
       };
     }),
-    ag: common_vendor.o(() => {
+    al: common_vendor.o(() => {
     }),
-    ah: common_vendor.o((...args) => $options.hideTeamModal && $options.hideTeamModal(...args))
+    am: common_vendor.o((...args) => $options.hideTeamModal && $options.hideTeamModal(...args))
   } : {});
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-095a2a8e"]]);
 wx.createPage(MiniProgramPage);
-//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/activity-create/activity-create.js.map

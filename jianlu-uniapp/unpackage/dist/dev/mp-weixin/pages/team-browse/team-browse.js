@@ -81,7 +81,7 @@ const _sfc_main = {
     },
     // 查看团队详情
     viewTeamDetail(team) {
-      common_vendor.index.__f__("log", "at pages/team-browse/team-browse.vue:223", "查看团队详情:", team);
+      console.log("查看团队详情:", team);
     },
     // 申请加入团队
     applyToJoin(team) {
@@ -108,7 +108,7 @@ const _sfc_main = {
         this.hideApplyModal();
         this.onRefresh();
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/team-browse/team-browse.vue:254", "申请提交失败:", error);
+        console.error("申请提交失败:", error);
         if (error.message && error.message.includes("已经提交过申请")) {
           utils_index.showError("您已经提交过申请，请等待审核");
         } else if (error.message && error.message.includes("已经是该团队的成员")) {
@@ -196,4 +196,3 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-ca2390ce"]]);
 wx.createPage(MiniProgramPage);
-//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/team-browse/team-browse.js.map

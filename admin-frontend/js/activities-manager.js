@@ -61,7 +61,7 @@ class ActivitiesManager {
             console.log('📡 响应数据:', response.data);
             
             if (response.success) {
-                this.activities = response.data || [];
+                this.activities = response.data?.activities || [];
                 console.log(`✅ 成功加载 ${this.activities.length} 个活动`);
                 
                 // 打印所有活动的关键信息
@@ -228,7 +228,10 @@ class ActivitiesManager {
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span class="badge ${statusBadgeClass}">${statusText}</span>
+                        <div class="d-flex align-items-center">
+                            ${activity.sequence_number && activity.sequence_number > 0 ? `<span class="activity-sequence-badge">#${activity.sequence_number}</span>` : ''}
+                            <span class="badge ${statusBadgeClass}">${statusText}</span>
+                        </div>
                         <div class="dropdown">
                             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
                                     data-bs-toggle="dropdown">
@@ -397,6 +400,35 @@ class ActivitiesManager {
             this.showMessage('活动列表已刷新', 'success');
         } catch (error) {
             this.showMessage('刷新失败: ' + error.message, 'error');
+        }
+    }
+
+    // 更新活动序号
+    async updateSequenceNumbers() {
+        if (!confirm('确定要更新所有活动的序号吗？\n\n这将按创建时间重新排序所有活动。')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/activities/update-sequence`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${auth.getToken()}`
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.showMessage(`成功更新了 ${result.data.updated} 个活动的序号`, 'success');
+                await this.refreshList();
+            } else {
+                throw new Error(result.message || '更新序号失败');
+            }
+        } catch (error) {
+            console.error('更新活动序号失败:', error);
+            this.showMessage('更新序号失败: ' + error.message, 'error');
         }
     }
 

@@ -14,7 +14,7 @@ const request = (options) => {
     }
     const fullUrl = BASE_URL + options.url;
     {
-      common_vendor.index.__f__("log", "at utils/request.js:23", "发送请求:", {
+      console.log("发送请求:", {
         url: fullUrl,
         method: options.method || "GET",
         data: options.data,
@@ -29,7 +29,7 @@ const request = (options) => {
       success: (res) => {
         var _a;
         {
-          common_vendor.index.__f__("log", "at utils/request.js:39", "请求响应:", {
+          console.log("请求响应:", {
             url: fullUrl,
             statusCode: res.statusCode,
             data: res.data
@@ -45,12 +45,12 @@ const request = (options) => {
           });
           reject(new Error("登录已过期"));
         } else {
-          common_vendor.index.__f__("error", "at utils/request.js:59", "请求失败:", res);
+          console.error("请求失败:", res);
           reject(new Error(((_a = res.data) == null ? void 0 : _a.message) || `请求失败 (${res.statusCode})`));
         }
       },
       fail: (err) => {
-        common_vendor.index.__f__("error", "at utils/request.js:64", "网络请求失败:", {
+        console.error("网络请求失败:", {
           url: fullUrl,
           error: err
         });
@@ -95,4 +95,3 @@ exports.del = del;
 exports.get = get;
 exports.post = post;
 exports.put = put;
-//# sourceMappingURL=../../.sourcemap/mp-weixin/utils/request.js.map

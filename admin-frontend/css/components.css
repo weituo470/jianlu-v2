@@ -1124,3 +1124,18 @@
     background-color: #e2e6ea !important;
     border-left: 1px solid #adb5bd !important;
 }
+
+/* 活动序号样式 */
+.activity-sequence-badge {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #007aff;
+    background-color: #e7f0ff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.5rem;
+    margin-right: 0.5rem;
+    display: inline-block;
+    min-width: 2rem;
+    text-align: center;
+}
+}

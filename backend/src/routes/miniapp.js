@@ -202,7 +202,7 @@ router.get('/activities', authenticateToken, async (req, res) => {
           attributes: ['id', 'username']
         }
       ],
-      order: [['created_at', 'DESC']],
+      order: [['sequence_number', 'DESC']],
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit)
     });
@@ -230,6 +230,7 @@ router.get('/activities', authenticateToken, async (req, res) => {
         username: activity.creator.username
       } : null,
       creator_name: activity.creator ? activity.creator.username : '未知',
+      sequence_number: activity.sequence_number,
       created_at: activity.created_at
     }));
 

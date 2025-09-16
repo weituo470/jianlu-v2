@@ -31,7 +31,7 @@ const _sfc_main = {
           });
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/team-detail/team-detail.vue:118", "加载团队详情失败:", error);
+        console.error("加载团队详情失败:", error);
         utils_index.showError("加载团队详情失败");
       }
     },
@@ -51,7 +51,7 @@ const _sfc_main = {
           }
         }
       } catch (error) {
-        common_vendor.index.__f__("error", "at pages/team-detail/team-detail.vue:141", "加载团队成员失败:", error);
+        console.error("加载团队成员失败:", error);
         utils_index.showError("加载成员列表失败");
       } finally {
         this.loading = false;
@@ -125,4 +125,3 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-baa2dd34"]]);
 wx.createPage(MiniProgramPage);
-//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/team-detail/team-detail.js.map

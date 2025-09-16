@@ -1,9 +1,9 @@
 "use strict";
 const config = {
-  // 开发环境：使用本机IP地址，小程序无法访问localhost
+  // 开发环境：使用localhost，仅在微信开发者工具中可用
   development: {
-    API_BASE_URL: "http://192.168.100.4:8081/api",
-    IMAGE_BASE_URL: "http://192.168.100.4:8081",
+    API_BASE_URL: "http://localhost:3460/api",
+    IMAGE_BASE_URL: "http://localhost:3460",
     // 是否忽略HTTPS检查（仅开发环境）
     ignoreHttps: true
   },
@@ -19,4 +19,3 @@ const getCurrentConfig = () => {
 };
 const envConfig = getCurrentConfig();
 exports.envConfig = envConfig;
-//# sourceMappingURL=../../.sourcemap/mp-weixin/config/env.js.map

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试活动序号迁移</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px 20px; margin: 10px; background: #007aff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:disabled { background: #ccc; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .status { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>活动序号字段迁移工具</h1>
+
+    <div class="status">
+        <h2>当前状态</h2>
+        <pre id="status">检查中...</pre>
+    </div>
+
+    <div>
+        <button onclick="checkStatus()">检查状态</button>
+        <button onclick="runMigration()" id="migrateBtn">执行迁移</button>
+    </div>
+
+    <div>
+        <h3>响应结果：</h3>
+        <pre id="result"></pre>
+    </div>
+
+    <script>
+        let token = '';
+
+        async function login() {
+            const response = await fetch('http://localhost:3460/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: 'admin@example.com',
+                    password: 'admin123'
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                token = data.data.token;
+                return true;
+            }
+            alert('登录失败');
+            return false;
+        }
+
+        async function checkStatus() {
+            if (!token) {
+                await login();
+            }
+
+            const response = await fetch('http://localhost:3460/api/migrate/status', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const data = await response.json();
+            document.getElementById('status').textContent = JSON.stringify(data, null, 2);
+            document.getElementById('result').textContent = '';
+
+            if (data.data && data.data.migrationNeeded) {
+                document.getElementById('migrateBtn').disabled = false;
+            } else {
+                document.getElementById('migrateBtn').disabled = true;
+            }
+        }
+
+        async function runMigration() {
+            if (!confirm('确定要执行迁移吗？此操作会修改数据库结构。')) {
+                return;
+            }
+
+            if (!token) {
+                await login();
+            }
+
+            const response = await fetch('http://localhost:3460/api/migrate/activity-sequence', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const data = await response.json();
+            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+
+            // 迁移后重新检查状态
+            setTimeout(checkStatus, 1000);
+        }
+
+        // 页面加载后检查状态
+        checkStatus();
+    </script>
+</body>
+</html>

@@ -30,7 +30,7 @@ app.use(cors({
   credentials: true
 }));
 
-// 请求限制
+// 通用请求限制
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15分钟
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 限制每个IP 100个请求
@@ -39,7 +39,20 @@ const limiter = rateLimit({
     message: '请求过于频繁，请稍后再试'
   }
 });
+
+// 认证路由的宽松限制
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分钟
+  max: 1000, // 认证路由允许更多请求
+  message: {
+    success: false,
+    message: '认证请求过于频繁，请稍后再试'
+  }
+});
+
+// 应用限制 - 排除认证路由
 app.use('/api/', limiter);
+app.use('/api/auth', authLimiter);
 
 // 解析请求体
 app.use(express.json({ limit: '10mb' }));
@@ -78,6 +91,7 @@ app.use('/api/organizations', require('./routes/organizationRoles')); // 机构�
 app.use('/api/activities', require('./routes/activities')); // 活动管理API路由
 app.use('/api/activity-roles', require('./routes/activityRoles')); // 活动角色管理API路由
 app.use('/api/user-activities', require('./routes/userActivities'));
+app.use('/api/migrate', require('./routes/migrate')); // 数据库迁移API路由
 app.use('/api/banners', require('./routes/banners')); // 轮播图API路由
 app.use('/api/miniapp', require('./routes/miniapp')); // 小程序API路由
 app.use('/api/accounts', require('./routes/accounts')); // 用户余额管理API路由

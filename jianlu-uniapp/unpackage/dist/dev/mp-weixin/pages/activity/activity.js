@@ -6,116 +6,117 @@ const _sfc_main = {
   data() {
     return {
       activities: [],
-      activityTypes: {},
-      // 活动类型数据，从API加载
       loading: false,
+      loadingMore: false,
+      isRefreshing: false,
+      page: 1,
+      pageSize: 10,
+      hasMore: true,
+      searchVisible: false,
+      searchKeyword: "",
       currentFilter: "all",
-      currentType: "",
-      showTypeFilter: false
+      filterTabs: [
+        { label: "全部", value: "all" },
+        { label: "即将开始", value: "upcoming" },
+        { label: "进行中", value: "ongoing" },
+        { label: "已结束", value: "completed" }
+      ]
     };
   },
   onLoad() {
-    this.loadInitialData();
+    this.resetAndLoad();
   },
   onShow() {
-    this.loadInitialData();
-  },
-  onPullDownRefresh() {
-    this.loadInitialData().finally(() => {
-      common_vendor.index.stopPullDownRefresh();
-    });
+    if (!this.loadedOnce) {
+      this.resetAndLoad();
+      this.loadedOnce = true;
+    }
   },
   methods: {
-    // 加载初始数据
-    async loadInitialData() {
-      await Promise.all([
-        this.loadActivities(),
-        this.loadActivityTypes()
-      ]);
+    // 重置并加载
+    resetAndLoad() {
+      this.page = 1;
+      this.activities = [];
+      this.hasMore = true;
+      this.loadActivities();
     },
-    // 加载活动类型
-    async loadActivityTypes() {
-      try {
-        const response = await api_index.activityApi.getTypes();
-        if (response.success) {
-          const typesData = {};
-          const types = response.data || [];
-          types.forEach((type) => {
-            const icon = this.getTypeIcon(type.id);
-            typesData[type.id] = {
-              icon,
-              name: type.name
-            };
-          });
-          this.activityTypes = typesData;
-          common_vendor.index.__f__("log", "at pages/activity/activity.vue:174", `成功加载 ${types.length} 个活动类型`);
-        } else {
-          throw new Error(response.message || "获取活动类型失败");
-        }
-      } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity/activity.vue:179", "加载活动类型失败:", error);
-        this.activityTypes = {
-          other: { icon: "📅", name: "其他" }
-        };
-      }
+    // 显示搜索
+    showSearch() {
+      console.log("显示搜索");
     },
-    // 根据类型ID获取对应图标
-    getTypeIcon(typeId) {
-      const iconMap = {
-        meeting: "💼",
-        event: "🎉",
-        training: "📚",
-        social: "🍽️",
-        sports: "⚽",
-        travel: "🏖️",
-        workshop: "🔧",
-        conference: "🎤",
-        other: "📅"
-      };
-      return iconMap[typeId] || "📅";
-    },
-    // 设置筛选条件
-    setFilter(filter) {
+    // 切换筛选
+    changeFilter(filter) {
+      if (this.currentFilter === filter)
+        return;
       this.currentFilter = filter;
-      this.showTypeFilter = filter !== "all";
-      this.loadActivities();
+      this.resetAndLoad();
     },
-    // 设置类型筛选
-    setType(type) {
-      this.currentType = type;
-      this.loadActivities();
-    },
-    // 加载活动列表
-    async loadActivities() {
-      this.loading = true;
-      try {
-        const params = this.buildParams();
-        const response = await api_index.activityApi.getList(params);
-        if (response.success) {
-          const activities = response.data.activities || response.data || [];
-          this.activities = Array.isArray(activities) ? activities : [];
-        }
-      } catch (error) {
-        common_vendor.index.__f__("error", "at pages/activity/activity.vue:228", "加载活动失败:", error);
-        utils_index.showError("加载活动失败");
-      } finally {
-        this.loading = false;
+    // 获取筛选参数
+    getFilterParams() {
+      const params = {
+        page: this.page,
+        limit: this.pageSize
+      };
+      if (this.currentFilter === "upcoming") {
+        params.status = "registration";
+      } else if (this.currentFilter === "ongoing") {
+        params.status = "ongoing";
+      } else if (this.currentFilter === "completed") {
+        params.status = "completed";
       }
-    },
-    // 构建请求参数
-    buildParams() {
-      const params = {};
-      if (this.currentFilter === "public") {
-        params.visibility = "public";
-      } else if (this.currentFilter === "team") {
-        params.visibility = "team";
-      } else if (this.currentFilter === "my") {
-        params.my_registrations = true;
-      }
-      if (this.currentType) {
-        params.activity_type = this.currentType;
+      if (this.searchKeyword) {
+        params.search = this.searchKeyword;
       }
       return params;
+    },
+    // 加载活动列表
+    async loadActivities(isLoadMore = false) {
+      if (isLoadMore) {
+        if (!this.hasMore || this.loadingMore)
+          return;
+        this.loadingMore = true;
+      } else {
+        this.loading = true;
+      }
+      try {
+        const params = this.getFilterParams();
+        const response = await api_index.activityApi.getList(params);
+        if (response.success) {
+          const { activities, pagination } = response.data;
+          const newActivities = Array.isArray(activities) ? activities : [];
+          if (isLoadMore) {
+            this.activities = [...this.activities, ...newActivities];
+            this.page++;
+          } else {
+            this.activities = newActivities;
+            this.page = (pagination == null ? void 0 : pagination.page) || 1;
+          }
+          if (pagination) {
+            this.hasMore = pagination.page < pagination.pages;
+          }
+        }
+      } catch (error) {
+        console.error("加载活动失败:", error);
+        utils_index.showError("加载活动失败");
+      } finally {
+        if (isLoadMore) {
+          this.loadingMore = false;
+        } else {
+          this.loading = false;
+        }
+      }
+    },
+    // 下拉刷新
+    async onRefresh() {
+      this.isRefreshing = true;
+      await this.resetAndLoad();
+      this.isRefreshing = false;
+    },
+    // 上拉加载更多
+    onLoadMore() {
+      if (!this.loadingMore && this.hasMore && !this.loading) {
+        this.loadActivities(true);
+      }
     },
     // 查看活动详情
     viewActivity(activity) {
@@ -148,63 +149,68 @@ const _sfc_main = {
     },
     // 获取类型信息
     getTypeInfo(type) {
-      return this.activityTypes[type] || { icon: "📅", name: "未知" };
+      const typeMap = {
+        meeting: { icon: "💼", name: "会议" },
+        event: { icon: "🎉", name: "活动" },
+        training: { icon: "📚", name: "培训" },
+        social: { icon: "🍽️", name: "社交" },
+        sports: { icon: "⚽", name: "运动" },
+        travel: { icon: "🏖️", name: "旅行" },
+        workshop: { icon: "🔧", name: "工作坊" },
+        conference: { icon: "🎤", name: "会议" },
+        other: { icon: "📅", name: "其他" }
+      };
+      return typeMap[type] || { icon: "📅", name: "未知" };
     }
   }
 };
 function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
   return common_vendor.e({
-    a: $data.currentFilter === "all" ? 1 : "",
-    b: common_vendor.o(($event) => $options.setFilter("all")),
-    c: $data.currentFilter === "public" ? 1 : "",
-    d: common_vendor.o(($event) => $options.setFilter("public")),
-    e: $data.currentFilter === "team" ? 1 : "",
-    f: common_vendor.o(($event) => $options.setFilter("team")),
-    g: $data.currentFilter === "my" ? 1 : "",
-    h: common_vendor.o(($event) => $options.setFilter("my")),
-    i: $data.showTypeFilter
-  }, $data.showTypeFilter ? {
-    j: $data.currentType === "" ? 1 : "",
-    k: common_vendor.o(($event) => $options.setType("")),
-    l: common_vendor.f($data.activityTypes, (typeInfo, type, i0) => {
+    a: common_vendor.o((...args) => $options.showSearch && $options.showSearch(...args)),
+    b: common_vendor.f($data.filterTabs, (tab, k0, i0) => {
       return {
-        a: common_vendor.t(typeInfo.icon),
-        b: common_vendor.t(typeInfo.name),
-        c: type,
-        d: $data.currentType === type ? 1 : "",
-        e: common_vendor.o(($event) => $options.setType(type), type)
+        a: common_vendor.t(tab.label),
+        b: tab.value,
+        c: $data.currentFilter === tab.value ? 1 : "",
+        d: common_vendor.o(($event) => $options.changeFilter(tab.value), tab.value)
       };
-    })
-  } : {}, {
-    m: $data.loading
-  }, $data.loading ? {} : $data.activities.length > 0 ? {
-    o: common_vendor.f($data.activities, (activity, k0, i0) => {
+    }),
+    c: $data.loading && $data.page === 1
+  }, $data.loading && $data.page === 1 ? {} : $data.activities.length > 0 ? common_vendor.e({
+    e: common_vendor.f($data.activities, (activity, k0, i0) => {
       return common_vendor.e({
-        a: common_vendor.t($options.getTypeInfo(activity.activity_type).icon),
-        b: common_vendor.t($options.getStatusInfo(activity).text),
-        c: $options.getStatusInfo(activity).color,
-        d: common_vendor.t(activity.title),
-        e: activity.description
+        a: common_vendor.t(activity.sequence_number || "0"),
+        b: common_vendor.t($options.getTypeInfo(activity.activity_type).icon),
+        c: common_vendor.t($options.getStatusInfo(activity).text),
+        d: $options.getStatusInfo(activity).color,
+        e: common_vendor.t(activity.title),
+        f: activity.description
       }, activity.description ? {
-        f: common_vendor.t(activity.description)
+        g: common_vendor.t(activity.description)
       } : {}, {
-        g: common_vendor.t($options.formatDate(activity.start_time)),
-        h: activity.location
+        h: common_vendor.t($options.formatDate(activity.start_time)),
+        i: activity.location
       }, activity.location ? {
-        i: common_vendor.t(activity.location)
+        j: common_vendor.t(activity.location)
       } : {}, {
-        j: common_vendor.t(activity.registration_count || 0),
-        k: common_vendor.t(activity.max_participants ? `/${activity.max_participants}` : ""),
-        l: common_vendor.t(activity.creator_name),
-        m: activity.id,
-        n: common_vendor.o(($event) => $options.viewActivity(activity), activity.id)
+        k: common_vendor.t(activity.registration_count || 0),
+        l: common_vendor.t(activity.max_participants ? `/${activity.max_participants}` : ""),
+        m: common_vendor.t(activity.creator_name),
+        n: activity.id,
+        o: common_vendor.o(($event) => $options.viewActivity(activity), activity.id)
       });
-    })
-  } : {}, {
-    n: $data.activities.length > 0,
-    p: common_vendor.o((...args) => $options.createActivity && $options.createActivity(...args))
+    }),
+    f: $data.loadingMore
+  }, $data.loadingMore ? {} : {}, {
+    g: !$data.hasMore && $data.activities.length > 0
+  }, !$data.hasMore && $data.activities.length > 0 ? {} : {}) : !$data.loading ? {} : {}, {
+    d: $data.activities.length > 0,
+    h: !$data.loading,
+    i: $data.isRefreshing,
+    j: common_vendor.o((...args) => $options.onRefresh && $options.onRefresh(...args)),
+    k: common_vendor.o((...args) => $options.onLoadMore && $options.onLoadMore(...args)),
+    l: common_vendor.o((...args) => $options.createActivity && $options.createActivity(...args))
   });
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-da48f91d"]]);
 wx.createPage(MiniProgramPage);
-//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/activity/activity.js.map

@@ -1,53 +1,57 @@
 <template>
 	<view class="activity-page">
-		<!-- 页面标题 -->
 		<view class="page-header">
 			<text class="page-title">活动</text>
-			<view class="header-actions">
-				<view class="search-btn" @tap="showSearch">
-					<text class="search-icon">🔍</text>
-				</view>
-			</view>
+			<view class="search-btn" @tap="showSearch">🔍</view>
 		</view>
 
-		<!-- 活动列表 -->
-		<view class="activity-list">
-			<view v-if="loading" class="loading-state">
-				<text>加载中...</text>
-			</view>
-			
-			<view v-else-if="activities.length > 0">
-				<view class="activity-card" 
-					v-for="activity in activities" 
+		<view class="filter-tabs">
+			<scroll-view scroll-x class="filter-scroll" :show-scrollbar="false">
+				<view class="filter-item"
+					v-for="tab in filterTabs"
+					:key="tab.value"
+					:class="{ active: currentFilter === tab.value }"
+					@tap="changeFilter(tab.value)">
+					<text class="filter-text">{{ tab.label }}</text>
+				</view>
+			</scroll-view>
+		</view>
+
+		<scroll-view class="activity-list" scroll-y
+			:refresher-enabled="true"
+			:refresher-triggered="isRefreshing"
+			@refresherrefresh="onRefresh"
+			@scrolltolower="onLoadMore">
+
+			<view v-if="loading && page === 1" class="loading-state">加载中...</view>
+
+			<template v-else-if="activities.length > 0">
+				<view class="activity-card"
+					v-for="activity in activities"
 					:key="activity.id"
 					@tap="viewActivity(activity)">
-					
-					<!-- 活动头部 -->
+
 					<view class="activity-header">
-						<view class="activity-type">
-							{{ getTypeInfo(activity.activity_type).icon }}
-						</view>
+						<view class="activity-sequence">#{{ activity.sequence_number || '0' }}</view>
+						<view class="activity-type">{{ getTypeInfo(activity.activity_type).icon }}</view>
 						<view class="activity-status" :style="{ color: getStatusInfo(activity).color }">
 							{{ getStatusInfo(activity).text }}
 						</view>
 					</view>
-					
-					<!-- 活动内容 -->
+
 					<view class="activity-content">
 						<text class="activity-title">{{ activity.title }}</text>
 						<text class="activity-desc" v-if="activity.description">{{ activity.description }}</text>
-						
+
 						<view class="activity-details">
 							<view class="detail-item">
 								<text class="detail-icon">📅</text>
 								<text class="detail-text">{{ formatDate(activity.start_time) }}</text>
 							</view>
-							
 							<view class="detail-item" v-if="activity.location">
 								<text class="detail-icon">📍</text>
 								<text class="detail-text">{{ activity.location }}</text>
 							</view>
-							
 							<view class="detail-item">
 								<text class="detail-icon">👥</text>
 								<text class="detail-text">
@@ -55,26 +59,25 @@
 								</text>
 							</view>
 						</view>
-						
+
 						<view class="activity-footer">
 							<text class="creator">由 {{ activity.creator_name }} 创建</text>
 						</view>
 					</view>
 				</view>
-			</view>
-			
-			<!-- 空状态 -->
-			<view class="empty-state" v-else>
+
+				<view v-if="loadingMore" class="load-more">加载更多...</view>
+				<view v-if="!hasMore && activities.length > 0" class="no-more">没有更多活动了</view>
+			</template>
+
+			<view v-else-if="!loading" class="empty-state">
 				<text class="empty-icon">📅</text>
 				<text class="empty-title">暂无活动</text>
 				<text class="empty-subtitle">快来创建第一个活动吧！</text>
 			</view>
-		</view>
+		</scroll-view>
 
-		<!-- 创建活动按钮 -->
-		<view class="create-btn" @tap="createActivity">
-			<text class="create-icon">+</text>
-		</view>
+		<view class="create-btn" @tap="createActivity">+</view>
 	</view>
 </template>
 
@@ -87,52 +90,138 @@
 			return {
 				activities: [],
 				loading: false,
+				loadingMore: false,
+				isRefreshing: false,
+				page: 1,
+				pageSize: 10,
+				hasMore: true,
 				searchVisible: false,
-				searchKeyword: ''
+				searchKeyword: '',
+				currentFilter: 'all',
+				filterTabs: [
+					{ label: '全部', value: 'all' },
+					{ label: '即将开始', value: 'upcoming' },
+					{ label: '进行中', value: 'ongoing' },
+					{ label: '已结束', value: 'completed' }
+				]
 			}
 		},
 
 		onLoad() {
-			this.loadActivities()
+			this.resetAndLoad()
 		},
 
 		onShow() {
-			this.loadActivities()
-		},
-
-		onPullDownRefresh() {
-			this.loadActivities().finally(() => {
-				uni.stopPullDownRefresh()
-			})
+			// 如果是第一次加载或从其他页面返回，刷新数据
+			if (!this.loadedOnce) {
+				this.resetAndLoad()
+				this.loadedOnce = true
+			}
 		},
 
 		methods: {
+			// 重置并加载
+			resetAndLoad() {
+				this.page = 1
+				this.activities = []
+				this.hasMore = true
+				this.loadActivities()
+			},
+
 			// 显示搜索
 			showSearch() {
 				// TODO: 实现搜索功能
 				console.log('显示搜索')
 			},
 
+			// 切换筛选
+			changeFilter(filter) {
+				if (this.currentFilter === filter) return
+				this.currentFilter = filter
+				this.resetAndLoad()
+			},
+
+			// 获取筛选参数
+			getFilterParams() {
+				const params = {
+					page: this.page,
+					limit: this.pageSize
+				}
+
+				// 添加状态筛选
+				if (this.currentFilter === 'upcoming') {
+					params.status = 'registration'
+				} else if (this.currentFilter === 'ongoing') {
+					params.status = 'ongoing'
+				} else if (this.currentFilter === 'completed') {
+					params.status = 'completed'
+				}
+
+				// 添加搜索关键词
+				if (this.searchKeyword) {
+					params.search = this.searchKeyword
+				}
+
+				return params
+			},
+
 			// 加载活动列表
-			async loadActivities() {
-				this.loading = true
+			async loadActivities(isLoadMore = false) {
+				if (isLoadMore) {
+					if (!this.hasMore || this.loadingMore) return
+					this.loadingMore = true
+				} else {
+					this.loading = true
+				}
+
 				try {
-					const params = {}
-					if (this.searchKeyword) {
-						params.search = this.searchKeyword
-					}
-					
+					const params = this.getFilterParams()
 					const response = await activityApi.getList(params)
+
 					if (response.success) {
-						// 修复：活动数据在 response.data.activities 中
-						const activities = response.data.activities || response.data || []
-						this.activities = Array.isArray(activities) ? activities : []
+						const { activities, pagination } = response.data
+						const newActivities = Array.isArray(activities) ? activities : []
+
+						if (isLoadMore) {
+							// 加载更多，追加数据
+							this.activities = [...this.activities, ...newActivities]
+							// 增加页码，准备下次加载
+							this.page++
+						} else {
+							// 刷新或首次加载，替换数据
+							this.activities = newActivities
+							// 重置页码为当前页
+							this.page = pagination?.page || 1
+						}
+
+						// 更新分页状态
+						if (pagination) {
+							this.hasMore = pagination.page < pagination.pages
+						}
 					}
 				} catch (error) {
 					console.error('加载活动失败:', error)
 					showError('加载活动失败')
 				} finally {
-					this.loading = false
+					if (isLoadMore) {
+						this.loadingMore = false
+					} else {
+						this.loading = false
+					}
+				}
+			},
+
+			// 下拉刷新
+			async onRefresh() {
+				this.isRefreshing = true
+				await this.resetAndLoad()
+				this.isRefreshing = false
+			},
+
+			// 上拉加载更多
+			onLoadMore() {
+				if (!this.loadingMore && this.hasMore && !this.loading) {
+					this.loadActivities(true)
 				}
 			},
 
@@ -194,6 +283,8 @@
 		background-color: #f5f5f5;
 		min-height: 100vh;
 		padding-bottom: 120rpx;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.page-header {
@@ -203,6 +294,47 @@
 		justify-content: space-between;
 		align-items: center;
 		border-bottom: 1rpx solid #f0f0f0;
+		flex-shrink: 0;
+	}
+
+	.filter-tabs {
+		background-color: white;
+		padding: 20rpx 30rpx;
+		border-bottom: 1rpx solid #f0f0f0;
+		flex-shrink: 0;
+	}
+
+	.filter-scroll {
+		white-space: nowrap;
+	}
+
+	.filter-item {
+		display: inline-block;
+		padding: 16rpx 32rpx;
+		margin-right: 20rpx;
+		background-color: #f8f9fa;
+		border-radius: 30rpx;
+		transition: all 0.3s;
+	}
+
+	.filter-item.active {
+		background-color: #007aff;
+	}
+
+	.filter-text {
+		font-size: 28rpx;
+		color: #666;
+	}
+
+	.filter-item.active .filter-text {
+		color: white;
+	}
+
+	.activity-list {
+		flex: 1;
+		overflow-y: auto;
+		padding: 20rpx;
+		height: calc(100vh - 240rpx);
 	}
 
 	.page-title {
@@ -255,6 +387,16 @@
 		align-items: center;
 		padding: 20rpx 30rpx;
 		background-color: #f8f9fa;
+	}
+
+	.activity-sequence {
+		font-size: 24rpx;
+		font-weight: bold;
+		color: #007aff;
+		background-color: #e7f0ff;
+		padding: 4rpx 12rpx;
+		border-radius: 12rpx;
+		margin-right: 12rpx;
 	}
 
 	.activity-type {
@@ -364,6 +506,19 @@
 		text-align: center;
 		padding: 60rpx;
 		color: #666;
+	}
+
+	.load-more {
+		text-align: center;
+		padding: 40rpx;
+		color: #999;
+	}
+
+	.no-more {
+		text-align: center;
+		padding: 40rpx;
+		color: #999;
+		font-size: 24rpx;
 	}
 
 	.create-btn {
