@@ -67,6 +67,12 @@ window.Router = {
             requireAuth: true,
             permissions: ['activity:read']
         },
+        '/activities/detail/:id': {
+            title: '活动详情',
+            component: 'ActivityDetailPage',
+            requireAuth: true,
+            permissions: ['activity:read']
+        },
         '/content': {
             title: '内容管理',
             component: 'ContentPage',
@@ -211,6 +217,12 @@ window.Router = {
         return params;
     },
 
+    // 获取当前路由参数
+    getCurrentParams() {
+        const route = this.findRoute(this.currentRoute);
+        return route ? route.params : {};
+    },
+
     // 切换页面容器显示状态
     togglePageContainers(path) {
         const loginPage = document.getElementById('login-page');
@@ -264,6 +276,9 @@ window.Router = {
                     break;
                 case 'ActivitiesListPage':
                     await this.renderActivitiesList();
+                    break;
+                case 'ActivityDetailPage':
+                    await this.renderActivityDetail();
                     break;
                 case 'ActivityTypesPage':
                     await this.renderActivityTypes();
@@ -1734,7 +1749,7 @@ window.Router = {
             pageContent.innerHTML = `
                 <div class="activities-page">
                     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                        <h2>活动列表</h2>
+                        <h2 style="color: var(--text-primary);">活动列表</h2>
                         <div class="header-actions" style="display: flex; gap: 8px;">
                             <button class="btn btn-secondary" onclick="activitiesManager.refreshList()">
                                 <i class="fas fa-sync-alt"></i>
@@ -1753,10 +1768,10 @@ window.Router = {
                                            value="${searchQuery}" 
                                            id="activity-search-input"
                                            onkeyup="if(event.key==='Enter') activitiesManager.handleSearch(this.value)"
-                                           style="height: 36px;">
+                                           style="height: 36px; color: var(--text-primary); background-color: var(--bg-primary);">
                                     <button class="btn btn-outline-secondary" type="button" 
                                             onclick="activitiesManager.handleSearch(document.getElementById('activity-search-input').value)"
-                                            style="height: 36px; background-color: #f8f9fa; padding: 0 12px;">
+                                            style="height: 36px; background-color: var(--bg-tertiary); padding: 0 12px; color: var(--text-primary);">
                                         <i class="fas fa-search"></i>
                                     </button>
                                 </div>
@@ -1764,8 +1779,8 @@ window.Router = {
                             
                             <!-- 状态筛选 -->
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <label style="margin: 0; font-size: 14px; white-space: nowrap;">状态:</label>
-                                <select class="form-control" style="width: 100px; height: 36px; font-size: 14px;" 
+                                <label style="margin: 0; font-size: 14px; white-space: nowrap; color: var(--text-primary);">状态:</label>
+                                <select class="form-control" style="width: 100px; height: 36px; font-size: 14px; color: var(--text-primary); background-color: var(--bg-primary);" 
                                         onchange="activitiesManager.handleFilter('status', this.value)">
                                     <option value="">全部</option>
                                     <option value="draft" ${statusFilter === 'draft' ? 'selected' : ''}>草稿</option>
@@ -1778,8 +1793,8 @@ window.Router = {
                             
                             <!-- 类型筛选 -->
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <label style="margin: 0; font-size: 14px; white-space: nowrap;">类型:</label>
-                                <select class="form-control" style="width: 100px; height: 36px; font-size: 14px;" 
+                                <label style="margin: 0; font-size: 14px; white-space: nowrap; color: var(--text-primary);">类型:</label>
+                                <select class="form-control" style="width: 100px; height: 36px; font-size: 14px; color: var(--text-primary); background-color: var(--bg-primary);" 
                                         onchange="activitiesManager.handleFilter('type', this.value)">
                                     <option value="">全部</option>
                                     <option value="meeting" ${typeFilter === 'meeting' ? 'selected' : ''}>会议</option>
@@ -1909,8 +1924,8 @@ window.Router = {
                         <div class="empty-state-icon">
                             <i class="fas fa-exclamation-circle"></i>
                         </div>
-                        <div class="empty-state-title">加载失败</div>
-                        <div class="empty-state-description">${error.message}</div>
+                        <div class="empty-state-title" style="color: var(--text-primary);">加载失败</div>
+                        <div class="empty-state-description" style="color: var(--text-secondary);">${error.message}</div>
                         <button class="btn btn-primary" onclick="Router.navigate('/activities/list', {force: true})">
                             <i class="fas fa-sync-alt"></i>
                             重新加载
@@ -1985,30 +2000,30 @@ window.Router = {
                                         ` : '-'}
                                     </td>
                                     <td>
-                                        <div style="font-weight: 500;">${activity.title}</div>
+                                        <div style="font-weight: 500; color: var(--text-primary);">${activity.title}</div>
                                         ${activity.description ? `<small style="color: var(--text-secondary);">${activity.description.substring(0, 50)}${activity.description.length > 50 ? '...' : ''}</small>` : ''}
                                     </td>
                                     <td>
-                                        <span class="badge badge-outline-primary">${type}</span>
+                                        <span class="badge badge-outline-primary" style="color: var(--text-primary);">${type}</span>
                                     </td>
                                     <td>
-                                        <div>${activity.team_name || '未知团队'}</div>
+                                        <div style="color: var(--text-primary);">${activity.team_name || '未知团队'}</div>
                                     </td>
-                                    <td>${startTime}</td>
-                                    <td>${endTime}</td>
+                                    <td style="color: var(--text-primary);">${startTime}</td>
+                                    <td style="color: var(--text-primary);">${endTime}</td>
                                     <td>
-                                        <span class="badge badge-outline-info">${participantText}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-${status.class}">${status.text}</span>
+                                        <span class="badge badge-outline-info" style="color: var(--text-primary);">${participantText}</span>
                                     </td>
                                     <td>
-                                        <div>${activity.creator_name || '未知用户'}</div>
+                                        <span class="badge badge-${status.class}" style="color: var(--text-primary);">${status.text}</span>
+                                    </td>
+                                    <td>
+                                        <div style="color: var(--text-primary);">${activity.creator_name || '未知用户'}</div>
                                         <small style="color: var(--text-secondary);">${activity.creator?.email || ''}</small>
                                     </td>
                                     <td>
                                         <div class="btn-group">
-                                            <button class="btn btn-sm btn-primary" onclick="activitiesManager.viewActivity('${activity.id}')" title="查看详情">
+                                            <button class="btn btn-sm btn-primary" onclick="Router.navigate('/activities/detail/${activity.id}')" title="查看详情">
                                                 <i class="fas fa-eye"></i>
                                             </button>
                                             ${Auth.hasPermission(['activity:update']) ? `
@@ -2030,6 +2045,154 @@ window.Router = {
                 </table>
             </div>
         `;
+    },
+
+    // 渲染活动详情页面
+    async renderActivityDetail() {
+        const pageContent = document.getElementById('page-content');
+        const activityId = this.getCurrentParams().id;
+
+        try {
+            // 动态加载活动管理器脚本
+            if (typeof ActivitiesManager === 'undefined') {
+                await this.loadScript('/js/activities-manager.js');
+            }
+
+            // 初始化活动管理器
+            if (typeof activitiesManager === 'undefined') {
+                window.activitiesManager = new ActivitiesManager();
+            }
+
+            // 设置页面内容
+            pageContent.innerHTML = `
+                <div class="activity-detail-page">
+                    <!-- 页面头部 -->
+                    <div class="page-header" style="background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <button class="btn btn-secondary" onclick="Router.navigate('/activities/list')">
+                                    <i class="fas fa-arrow-left"></i>
+                                    返回列表
+                                </button>
+                                <h2 class="page-title" style="margin: 0;">活动详情</h2>
+                            </div>
+                            <div class="header-actions" style="display: flex; gap: 8px;">
+                                ${Auth.hasPermission(['activity:update']) ? `
+                                    <button class="btn btn-warning" onclick="ActivityManager.editActivity('${activityId}')">
+                                        <i class="fas fa-edit"></i>
+                                        编辑活动
+                                    </button>
+                                ` : ''}
+                                ${Auth.hasPermission(['activity:delete']) ? `
+                                    <button class="btn btn-danger" onclick="ActivityManager.deleteActivity('${activityId}')">
+                                        <i class="fas fa-trash"></i>
+                                        删除活动
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 活动详情内容 -->
+                    <div id="activity-detail-content">
+                        ${Components.createLoading('加载活动详情...')}
+                    </div>
+                </div>
+            `;
+
+            // 调用活动管理器的查看详情方法，但传入内容容器ID而不是弹窗
+            await activitiesManager.viewActivityInPage(activityId, 'activity-detail-content');
+
+        } catch (error) {
+            console.error('加载活动详情失败:', error);
+            pageContent.innerHTML = `
+                <div class="error-state" style="text-align: center; padding: 100rpx 40rpx;">
+                    <div class="error-icon" style="font-size: 80rpx; margin-bottom: 20rpx;">❌</div>
+                    <div class="error-title" style="font-size: 32rpx; margin-bottom: 16rpx;">加载失败</div>
+                    <div class="error-message" style="color: #666;">${error.message}</div>
+                    <button class="btn btn-primary" onclick="Router.navigate('/activities/list')" style="margin-top: 20rpx;">
+                        返回列表
+                    </button>
+                </div>
+            `;
+        }
+    },
+
+    // 渲染活动详情页面
+    async renderActivityDetail() {
+        const pageContent = document.getElementById('page-content');
+        const activityId = this.getCurrentParams().id;
+
+        try {
+            // 设置页面内容为新的活动详情页
+            pageContent.innerHTML = `
+                <div class="activity-detail-page">
+                    <!-- 页面头部 -->
+                    <div class="page-header" style="background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <button class="btn btn-secondary" onclick="Router.navigate('/activities/list')">
+                                    <i class="fas fa-arrow-left"></i>
+                                    返回列表
+                                </button>
+                                <h2 class="page-title" style="margin: 0;">活动详情</h2>
+                            </div>
+                            <div class="header-actions" style="display: flex; gap: 8px;">
+                                ${Auth.hasPermission(['activity:update']) ? `
+                                    <button class="btn btn-warning" onclick="ActivityManager.editActivity('${activityId}')">
+                                        <i class="fas fa-edit"></i>
+                                        编辑活动
+                                    </button>
+                                ` : ''}
+                                ${Auth.hasPermission(['activity:delete']) ? `
+                                    <button class="btn btn-danger" onclick="ActivityManager.deleteActivity('${activityId}')">
+                                        <i class="fas fa-trash"></i>
+                                        删除活动
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 活动详情内容 -->
+                    <div id="activity-detail-container">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">加载中...</span>
+                            </div>
+                            <p class="mt-2">正在加载活动详情...</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 动态加载活动详情页脚本
+            if (typeof ActivityDetailPage === 'undefined') {
+                await this.loadScript('/js/activity-detail-page.js');
+            }
+
+            // 初始化活动详情页
+            if (typeof activityDetailPage === 'undefined' || activityDetailPage.activityId !== activityId) {
+                window.activityDetailPage = new ActivityDetailPage();
+            }
+            
+            // 设置活动ID并初始化
+            activityDetailPage.activityId = activityId;
+            await activityDetailPage.init();
+
+        } catch (error) {
+            console.error('加载活动详情失败:', error);
+            pageContent.innerHTML = `
+                <div class="error-state" style="text-align: center; padding: 100rpx 40rpx;">
+                    <div class="error-icon" style="font-size: 80rpx; margin-bottom: 20rpx;">❌</div>
+                    <div class="error-title" style="font-size: 32rpx; margin-bottom: 16rpx;">加载失败</div>
+                    <div class="error-message" style="color: #666;">${error.message}</div>
+                    <button class="btn btn-primary" onclick="Router.navigate('/activities/list')" style="margin-top: 20rpx;">
+                        返回列表
+                    </button>
+                </div>
+            `;
+        }
     },
 
     // 渲染活动类型管理页面
