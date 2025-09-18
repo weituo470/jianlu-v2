@@ -65,6 +65,26 @@ test-*.js
 *.test.js
 __tests__/
 
+# Debug files
+debug-*.js
+debug-*.html
+*debug*.js
+*debug*.html
+
+# Test HTML files
+test-*.html
+*test*.html
+
+# Test SQL files
+test-*.sql
+*test*.sql
+
+# Test and debug directories
+test/
+debug/
+tests/
+debugs/
+
 # Database test scripts
 backend/test-*.js
 backend/check-*.js
