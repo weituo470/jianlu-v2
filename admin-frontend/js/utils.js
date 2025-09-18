@@ -372,6 +372,60 @@ window.Utils = {
         return new Promise(resolve => setTimeout(resolve, ms));
     },
     
+    // 头像处理工具
+    avatar: {
+        // 获取用户头像URL，带错误处理
+        getUserAvatar(user, size = 32) {
+            if (!user) return null;
+
+            // 如果用户有自定义头像且URL有效
+            if (user.profile?.avatar && user.profile.avatar !== 'null' && user.profile.avatar !== 'undefined' && user.profile.avatar.trim() !== '') {
+                return user.profile.avatar;
+            }
+
+            // 返回null，让createAvatarHtml处理默认头像
+            return null;
+        },
+        
+        // 获取团队头像URL，带错误处理
+        getTeamAvatar(team, size = 60) {
+            if (!team) return null;
+
+            // 如果团队有自定义头像且URL有效
+            if (team.avatar_url && team.avatar_url !== 'null' && team.avatar_url !== 'undefined' && team.avatar_url.trim() !== '') {
+                return team.avatar_url;
+            }
+
+            // 返回null，让createAvatarHtml处理默认头像
+            return null;
+        },
+        
+        // 生成带错误处理的头像HTML
+        createAvatarHtml(url, alt, size = 32, className = '', type = 'user') {
+            // 创建默认头像 - 根据类型使用不同图标
+            const icon = type === 'team' ? 'fa-users' : 'fa-user';
+
+            // 确保URL是有效的
+            if (!url || url === 'null' || url === 'undefined' || url.trim() === '') {
+                return `<div class="${className} d-flex align-items-center justify-content-center bg-light rounded-circle" style="width: ${size}px; height: ${size}px;"><i class="fas ${icon} text-muted"></i></div>`;
+            }
+
+            // 为图片添加唯一的ID以便于错误处理
+            const imgId = 'avatar_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+            return `
+                <img id="${imgId}" src="${url}" alt="${alt}" class="${className}" width="${size}" height="${size}"
+                     onerror="this.style.display='none';
+                              const defaultDiv = document.createElement('div');
+                              defaultDiv.className = '${className} d-flex align-items-center justify-content-center bg-light rounded-circle';
+                              defaultDiv.style.width = '${size}px';
+                              defaultDiv.style.height = '${size}px';
+                              defaultDiv.innerHTML = '<i class=\\'fas ${icon} text-muted\\'></i>';
+                              this.parentNode.insertBefore(defaultDiv, this.nextSibling);">
+            `;
+        }
+    },
+    
     // Modal utilities
     modal: {
         show(title, content, options = {}) {

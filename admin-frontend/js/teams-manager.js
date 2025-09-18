@@ -160,14 +160,21 @@ class TeamsManager {
     renderTeamCard(team) {
         const statusBadge = this.getStatusBadge(team.status);
         const memberCount = team.member_count || 0;
-        const avatarUrl = team.avatar_url || 'https://via.placeholder.com/60x60?text=团队';
+        // 使用工具函数处理头像显示
+        const avatarHtml = Utils.avatar.createAvatarHtml(
+            Utils.avatar.getTeamAvatar(team),
+            "团队头像",
+            60,
+            "rounded me-3",
+            "team"
+        );
 
         return `
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body">
                         <div class="d-flex align-items-start mb-3">
-                            <img src="${avatarUrl}" alt="团队头像" class="rounded me-3" width="60" height="60">
+                            ${avatarHtml}
                             <div class="flex-grow-1">
                                 <h5 class="card-title mb-1">${team.name}</h5>
                                 <small class="text-muted">创建者: ${team.creator?.username || '未知'}</small>

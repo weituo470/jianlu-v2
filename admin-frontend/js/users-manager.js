@@ -99,40 +99,36 @@ class UsersManager {
     renderUserCard(user) {
         const statusBadge = this.getStatusBadge(user.status);
         const roleBadge = this.getRoleBadge(user.role);
-        const avatarUrl = user.profile?.avatar || 'https://via.placeholder.com/60x60?text=用户';
 
         return `
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body">
-                        <div class="d-flex align-items-start mb-3">
-                            <img src="${avatarUrl}" alt="用户头像" class="rounded-circle me-3" width="60" height="60">
-                            <div class="flex-grow-1">
-                                <h5 class="card-title mb-1">${user.username}</h5>
-                                <small class="text-muted">${user.email}</small>
-                                <div class="mt-1">
-                                    ${statusBadge}
-                                    ${roleBadge}
-                                </div>
+                        <div class="mb-3">
+                            <h5 class="card-title mb-1">${user.username}</h5>
+                            <small class="text-muted">${user.email}</small>
+                            <div class="mt-1">
+                                ${statusBadge}
+                                ${roleBadge}
                             </div>
                         </div>
-                        
+
                         <div class="d-flex justify-content-between align-items-center">
                             <small class="text-muted">
                                 ${this.formatDate(user.created_at)}
                             </small>
                             <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-primary" 
+                                <button class="btn btn-sm btn-outline-primary"
                                         onclick="usersManager.viewUserDetail('${user.id}')"
                                         title="查看详情">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-warning" 
+                                <button class="btn btn-sm btn-outline-warning"
                                         onclick="usersManager.showEditModal('${user.id}')"
                                         title="编辑">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger" 
+                                <button class="btn btn-sm btn-outline-danger"
                                         onclick="usersManager.deleteUser('${user.id}')"
                                         title="删除">
                                     <i class="fas fa-trash"></i>
@@ -335,14 +331,14 @@ class UsersManager {
 
         const modalContent = `
             <div class="row">
-                <div class="col-md-4 text-center mb-3">
-                    <img src="${user.profile?.avatar || 'https://via.placeholder.com/120x120?text=用户'}" 
-                         alt="用户头像" class="rounded-circle mb-3" width="120" height="120">
+                <div class="col-12 mb-3">
                     <h5>${user.username}</h5>
                     ${this.getStatusBadge(user.status)}
                     ${this.getRoleBadge(user.role)}
                 </div>
-                <div class="col-md-8">
+            </div>
+            <div class="row">
+                <div class="col-md-6">
                     <table class="table table-borderless">
                         <tr>
                             <td class="fw-bold" width="100">邮箱:</td>
@@ -359,7 +355,7 @@ class UsersManager {
                     </table>
                 </div>
             </div>
-            
+
             <div class="row mt-3">
                 <div class="col-md-6">
                     <h6>统计信息</h6>

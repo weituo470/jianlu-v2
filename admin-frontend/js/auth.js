@@ -277,7 +277,8 @@ window.Auth = {
         const user = this.getCurrentUser();
         if (!user) return '';
         
-        return user.profile?.avatar || `https://via.placeholder.com/32x32?text=${encodeURIComponent(user.username?.charAt(0) || 'U')}`;
+        // 使用工具函数处理头像显示
+        return Utils.avatar.getUserAvatar(user, 32);
     }
 };
 

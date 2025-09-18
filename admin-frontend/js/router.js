@@ -2391,7 +2391,11 @@ window.Router = {
 
     // 获取用户头像
     getUserAvatar(user) {
-        if (user.profile && user.profile.avatar) {
+        // 修复头像显示问题：添加错误处理和默认头像
+        if (user.profile && user.profile.avatar &&
+            user.profile.avatar !== 'null' &&
+            user.profile.avatar !== 'undefined' &&
+            user.profile.avatar.trim() !== '') {
             return user.profile.avatar;
         }
         return `https://via.placeholder.com/32x32?text=${encodeURIComponent(user.username?.charAt(0) || 'U')}`;
@@ -2562,19 +2566,13 @@ window.Router = {
             <div class="recent-users">
                 ${users.slice(0, 5).map(user => `
                     <div class="user-item" style="
-                        display: flex; 
-                        align-items: center; 
-                        padding: 12px 0; 
+                        display: flex;
+                        align-items: center;
+                        padding: 12px 0;
                         border-bottom: 1px solid var(--border-color);
                         cursor: pointer;
                         transition: background-color 0.3s;
                     " onclick="Router.navigate('/users/${user.id}')" onmouseover="this.style.backgroundColor='var(--bg-tertiary)'" onmouseout="this.style.backgroundColor='transparent'">
-                        <img src="${this.getUserAvatar(user)}" alt="头像" style="
-                            width: 40px; 
-                            height: 40px; 
-                            border-radius: 50%; 
-                            margin-right: 12px;
-                        ">
                         <div style="flex: 1;">
                             <div style="font-weight: 500; color: var(--text-primary);">${user.username}</div>
                             <div style="font-size: 12px; color: var(--text-secondary);">

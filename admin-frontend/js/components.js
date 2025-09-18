@@ -132,7 +132,23 @@ window.Components = {
         }
         
         if (userAvatarEl) {
-            userAvatarEl.src = Auth.getUserAvatar();
+            // 使用工具函数处理头像显示
+            const avatarUrl = Utils.avatar.getUserAvatar(user, 32);
+            if (avatarUrl) {
+                userAvatarEl.src = avatarUrl;
+                userAvatarEl.style.display = 'inline-block';
+            } else {
+                // 如果没有头像URL，使用默认图标
+                userAvatarEl.style.display = 'none';
+                // 创建或更新默认图标
+                let defaultAvatar = userAvatarEl.parentNode.querySelector('.default-avatar');
+                if (!defaultAvatar) {
+                    defaultAvatar = document.createElement('i');
+                    defaultAvatar.className = 'fas fa-user text-muted default-avatar';
+                    defaultAvatar.style.fontSize = '20px';
+                    userAvatarEl.parentNode.insertBefore(defaultAvatar, userAvatarEl.nextSibling);
+                }
+            }
         }
     },
     

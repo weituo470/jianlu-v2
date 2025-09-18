@@ -1,3 +1,12 @@
+/* 最后修改时间: 2025-01-17 17:45:00 */
+/* 上下游影响: 
+ * - viewActivity方法完全重新设计了UI结构，从传统卡片布局改为现代化设计
+ * - 移除了费用统计相关的API调用和显示逻辑
+ * - 新增了approveAllPending方法的调用，需要确保该方法已实现
+ * - 参与者状态统计逻辑更加详细，包含已批准、待审核、已拒绝三种状态
+ * - 模态框尺寸改为xl，可能影响在小屏幕设备上的显示效果
+ * - 移除了自定义CSS样式注入，改为内联样式，提高了组件独立性
+ */
 // 活动管理器
 // 基于团队管理器和活动类型管理器的成功模式
 
@@ -189,6 +198,7 @@ class ActivitiesManager {
     }
 
     // 创建活动卡片
+    // TODO: 函数较长(100+行)，考虑拆分为多个小函数提高可读性
     createActivityCard(activity) {
         console.log('\n🎯 === createActivityCard 深度调试 ===');
         console.log('📦 原始活动数据:', activity);
@@ -279,6 +289,7 @@ class ActivitiesManager {
                                 <small class="text-muted">
                                     <i class="fas fa-users"></i>
                                     ${activity.current_participants}/${activity.max_participants || '∞'}
+                                    ${activity.current_participants > 0 ? '<span class="text-warning ms-1" title="有报名申请需要处理"><i class="fas fa-exclamation-circle"></i></span>' : ''}
                                 </small>
                             </div>
                             
@@ -297,9 +308,17 @@ class ActivitiesManager {
                             <button class="btn btn-sm btn-outline-primary" onclick="activitiesManager.viewActivity('${activity.id}')">
                                 查看详情
                             </button>
-                            <button class="btn btn-sm btn-primary" onclick="activitiesManager.manageParticipants('${activity.id}')">
-                                管理参与者
-                            </button>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-primary" onclick="activitiesManager.manageParticipants('${activity.id}')" title="管理活动参与者，审核报名申请">
+                                    <i class="fas fa-users"></i> 管理参与者
+                                    ${activity.current_participants > 0 ? `<span class="badge bg-warning text-dark ms-1">${activity.current_participants}</span>` : ''}
+                                </button>
+                                ${activity.current_participants > 0 ? `
+                                <button class="btn btn-success" onclick="activitiesManager.quickApproveAll('${activity.id}')" title="快速批准所有待审核申请">
+                                    <i class="fas fa-check-double"></i>
+                                </button>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -472,6 +491,7 @@ class ActivitiesManager {
     }
 
     // 创建活动模态框（包含AA制功能）
+    // TODO: 函数较长(200+行)，考虑拆分为多个小函数提高可读性
     async showCreateActivityModal() {
         // 调试：检查活动类型数据
         console.log('创建活动模态框时的活动类型数据:', this.activityTypes);
@@ -688,8 +708,14 @@ class ActivitiesManager {
         this.calculateCosts();
     }
 
-    // 查看活动详情
+    // 查看活动详情 - 全新设计
+    // TODO: 函数较长(220+行)，考虑拆分为多个小函数提高可读性
+    // 建议拆分：renderActivityHeader, renderActivityInfo, renderParticipantsList, renderQuickActions
     async viewActivity(activityId) {
+        // 导航到活动详情页面
+        window.location.href = `/activity-detail-page.html?id=${activityId}`;
+        return;
+
         const activity = this.activities.find(a => a.id === activityId);
         if (!activity) {
             this.showMessage('活动不存在', 'error');
@@ -697,10 +723,12 @@ class ActivitiesManager {
         }
 
         try {
-            // 获取活动详细信息和费用统计
-            const [detailResponse, costResponse] = await Promise.all([
+            console.log('🔍 开始获取活动详情数据...', activityId);
+
+            // 获取活动详细信息和参与者信息
+            const [detailResponse, participantsResponse] = await Promise.all([
                 API.activities.getDetail(activityId),
-                API.activities.getCostSummary(activityId).catch(() => ({ success: false })) // 费用信息可能不存在
+                API.activities.getParticipants(activityId).catch(() => ({ success: false, data: { participants: [] } }))
             ]);
 
             if (!detailResponse.success) {
@@ -709,84 +737,179 @@ class ActivitiesManager {
             }
 
             const activityDetail = detailResponse.data;
-            const hasCost = costResponse.success && costResponse.data.costs.totalCost > 0;
+            const participants = participantsResponse.success ? participantsResponse.data.participants : [];
+            const pendingParticipants = participants.filter(p => p.status === 'pending');
+            const approvedParticipants = participants.filter(p => p.status === 'approved');
+            const rejectedParticipants = participants.filter(p => p.status === 'rejected');
 
-            // 构建活动详情内容
-            let modalContent = `
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-calendar-alt me-2"></i>
-                                    ${activityDetail.title}
-                                </h5>
+            console.log('📊 活动数据:', { activityDetail, participants: participants.length, pending: pendingParticipants.length });
+
+            // 全新的活动详情页面设计
+            const modalContent = `
+                <div class="activity-detail-container">
+                    <!-- 活动头部信息 -->
+                    <div class="activity-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px;">
+                        <div style="display: flex; justify-content: between; align-items: start;">
+                            <div style="flex: 1;">
+                                <h2 style="margin: 0 0 10px 0; font-size: 28px; font-weight: 700;">${activityDetail.title}</h2>
+                                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                                    <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 14px;">
+                                        <i class="fas fa-tag"></i> ${this.getActivityTypeLabel(activityDetail.type)}
+                                    </span>
+                                    <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 14px;">
+                                        <i class="fas fa-users"></i> ${activityDetail.team?.name || '未指定团队'}
+                                    </span>
+                                </div>
+                                <div style="display: flex; gap: 30px; font-size: 14px; opacity: 0.9;">
+                                    <div><i class="fas fa-clock"></i> ${activityDetail.start_time ? new Date(activityDetail.start_time).toLocaleString() : '未设置时间'}</div>
+                                    <div><i class="fas fa-map-marker-alt"></i> ${activityDetail.location || '未设置地点'}</div>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <div class="row mb-3">
-                                    <div class="col-sm-3"><strong>活动类型:</strong></div>
-                                    <div class="col-sm-9">${this.getActivityTypeLabel(activityDetail.type)}</div>
+                            <div style="text-align: center; min-width: 120px;">
+                                <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 12px;">
+                                    <div style="font-size: 24px; font-weight: 700; margin-bottom: 5px;">${participants.length}</div>
+                                    <div style="font-size: 12px; opacity: 0.8;">总参与人数</div>
                                 </div>
-                                <div class="row mb-3">
-                                    <div class="col-sm-3"><strong>所属团队:</strong></div>
-                                    <div class="col-sm-9">${activityDetail.team?.name || '未指定'}</div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-sm-3"><strong>活动时间:</strong></div>
-                                    <div class="col-sm-9">
-                                        ${activityDetail.start_time ? new Date(activityDetail.start_time).toLocaleString() : '未设置'} 
-                                        ${activityDetail.end_time ? ' 至 ' + new Date(activityDetail.end_time).toLocaleString() : ''}
-                                    </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-sm-3"><strong>活动地点:</strong></div>
-                                    <div class="col-sm-9">${activityDetail.location || '未指定'}</div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-sm-3"><strong>参与人数:</strong></div>
-                                    <div class="col-sm-9">
-                                        ${activityDetail.current_participants || 0}人
-                                        ${activityDetail.max_participants ? ` / ${activityDetail.max_participants}人` : ' (不限制)'}
-                                    </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-sm-3"><strong>活动状态:</strong></div>
-                                    <div class="col-sm-9">
-                                        <span class="badge ${this.getStatusBadgeClass(activityDetail.status)}">
-                                            ${this.getStatusLabel(activityDetail.status)}
-                                        </span>
-                                    </div>
-                                </div>
-                                ${activityDetail.description ? `
-                                <div class="row mb-3">
-                                    <div class="col-sm-3"><strong>活动描述:</strong></div>
-                                    <div class="col-sm-9">${activityDetail.description}</div>
-                                </div>
-                                ` : ''}
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        ${hasCost ? this.renderCostSummaryPanel(costResponse.data) : ''}
-                        <div class="card mt-3">
-                            <div class="card-header">
-                                <h6 class="mb-0">操作</h6>
+
+                    <!-- 主要内容区域 -->
+                    <div style="display: flex; gap: 30px;">
+                        <!-- 左侧：活动信息 -->
+                        <div style="flex: 2;">
+                            <!-- 活动描述 -->
+                            ${activityDetail.description ? `
+                                <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 25px;">
+                                    <h5 style="margin: 0 0 15px 0; color: #333; font-weight: 600;">
+                                        <i class="fas fa-align-left" style="color: #667eea; margin-right: 8px;"></i>
+                                        活动描述
+                                    </h5>
+                                    <p style="margin: 0; line-height: 1.6; color: #666;">${activityDetail.description}</p>
+                                </div>
+                            ` : ''}
+
+                            <!-- 活动详细信息 -->
+                            <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                                <h5 style="margin: 0 0 20px 0; color: #333; font-weight: 600;">
+                                    <i class="fas fa-info-circle" style="color: #667eea; margin-right: 8px;"></i>
+                                    详细信息
+                                </h5>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    <div class="info-item">
+                                        <div style="color: #999; font-size: 12px; margin-bottom: 5px;">开始时间</div>
+                                        <div style="color: #333; font-weight: 500;">${activityDetail.start_time ? new Date(activityDetail.start_time).toLocaleString() : '未设置'}</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div style="color: #999; font-size: 12px; margin-bottom: 5px;">结束时间</div>
+                                        <div style="color: #333; font-weight: 500;">${activityDetail.end_time ? new Date(activityDetail.end_time).toLocaleString() : '未设置'}</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div style="color: #999; font-size: 12px; margin-bottom: 5px;">活动地点</div>
+                                        <div style="color: #333; font-weight: 500;">${activityDetail.location || '未设置'}</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div style="color: #999; font-size: 12px; margin-bottom: 5px;">人数限制</div>
+                                        <div style="color: #333; font-weight: 500;">${activityDetail.max_participants ? activityDetail.max_participants + ' 人' : '不限制'}</div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <div class="d-grid gap-2">
-                                    <button class="btn btn-primary btn-sm" onclick="activitiesManager.editActivity('${activityId}')">
-                                        <i class="fas fa-edit"></i> 编辑活动
-                                    </button>
-                                    <button class="btn btn-info btn-sm" onclick="activitiesManager.manageParticipants('${activityId}')">
-                                        <i class="fas fa-users"></i> 管理参与者
-                                    </button>
-                                    ${hasCost ? `
-                                    <button class="btn btn-success btn-sm" onclick="activitiesManager.viewPaymentStatus('${activityId}')">
-                                        <i class="fas fa-money-bill-wave"></i> 支付状态
-                                    </button>
+                        </div>
+
+                        <!-- 右侧：申请管理和操作 -->
+                        <div style="flex: 1; min-width: 320px;">
+                            <!-- 收到申请 -->
+                            <div style="background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 25px;">
+                                <div style="padding: 20px 25px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: between; align-items: center;">
+                                    <h6 style="margin: 0; color: #333; font-weight: 600;">
+                                        <i class="fas fa-user-clock" style="color: #ffc107; margin-right: 8px;"></i>
+                                        收到申请
+                                    </h6>
+                                    <span style="background: #ffc107; color: #333; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                        ${pendingParticipants.length}
+                                    </span>
+                                </div>
+                                <div style="padding: 20px 25px; max-height: 400px; overflow-y: auto;">
+                                    ${pendingParticipants.length === 0 ? `
+                                        <div style="text-align: center; padding: 30px 0; color: #999;">
+                                            <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
+                                            <div style="font-size: 14px;">暂无待审核申请</div>
+                                        </div>
+                                    ` : `
+                                        ${pendingParticipants.map(p => `
+                                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+                                                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                                                    <div style="width: 36px; height: 36px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                        <i class="fas fa-user" style="color: white; font-size: 14px;"></i>
+                                                    </div>
+                                                    <div style="flex: 1;">
+                                                        <div style="font-weight: 600; color: #333; font-size: 14px;">${p.user?.username || '未知用户'}</div>
+                                                        <div style="color: #666; font-size: 12px;">${p.user?.email || ''}</div>
+                                                    </div>
+                                                </div>
+                                                <div style="color: #999; font-size: 11px; margin-bottom: 12px;">
+                                                    <i class="fas fa-clock"></i> ${new Date(p.registered_at).toLocaleString()}
+                                                </div>
+                                                <div style="display: flex; gap: 8px;">
+                                                    <button onclick="activitiesManager.quickApproveParticipant('${activityId}', '${p.id}', '${p.user?.username || '未知用户'}')" 
+                                                            style="flex: 1; background: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                                        <i class="fas fa-check"></i> 同意
+                                                    </button>
+                                                    <button onclick="activitiesManager.quickRejectParticipant('${activityId}', '${p.id}', '${p.user?.username || '未知用户'}')" 
+                                                            style="flex: 1; background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                                        <i class="fas fa-times"></i> 拒绝
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    `}
+                                </div>
+                            </div>
+
+                            <!-- 参与者统计 -->
+                            <div style="background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 25px; padding: 25px;">
+                                <h6 style="margin: 0 0 15px 0; color: #333; font-weight: 600;">
+                                    <i class="fas fa-chart-pie" style="color: #667eea; margin-right: 8px;"></i>
+                                    参与者统计
+                                </h6>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div style="text-align: center; padding: 15px; background: #e8f5e8; border-radius: 8px;">
+                                        <div style="font-size: 20px; font-weight: 700; color: #28a745; margin-bottom: 5px;">${approvedParticipants.length}</div>
+                                        <div style="font-size: 12px; color: #666;">已批准</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 15px; background: #fff3cd; border-radius: 8px;">
+                                        <div style="font-size: 20px; font-weight: 700; color: #ffc107; margin-bottom: 5px;">${pendingParticipants.length}</div>
+                                        <div style="font-size: 12px; color: #666;">待审核</div>
+                                    </div>
+                                </div>
+                                ${rejectedParticipants.length > 0 ? `
+                                    <div style="text-align: center; padding: 15px; background: #f8d7da; border-radius: 8px; margin-top: 15px;">
+                                        <div style="font-size: 20px; font-weight: 700; color: #dc3545; margin-bottom: 5px;">${rejectedParticipants.length}</div>
+                                        <div style="font-size: 12px; color: #666;">已拒绝</div>
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <!-- 快速操作 -->
+                            <div style="background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 25px;">
+                                <h6 style="margin: 0 0 15px 0; color: #333; font-weight: 600;">
+                                    <i class="fas fa-tools" style="color: #667eea; margin-right: 8px;"></i>
+                                    快速操作
+                                </h6>
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    ${pendingParticipants.length > 0 ? `
+                                        <button onclick="activitiesManager.approveAllPending('${activityId}')" 
+                                                style="width: 100%; background: #28a745; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                            <i class="fas fa-check-double"></i> 批准所有申请
+                                        </button>
                                     ` : ''}
-                                    <button class="btn btn-danger btn-sm" onclick="activitiesManager.deleteActivity('${activityId}')">
-                                        <i class="fas fa-trash"></i> 删除活动
+                                    <button onclick="activitiesManager.manageParticipants('${activityId}')" 
+                                            style="width: 100%; background: #007bff; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                        <i class="fas fa-users"></i> 管理所有参与者
+                                    </button>
+                                    <button onclick="activitiesManager.editActivity('${activityId}')" 
+                                            style="width: 100%; background: #6c757d; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                        <i class="fas fa-edit"></i> 编辑活动
                                     </button>
                                 </div>
                             </div>
@@ -797,21 +920,22 @@ class ActivitiesManager {
 
             // 创建模态框
             const modal = Components.createModal({
-                title: '活动详情',
+                title: `活动详情 - ${activityDetail.title}`,
                 content: modalContent,
                 size: 'xl',
                 footer: `
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.querySelector('.modal-close').click()">关闭</button>
                 `
             });
 
         } catch (error) {
-            console.error('查看活动详情失败:', error);
+            console.error('💥 查看活动详情失败:', error);
             this.showMessage('查看活动详情失败: ' + error.message, 'error');
         }
     }
 
     // 在页面中查看活动详情（非弹窗模式）
+    // TODO: 函数过长(370+行)，需要拆分为多个小函数提高可读性和可维护性
     async viewActivityInPage(activityId, containerId) {
         try {
             let activity = this.activities.find(a => a.id === activityId);
@@ -964,7 +1088,7 @@ class ActivitiesManager {
                                                 <i class="fas fa-edit me-1"></i> 编辑活动
                                             </button>
                                         ` : ''}
-                                        <button class="btn btn-info btn-sm" disabled title="功能开发中">
+                                        <button class="btn btn-info btn-sm" onclick="document.getElementById('participants-tab').click(); document.getElementById('participants').scrollIntoView({ behavior: 'smooth' })">
                                             <i class="fas fa-users me-1"></i> 查看参与者
                                         </button>
                                         ${hasCost ? `
@@ -1065,7 +1189,13 @@ class ActivitiesManager {
                                                             <td>
                                                                 <div class="d-flex align-items-center">
                                                                     <div class="avatar-placeholder me-2">
-                                                                        <i class="fas fa-user"></i>
+                                                                        ${Utils.avatar.createAvatarHtml(
+                                                                                Utils.avatar.getUserAvatar(p.user),
+                                                                                "头像",
+                                                                                32,
+                                                                                "",
+                                                                                "user"
+                                                                            )}
                                                                     </div>
                                                                     <div>
                                                                         <div class="fw-bold">${p.user?.username || '未知'}</div>
@@ -1237,7 +1367,207 @@ class ActivitiesManager {
         }
     }
 
+    // 快速批准所有待审核申请
+    async quickApproveAll(activityId) {
+        const activity = this.activities.find(a => a.id === activityId);
+        if (!activity) {
+            this.showMessage('活动不存在', 'error');
+            return;
+        }
+
+        if (!confirm(`确定要批准活动"${activity.title}"的所有待审核申请吗？`)) {
+            return;
+        }
+
+        try {
+            console.log('🚀 开始快速批准所有申请...', { activityId, activity: activity.title });
+            
+            // 获取参与者列表
+            const response = await API.activities.getParticipants(activityId);
+            console.log('📡 获取参与者响应:', response);
+
+            if (!response.success) {
+                console.error('❌ 获取参与者列表失败:', response.message);
+                this.showMessage('获取参与者列表失败: ' + (response.message || '未知错误'), 'error');
+                return;
+            }
+
+            const participants = response.data.participants || [];
+            const pendingParticipants = participants.filter(p => p.status === 'pending');
+            
+            console.log(`📋 找到 ${pendingParticipants.length} 个待审核申请`);
+
+            if (pendingParticipants.length === 0) {
+                this.showMessage('没有待审核的申请', 'info');
+                return;
+            }
+
+            // 批量批准
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const participant of pendingParticipants) {
+                try {
+                    console.log(`⏳ 正在批准 ${participant.user?.username || '未知用户'}...`);
+                    
+                    const approveResponse = await API.activities.updateParticipantStatus(activityId, participant.id, {
+                        status: 'approved'
+                    });
+
+                    if (approveResponse.success) {
+                        successCount++;
+                        console.log(`✅ 批准成功: ${participant.user?.username}`);
+                    } else {
+                        failCount++;
+                        console.error(`❌ 批准失败: ${participant.user?.username}`, approveResponse.message);
+                    }
+                } catch (error) {
+                    failCount++;
+                    console.error(`💥 批准出错: ${participant.user?.username}`, error);
+                }
+            }
+
+            // 显示结果
+            if (successCount > 0) {
+                this.showMessage(`成功批准 ${successCount} 个申请${failCount > 0 ? `，失败 ${failCount} 个` : ''}`, 'success');
+                // 刷新活动列表
+                await this.refreshList();
+            } else {
+                this.showMessage(`批准失败，请检查网络连接或权限`, 'error');
+            }
+
+        } catch (error) {
+            console.error('💥 快速批准失败:', error);
+            this.showMessage('快速批准失败: ' + error.message, 'error');
+        }
+    }
+
+    // 快速批准参与者（从活动详情页面）
+    async quickApproveParticipant(activityId, participantId, username) {
+        if (!confirm(`确定要批准 ${username} 的报名申请吗？`)) {
+            return;
+        }
+
+        try {
+            console.log('🚀 快速批准参与者...', { activityId, participantId, username });
+            
+            const response = await API.activities.updateParticipantStatus(activityId, participantId, {
+                status: 'approved'
+            });
+
+            if (response.success) {
+                this.showMessage(`已批准 ${username} 的申请`, 'success');
+                // 刷新活动详情页面
+                setTimeout(() => {
+                    this.viewActivity(activityId);
+                }, 1000);
+            } else {
+                this.showMessage('批准失败: ' + response.message, 'error');
+            }
+        } catch (error) {
+            console.error('💥 快速批准失败:', error);
+            this.showMessage('批准失败: ' + error.message, 'error');
+        }
+    }
+
+    // 快速拒绝参与者（从活动详情页面）
+    async quickRejectParticipant(activityId, participantId, username) {
+        const reason = prompt(`请输入拒绝 ${username} 申请的原因（可选）:`);
+        
+        // 用户点击取消
+        if (reason === null) {
+            return;
+        }
+
+        try {
+            console.log('🚀 快速拒绝参与者...', { activityId, participantId, username, reason });
+            
+            const response = await API.activities.updateParticipantStatus(activityId, participantId, {
+                status: 'rejected',
+                reason: reason || ''
+            });
+
+            if (response.success) {
+                this.showMessage(`已拒绝 ${username} 的申请`, 'success');
+                // 刷新活动详情页面
+                setTimeout(() => {
+                    this.viewActivity(activityId);
+                }, 1000);
+            } else {
+                this.showMessage('拒绝失败: ' + response.message, 'error');
+            }
+        } catch (error) {
+            console.error('💥 快速拒绝失败:', error);
+            this.showMessage('拒绝失败: ' + error.message, 'error');
+        }
+    }
+
+    // 批准所有待审核申请
+    async approveAllPending(activityId) {
+        if (!confirm('确定要批准所有待审核申请吗？')) {
+            return;
+        }
+
+        try {
+            console.log('🚀 开始批准所有待审核申请...', activityId);
+            
+            // 获取参与者列表
+            const response = await API.activities.getParticipants(activityId);
+            if (!response.success) {
+                this.showMessage('获取参与者列表失败', 'error');
+                return;
+            }
+
+            const participants = response.data.participants || [];
+            const pendingParticipants = participants.filter(p => p.status === 'pending');
+            
+            if (pendingParticipants.length === 0) {
+                this.showMessage('没有待审核的申请', 'info');
+                return;
+            }
+
+            let successCount = 0;
+            let failCount = 0;
+
+            // 批量批准
+            for (const participant of pendingParticipants) {
+                try {
+                    const approveResponse = await API.activities.updateParticipantStatus(activityId, participant.id, {
+                        status: 'approved'
+                    });
+
+                    if (approveResponse.success) {
+                        successCount++;
+                        console.log(`✅ 批准成功: ${participant.user?.username}`);
+                    } else {
+                        failCount++;
+                        console.error(`❌ 批准失败: ${participant.user?.username}`, approveResponse.message);
+                    }
+                } catch (error) {
+                    failCount++;
+                    console.error(`💥 批准出错: ${participant.user?.username}`, error);
+                }
+            }
+
+            // 显示结果
+            if (successCount > 0) {
+                this.showMessage(`成功批准 ${successCount} 个申请${failCount > 0 ? `，失败 ${failCount} 个` : ''}`, 'success');
+                // 刷新活动详情页面
+                setTimeout(() => {
+                    this.viewActivity(activityId);
+                }, 1500);
+            } else {
+                this.showMessage('批准失败，请检查网络连接或权限', 'error');
+            }
+
+        } catch (error) {
+            console.error('💥 批准所有申请失败:', error);
+            this.showMessage('批准失败: ' + error.message, 'error');
+        }
+    }
+
     // 管理参与者
+    // TODO: 函数较长(150+行)，考虑拆分为多个小函数提高可读性
     async manageParticipants(activityId) {
         const activity = this.activities.find(a => a.id === activityId);
         if (!activity) {
@@ -1246,11 +1576,15 @@ class ActivitiesManager {
         }
 
         try {
+            console.log('🔍 开始获取活动参与者列表...', { activityId, activity });
+            
             // 获取参与者列表
             const response = await API.activities.getParticipants(activityId);
+            console.log('📡 API响应:', response);
 
             if (!response.success) {
-                this.showMessage('获取参与者列表失败', 'error');
+                console.error('❌ 获取参与者列表失败:', response.message);
+                this.showMessage('获取参与者列表失败: ' + (response.message || '未知错误'), 'error');
                 return;
             }
 
@@ -1264,218 +1598,100 @@ class ActivitiesManager {
             const modalContent = `
                 <div class="participants-management">
                     <!-- 统计信息 -->
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="card bg-primary text-white">
-                                <div class="card-body text-center">
-                                    <h4>${participants.length}</h4>
-                                    <p class="mb-0">总报名</p>
-                                </div>
-                            </div>
+                    <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+                        <div style="flex: 1; background: #007bff; color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                            <h3 style="margin: 0; font-size: 24px;">${participants.length}</h3>
+                            <p style="margin: 5px 0 0 0;">总报名</p>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-warning text-white">
-                                <div class="card-body text-center">
-                                    <h4>${pendingParticipants.length}</h4>
-                                    <p class="mb-0">待审核</p>
-                                </div>
-                            </div>
+                        <div style="flex: 1; background: #ffc107; color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                            <h3 style="margin: 0; font-size: 24px;">${pendingParticipants.length}</h3>
+                            <p style="margin: 5px 0 0 0;">待审核</p>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
-                                <div class="card-body text-center">
-                                    <h4>${approvedParticipants.length}</h4>
-                                    <p class="mb-0">已批准</p>
-                                </div>
-                            </div>
+                        <div style="flex: 1; background: #28a745; color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                            <h3 style="margin: 0; font-size: 24px;">${approvedParticipants.length}</h3>
+                            <p style="margin: 5px 0 0 0;">已批准</p>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-danger text-white">
-                                <div class="card-body text-center">
-                                    <h4>${rejectedParticipants.length}</h4>
-                                    <p class="mb-0">已拒绝</p>
-                                </div>
-                            </div>
+                        <div style="flex: 1; background: #dc3545; color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                            <h3 style="margin: 0; font-size: 24px;">${rejectedParticipants.length}</h3>
+                            <p style="margin: 5px 0 0 0;">已拒绝</p>
                         </div>
                     </div>
 
-                    <!-- 标签页 -->
-                    <ul class="nav nav-tabs" id="participantsTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link ${pendingParticipants.length > 0 ? 'active' : ''}" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button">
-                                待审核 (${pendingParticipants.length})
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link ${pendingParticipants.length === 0 ? 'active' : ''}" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved" type="button">
-                                已批准 (${approvedParticipants.length})
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected" type="button">
-                                已拒绝 (${rejectedParticipants.length})
-                            </button>
-                        </li>
-                    </ul>
-
-                    <!-- 标签页内容 -->
-                    <div class="tab-content mt-3" id="participantsTabsContent">
-                        <!-- 待审核列表 -->
-                        <div class="tab-pane fade ${pendingParticipants.length > 0 ? 'show active' : ''}" id="pending" role="tabpanel">
-                            ${pendingParticipants.length === 0 ? `
-                                <div class="text-center py-4 text-muted">
-                                    <i class="fas fa-check-circle fa-3x mb-3 d-block"></i>
-                                    <h5>暂无待审核的申请</h5>
-                                </div>
-                            ` : `
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>用户</th>
-                                                <th>邮箱</th>
-                                                <th>申请时间</th>
-                                                <th>操作</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${pendingParticipants.map(p => `
-                                                <tr>
-                                                    <td>
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="avatar-placeholder me-2">
-                                                                <i class="fas fa-user"></i>
-                                                            </div>
-                                                            <div>
-                                                                <div class="fw-bold">${p.user?.username || '未知'}</div>
-                                                                <small class="text-muted">${p.user?.profile?.name || ''}</small>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>${p.user?.email || '-'}</td>
-                                                    <td>${new Date(p.registered_at).toLocaleString()}</td>
-                                                    <td>
-                                                        <div class="btn-group btn-group-sm">
-                                                            <button class="btn btn-success" onclick="activitiesManager.approveParticipant('${activityId}', '${p.id}')">
-                                                                <i class="fas fa-check"></i> 批准
-                                                            </button>
-                                                            <button class="btn btn-danger" onclick="activitiesManager.showRejectModal('${activityId}', '${p.id}', '${p.user?.username || '未知用户'}')">
-                                                                <i class="fas fa-times"></i> 拒绝
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            `).join('')}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            `}
+                    <!-- 参与者列表 -->
+                    ${participants.length === 0 ? `
+                        <div style="text-align: center; padding: 40px; color: #6c757d;">
+                            <i class="fas fa-users fa-3x" style="margin-bottom: 20px; display: block;"></i>
+                            <h4>暂无参与者</h4>
+                            <p>还没有用户报名参加这个活动</p>
                         </div>
-
-                        <!-- 已批准列表 -->
-                        <div class="tab-pane fade ${pendingParticipants.length === 0 ? 'show active' : ''}" id="approved" role="tabpanel">
-                            ${approvedParticipants.length === 0 ? `
-                                <div class="text-center py-4 text-muted">
-                                    <i class="fas fa-user-check fa-3x mb-3 d-block"></i>
-                                    <h5>暂无已批准的参与者</h5>
-                                </div>
-                            ` : `
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>用户</th>
-                                                <th>邮箱</th>
-                                                <th>批准时间</th>
-                                                <th>支付状态</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${approvedParticipants.map(p => `
-                                                <tr>
-                                                    <td>
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="avatar-placeholder me-2">
-                                                                <i class="fas fa-user"></i>
-                                                            </div>
-                                                            <div>
-                                                                <div class="fw-bold">${p.user?.username || '未知'}</div>
-                                                                <small class="text-muted">${p.user?.profile?.name || ''}</small>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>${p.user?.email || '-'}</td>
-                                                    <td>${new Date(p.registered_at).toLocaleString()}</td>
-                                                    <td>
-                                                        <span class="badge ${this.getPaymentStatusBadgeClass(p.payment_status)}">
-                                                            ${this.getPaymentStatusLabel(p.payment_status)}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            `).join('')}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            `}
+                    ` : `
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <thead>
+                                    <tr style="background: #f8f9fa;">
+                                        <th style="padding: 15px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #e9ecef;">用户</th>
+                                        <th style="padding: 15px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #e9ecef;">邮箱</th>
+                                        <th style="padding: 15px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #e9ecef;">状态</th>
+                                        <th style="padding: 15px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #e9ecef;">申请时间</th>
+                                        <th style="padding: 15px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #e9ecef;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${participants.map((p, index) => `
+                                        <tr style="border-bottom: 1px solid #e9ecef; ${index % 2 === 0 ? 'background: #f8f9fa;' : ''}">
+                                            <td style="padding: 15px;">
+                                                <div style="display: flex; align-items: center;">
+                                                    <div style="width: 40px; height: 40px; border-radius: 50%; background: #e9ecef; display: flex; align-items: center; justify-content: center; margin-right: 12px; color: #6c757d;">
+                                                        <i class="fas fa-user"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div style="font-weight: 600; color: #495057;">${p.user?.username || '未知用户'}</div>
+                                                        <small style="color: #6c757d;">${p.user?.profile?.name || ''}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td style="padding: 15px; color: #495057;">${p.user?.email || '-'}</td>
+                                            <td style="padding: 15px;">
+                                                <span style="padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; 
+                                                    ${p.status === 'pending' ? 'background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;' : 
+                                                      p.status === 'approved' ? 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;' : 
+                                                      'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;'}">
+                                                    ${p.status === 'pending' ? '待审核' : p.status === 'approved' ? '已批准' : '已拒绝'}
+                                                </span>
+                                            </td>
+                                            <td style="padding: 15px; color: #6c757d; font-size: 14px;">${new Date(p.registered_at).toLocaleString()}</td>
+                                            <td style="padding: 15px;">
+                                                ${p.status === 'pending' ? `
+                                                    <div style="display: flex; gap: 8px;">
+                                                        <button onclick="activitiesManager.approveParticipant('${activityId}', '${p.id}')" 
+                                                                style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                                                            <i class="fas fa-check"></i> 批准
+                                                        </button>
+                                                        <button onclick="activitiesManager.showRejectModal('${activityId}', '${p.id}', '${p.user?.username || '未知用户'}')" 
+                                                                style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                                                            <i class="fas fa-times"></i> 拒绝
+                                                        </button>
+                                                    </div>
+                                                ` : p.status === 'approved' ? `
+                                                    <span style="color: #28a745; font-size: 12px;">
+                                                        <i class="fas fa-check-circle"></i> 已批准
+                                                    </span>
+                                                ` : `
+                                                    <span style="color: #dc3545; font-size: 12px;">
+                                                        <i class="fas fa-times-circle"></i> 已拒绝
+                                                        ${p.rejection_reason ? `<br><small style="color: #6c757d;">${p.rejection_reason}</small>` : ''}
+                                                    </span>
+                                                `}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
                         </div>
-
-                        <!-- 已拒绝列表 -->
-                        <div class="tab-pane fade" id="rejected" role="tabpanel">
-                            ${rejectedParticipants.length === 0 ? `
-                                <div class="text-center py-4 text-muted">
-                                    <i class="fas fa-user-times fa-3x mb-3 d-block"></i>
-                                    <h5>暂无已拒绝的申请</h5>
-                                </div>
-                            ` : `
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>用户</th>
-                                                <th>邮箱</th>
-                                                <th>拒绝时间</th>
-                                                <th>拒绝原因</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${rejectedParticipants.map(p => `
-                                                <tr>
-                                                    <td>
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="avatar-placeholder me-2">
-                                                                <i class="fas fa-user"></i>
-                                                            </div>
-                                                            <div>
-                                                                <div class="fw-bold">${p.user?.username || '未知'}</div>
-                                                                <small class="text-muted">${p.user?.profile?.name || ''}</small>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>${p.user?.email || '-'}</td>
-                                                    <td>${p.rejected_at ? new Date(p.rejected_at).toLocaleString() : '-'}</td>
-                                                    <td>${p.rejection_reason || '-'}</td>
-                                                </tr>
-                                            `).join('')}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            `}
-                        </div>
-                    </div>
+                    `}
                 </div>
 
-                <style>
-                    .avatar-placeholder {
-                        width: 40px;
-                        height: 40px;
-                        border-radius: 50%;
-                        background-color: #e9ecef;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        color: #6c757d;
-                    }
-                </style>
+
             `;
 
             // 创建模态框
@@ -1675,13 +1891,14 @@ class ActivitiesManager {
 
     // 获取活动类型标签
     getActivityTypeLabel(type) {
-        const typeMap = {
+        // TODO: 将硬编码替换为从API获取的数据
+        const typeMapTemp = {
             'meeting': '会议',
             'event': '活动',
             'training': '培训',
             'other': '其他'
         };
-        return typeMap[type] || type;
+        return typeMapTemp[type] || type;
     }
 
     // 获取状态标签
@@ -2267,8 +2484,8 @@ class ActivitiesManager {
         const activity = this.activities.find(a => a.id == activityId);
         const activityDetail = activity || {};
 
-        // 模拟日志数据（实际应该从API获取）
-        const mockLogs = [
+        // TODO: 将硬编码替换为从API获取的数据
+        const mockLogsTemp = [
             {
                 id: 1,
                 action: '创建活动',
@@ -2290,9 +2507,9 @@ class ActivitiesManager {
         ];
 
         // 按时间倒序排序
-        mockLogs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        mockLogsTemp.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-        if (mockLogs.length === 0) {
+        if (mockLogsTemp.length === 0) {
             return `
                 <div class="text-center py-4 text-muted">
                     <i class="fas fa-history fa-3x mb-3 d-block"></i>
@@ -2303,7 +2520,7 @@ class ActivitiesManager {
 
         return `
             <div class="timeline">
-                ${mockLogs.map(log => `
+                ${mockLogsTemp.map(log => `
                     <div class="timeline-item">
                         <div class="timeline-marker">
                             <i class="${log.icon} text-${log.color}"></i>
@@ -2414,6 +2631,28 @@ class ActivitiesManager {
         } catch (error) {
             console.error('拒绝参与者失败:', error);
             this.showMessage('拒绝失败: ' + error.message, 'error');
+        }
+    }
+
+    // 切换标签页
+    switchTab(tabName) {
+        // 移除所有标签按钮的active类
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // 隐藏所有标签页内容
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+        });
+        
+        // 激活当前标签按钮
+        event.target.classList.add('active');
+        
+        // 显示对应的标签页内容
+        const targetPane = document.getElementById(tabName);
+        if (targetPane) {
+            targetPane.classList.add('show', 'active');
         }
     }
 }
