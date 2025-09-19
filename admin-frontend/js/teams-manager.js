@@ -575,19 +575,8 @@ class TeamsManager {
 
     // 查看团队详情
     async viewTeamDetail(teamId) {
-        try {
-            const response = await API.teams.getDetail(teamId, { include_members: 'true' });
-
-            if (response.success) {
-                const team = response.data;
-                this.showTeamDetailModal(team);
-            } else {
-                throw new Error(response.message || '获取团队详情失败');
-            }
-        } catch (error) {
-            console.error('获取团队详情失败:', error);
-            this.showMessage('获取团队详情失败: ' + error.message, 'error');
-        }
+        // 跳转到团队详情页面
+        window.location.href = `/team-detail-page.html?id=${teamId}`;
     }
 
     // 显示团队详情模态框

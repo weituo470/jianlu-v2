@@ -48,7 +48,7 @@ window.Router = {
             requireAuth: true,
             permissions: ['team:read']
         },
-
+  
         '/activities': {
             title: '活动管理',
             component: 'ActivitiesPage',
@@ -223,6 +223,7 @@ window.Router = {
         return route ? route.params : {};
     },
 
+    
     // 切换页面容器显示状态
     togglePageContainers(path) {
         const loginPage = document.getElementById('login-page');
@@ -1565,6 +1566,7 @@ window.Router = {
         return colorMap[actionType] || 'secondary';
     },
 
+    
     // 渲染团队类型管理页面
     async renderTeamTypes() {
         const pageContent = document.getElementById('page-content');
@@ -2023,7 +2025,7 @@ window.Router = {
                                     </td>
                                     <td>
                                         <div class="btn-group">
-                                            <button class="btn btn-sm btn-primary" onclick="Router.navigate('/activities/detail/${activity.id}')" title="查看详情">
+                                            <button class="btn btn-sm btn-primary" onclick="window.location.href='/activity-detail-page.html?id=${activity.id}'" title="查看详情">
                                                 <i class="fas fa-eye"></i>
                                             </button>
                                             ${Auth.hasPermission(['activity:update']) ? `

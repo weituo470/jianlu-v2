@@ -1000,7 +1000,7 @@ window.TeamManager = {
 
     // 查看团队详情
     viewTeam(id) {
-        Router.navigate(`/teams/${id}`);
+        window.location.href = `/team-detail-page.html?id=${id}`;
     },
 
     // 显示创建团队模态框
