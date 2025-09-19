@@ -43,7 +43,10 @@ window.API = {
             config.headers.Authorization = `Bearer ${cleanToken}`;
             console.log('✅ 已添加认证头，使用', rawToken ? 'rawToken' : 'utilsToken');
         } else {
-            console.error('❌ 没有找到任何token，请求将失败');
+            // 只有非认证路由才需要报错
+            if (!url.includes('/auth/login') && !url.includes('/auth/refresh')) {
+                console.error('❌ 没有找到任何token，请求将失败');
+            }
         }
 
         try {
@@ -113,10 +116,19 @@ window.API = {
             body: formData
         };
 
-        // 添加认证头
-        const token = localStorage.getItem(AppConfig.TOKEN_KEY);
-        if (token) {
-            const cleanToken = token.replace(/^"|"$/g, '');
+        // 添加认证头 - 使用与request方法相同的逻辑
+        const rawToken = localStorage.getItem(AppConfig.TOKEN_KEY);
+        const token = Utils.storage.get(AppConfig.TOKEN_KEY);
+
+        // 检查token一致性
+        if (token && rawToken !== token) {
+            console.warn('⚠️ Utils.storage.get()返回的token与localStorage不一致！');
+        }
+
+        // 使用清理后的token
+        const finalToken = rawToken || token;
+        if (finalToken) {
+            const cleanToken = finalToken.replace(/^"|"$/g, '');
             config.headers = {
                 'Authorization': `Bearer ${cleanToken}`
             };
