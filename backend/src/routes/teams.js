@@ -291,7 +291,7 @@ router.get('/', authenticateToken, async (req, res) => {
       status = '',
       team_type = '',
       creator_id = '',
-      sort = 'created_at',
+      sort = 'sequence_number',
       order = 'DESC'
     } = req.query;
 
@@ -428,13 +428,23 @@ router.post('/',
       // 清理avatar_url字段（空字符串转为null）
       const cleanAvatarUrl = avatar_url && avatar_url.trim() !== '' ? avatar_url : null;
 
+      // 获取当前最大的序号
+      const maxSequence = await Team.max('sequence_number', {
+        where: {
+          status: {
+            [Op.ne]: 'dissolved'
+          }
+        }
+      }) || 0;
+
       // 创建团队
       const team = await Team.create({
         name,
         description,
         avatar_url: cleanAvatarUrl,
         team_type,
-        creator_id
+        creator_id,
+        sequence_number: maxSequence + 1
       });
 
       // 获取完整的团队信息

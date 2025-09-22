@@ -1038,7 +1038,7 @@ window.Router = {
                 const tableContainer = document.getElementById('teams-table-container');
                 if (tableContainer) {
                     tableContainer.innerHTML = `
-                        ${this.createTeamsTable(teams)}
+                        ${this.createTeamsTable(teams, pagination)}
                         ${this.createSimplePagination(pagination, currentPage)}
                     `;
                 }
@@ -1302,7 +1302,7 @@ window.Router = {
     },
 
     // 创建团队列表表格
-    createTeamsTable(teams) {
+    createTeamsTable(teams, pagination) {
         if (!teams || teams.length === 0) {
             return `
                 <div class="empty-state">
@@ -1331,6 +1331,7 @@ window.Router = {
                                     <input type="checkbox" id="select-all-teams" class="form-check-input">
                                 </th>
                             ` : ''}
+                            <th width="60">序号</th>
                             <th>团队名称</th>
                             <th>团队类型</th>
                             <th>创建者</th>
@@ -1342,7 +1343,11 @@ window.Router = {
                         </tr>
                     </thead>
                     <tbody>
-                        ${teams.map(team => `
+                        ${teams.map((team, index) => {
+                            // 使用数据库中的sequence_number作为序号
+                            const serialNumber = team.sequence_number || index + 1;
+
+                            return `
                             <tr>
                                 ${Auth.hasPermission(['team:delete']) ? `
                                     <td>
@@ -1350,9 +1355,12 @@ window.Router = {
                                     </td>
                                 ` : ''}
                                 <td>
+                                    <span class="badge bg-light text-dark">${serialNumber}</span>
+                                </td>
+                                <td>
                                     <div style="display: flex; align-items: center;">
                                         ${team.avatar_url ? `
-                                            <img src="${team.avatar_url}" alt="团队头像" 
+                                            <img src="${team.avatar_url}" alt="团队头像"
                                                  style="width: 32px; height: 32px; border-radius: 50%; margin-right: 12px; object-fit: cover;">
                                         ` : `
                                             <div style="width: 32px; height: 32px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
@@ -1410,7 +1418,7 @@ window.Router = {
                                     </div>
                                 </td>
                             </tr>
-                        `).join('')}
+                        `;}).join('')}
                     </tbody>
                 </table>
             </div>
