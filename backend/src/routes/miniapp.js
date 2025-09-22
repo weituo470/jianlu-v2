@@ -409,7 +409,7 @@ router.get('/my-teams', authenticateToken, async (req, res) => {
       include: [
         {
           model: TeamMember,
-          as: 'members',
+          as: 'TeamMembers',  // 修复别名问题，从'members'改为'TeamMembers'
           where: {
             user_id: userId
           },
@@ -426,7 +426,7 @@ router.get('/my-teams', authenticateToken, async (req, res) => {
 
     // 格式化返回数据，包含用户在团队中的角色
     const teams = teamRows.map(team => {
-      const member = team.members.find(m => m.user_id === userId);
+      const member = team.TeamMembers.find(m => m.user_id === userId);  // 修复别名问题
       return {
         id: team.id,
         name: team.name,
@@ -547,13 +547,14 @@ router.get('/team-types', authenticateToken, async (req, res) => {
     const { TeamType } = require('../models');
     
     const teamTypes = await TeamType.findAll({
-      where: { status: 'active' },
+      where: { is_active: true },  // 修复字段名问题，从status改为is_active
       order: [['sort_order', 'ASC'], ['created_at', 'ASC']]
     });
     
     // 转换为前端需要的格式
     const formattedTypes = teamTypes.map(type => ({
-      id: type.id,
+      value: type.id,  // 添加value字段以匹配前端期望
+      label: type.name,  // 添加label字段以匹配前端期望
       name: type.name,
       description: type.description,
       isDefault: type.is_default || false

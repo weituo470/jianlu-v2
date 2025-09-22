@@ -3,8 +3,8 @@
 		<!-- 页面头部 -->
 		<view class="header">
 			<view class="title-section">
-				<text class="page-title">我的团队</text>
-				<text class="page-subtitle">与团队成员一起协作</text>
+				<text class="page-title">全部团队</text>
+				<text class="page-subtitle">浏览所有可加入的团队</text>
 			</view>
 			<view class="header-actions">
 				<button class="browse-btn" @tap="browseTeams">
@@ -32,13 +32,13 @@
 						<text class="group-name">{{ group.name }}</text>
 						<view class="group-meta">
 							<text class="member-count">👥 {{ group.member_count }} 成员</text>
-							<text class="role-badge" :class="group.role">
-								<text class="role-icon" v-if="group.role === 'admin'">👑</text>
-								{{ group.role === 'admin' ? '负责人' : '成员' }}
+							<text class="role-badge" :class="getUserRole(group)">
+								<text class="role-icon" v-if="getUserRole(group) === 'admin'">👑</text>
+								{{ getUserRole(group) === 'admin' ? '负责人' : getUserRole(group) === 'member' ? '成员' : '未加入' }}
 							</text>
 						</view>
 					</view>
-					<view class="group-actions" v-if="group.role === 'admin'">
+					<view class="group-actions" v-if="getUserRole(group) === 'admin'">
 						<text class="action-btn">⚙️</text>
 					</view>
 				</view>
@@ -49,10 +49,17 @@
 				
 				<view class="group-footer">
 					<text class="join-date">
-						加入时间: {{ formatDate(group.joined_at, 'YYYY-MM-DD') }}
+						创建时间: {{ formatDate(group.created_at, 'YYYY-MM-DD') }}
 					</text>
-					<button class="btn btn-outline small" @tap.stop="viewActivities(group)">
-						📅 查看活动
+					<button 
+						class="btn btn-outline small" 
+						@tap.stop="joinOrViewGroup(group)"
+						:class="{
+							'btn-primary': getUserRole(group) === 'none',
+							'btn-secondary': getUserRole(group) === 'member' || getUserRole(group) === 'admin'
+						}"
+					>
+						{{ getUserRole(group) === 'none' ? '加入团队' : '查看详情' }}
 					</button>
 				</view>
 			</view>
@@ -61,8 +68,8 @@
 		<!-- 空状态 -->
 		<view class="empty-state" v-else-if="!loading">
 			<text class="empty-icon">👥</text>
-			<text class="empty-title">还没有团队</text>
-			<text class="empty-subtitle">创建或加入一个团队，开始组织活动吧！</text>
+			<text class="empty-title">暂无团队</text>
+			<text class="empty-subtitle">还没有创建任何团队，创建一个团队开始组织活动吧！</text>
 			<button class="btn btn-primary" @tap="showCreateModal">创建第一个团队</button>
 		</view>
 		
@@ -169,7 +176,7 @@
 								</template>
 								<!-- 如果没有预览数据，显示默认信息 -->
 								<template v-else>
-									<text class="member-item leader" v-if="selectedGroup.role === 'admin'">
+									<text class="member-item leader" v-if="getUserRole(selectedGroup) === 'admin'">
 										👑 {{ selectedGroup.leader_name || '我' }}
 									</text>
 									<text class="member-item" v-if="selectedGroup.member_count > 1">
@@ -187,14 +194,15 @@
 					<view class="detail-section">
 						<text class="detail-label">我的角色</text>
 						<text class="detail-value">
-							<text v-if="selectedGroup.role === 'admin'">👑 负责人</text>
-							<text v-else>👤 成员</text>
+							<text v-if="getUserRole(selectedGroup) === 'admin'">👑 负责人</text>
+							<text v-else-if="getUserRole(selectedGroup) === 'member'">👤 成员</text>
+							<text v-else>🚫 未加入</text>
 						</text>
 					</view>
 
 					<view class="detail-section">
-						<text class="detail-label">加入时间</text>
-						<text class="detail-value">{{ formatDate(selectedGroup.joined_at, 'YYYY年MM月DD日') }}</text>
+						<text class="detail-label">创建时间</text>
+						<text class="detail-value">{{ formatDate(selectedGroup.created_at, 'YYYY年MM月DD日') }}</text>
 					</view>
 				</view>
 				
@@ -209,17 +217,26 @@
 						<button
 							class="action-btn"
 							@tap="viewApplications(selectedGroup)"
-							v-if="selectedGroup.role === 'admin' || selectedGroup.role === 'leader'"
+							v-if="getUserRole(selectedGroup) === 'admin'"
 						>
 							处理申请
 						</button>
 					</view>
 
-					<!-- 只有非负责人才显示退出按钮 -->
+					<!-- 只有未加入的用户才显示加入按钮 -->
+					<button
+						class="btn btn-primary join-btn"
+						@tap="joinGroup(selectedGroup)"
+						v-if="getUserRole(selectedGroup) === 'none'"
+					>
+						申请加入团队
+					</button>
+					
+					<!-- 只有成员才显示退出按钮 -->
 					<button
 						class="btn btn-danger exit-btn"
 						@tap="leaveGroup(selectedGroup)"
-						v-if="selectedGroup.role !== 'admin' && selectedGroup.role !== 'leader'"
+						v-if="getUserRole(selectedGroup) === 'member'"
 					>
 						退出团队
 					</button>
@@ -250,7 +267,9 @@
 					description: '',
 					team_type: 'general',
 					avatar_url: ''
-				}
+				},
+				// 添加用户团队关系数据
+				userTeams: []
 			}
 		},
 		computed: {
@@ -281,8 +300,23 @@
 			async loadInitialData() {
 				await Promise.all([
 					this.fetchGroups(),
-					this.loadTeamTypes()
+					this.loadTeamTypes(),
+					this.loadUserTeams()
 				])
+			},
+
+			// 加载用户已加入的团队
+			async loadUserTeams() {
+				try {
+					const response = await groupApi.getMyTeams()
+					if (response.success) {
+						const teams = response.data.teams || response.data || []
+						this.userTeams = Array.isArray(teams) ? teams : []
+					}
+				} catch (error) {
+					console.error('加载用户团队失败:', error)
+					this.userTeams = []
+				}
 			},
 
 			// 加载团队类型
@@ -302,14 +336,13 @@
 				}
 			},
 			
-			// 获取团队列表
+			// 获取团队列表（全部团队）
 			async fetchGroups() {
 				this.loading = true
 				try {
-					// 调用我的团队API，获取用户已加入的团队
-					const response = await groupApi.getMyTeams()
+					// 调用全部团队API
+					const response = await groupApi.getList()
 					if (response.success) {
-						// 修复：团队数据在 response.data.teams 中
 						const teams = response.data.teams || response.data || []
 						this.groups = Array.isArray(teams) ? teams : []
 					}
@@ -318,6 +351,28 @@
 					console.error('获取团队列表失败:', error)
 				} finally {
 					this.loading = false
+				}
+			},
+			
+			// 获取用户在团队中的角色
+			getUserRole(group) {
+				const userTeam = this.userTeams.find(t => t.id === group.id)
+				if (userTeam) {
+					return userTeam.role || 'member'
+				}
+				return 'none'
+			},
+			
+			// 根据用户角色决定点击行为
+			joinOrViewGroup(group) {
+				const role = this.getUserRole(group)
+				if (role === 'none') {
+					// 未加入，显示申请加入
+					this.selectedGroup = group
+					this.showDetailModal = true
+				} else {
+					// 已加入，查看详情
+					this.viewGroup(group)
 				}
 			},
 			
@@ -380,6 +435,8 @@
 						showSuccess('团队创建成功')
 						this.hideModal()
 						this.fetchGroups()
+						// 重新加载用户团队列表
+						this.loadUserTeams()
 					} else {
 						throw new Error(response.message || '创建失败')
 					}
@@ -413,35 +470,39 @@
 				})
 			},
 			
+			// 加入团队
+			async joinGroup(group) {
+				try {
+					// 显示申请加入弹窗或直接加入
+					const response = await groupApi.apply(group.id, {
+						reason: '申请加入团队'
+					})
+					if (response.success) {
+						showSuccess('申请已提交，请等待审核')
+						this.hideDetailModal()
+					} else {
+						throw new Error(response.message || '申请失败')
+					}
+				} catch (error) {
+					console.error('申请加入团队失败:', error)
+					showError(error.message || '申请失败，请稍后重试')
+				}
+			},
+			
 			// 离开群组
 			async leaveGroup(group) {
-				// 检查用户角色
-				if (group.role === 'admin' || group.role === 'leader') {
-					showError('团队负责人不能退出团队，请先转让负责人权限')
-					return
-				}
-
-				const confirmed = await showConfirm(`确定要离开群组"${group.name}"吗？`)
+				const confirmed = await showConfirm(`确定要离开团队"${group.name}"吗？`)
 				if (!confirmed) return
 
 				try {
 					await groupApi.leave(group.id)
-					showSuccess('已离开群组')
+					showSuccess('已离开团队')
 					this.hideDetailModal()
-					this.fetchGroups()
+					// 重新加载数据
+					this.loadInitialData()
 				} catch (error) {
-					console.error('离开群组失败:', error)
-
-					// 根据错误类型提供不同的提示
-					if (error.message && error.message.includes('负责人')) {
-						showError('团队负责人不能退出团队，请先转让负责人权限')
-					} else if (error.message && error.message.includes('不在该团队中')) {
-						showError('您不在该团队中，请刷新页面')
-						// 自动刷新团队列表
-						this.fetchGroups()
-					} else {
-						showError('离开群组失败，请稍后重试')
-					}
+					console.error('离开团队失败:', error)
+					showError('离开团队失败，请稍后重试')
 				}
 			},
 
@@ -496,8 +557,6 @@
 				const type = this.teamTypes.find(t => t.value === this.groupForm.team_type)
 				return type ? type.label : '通用团队'
 			},
-
-
 		}
 	}
 </script>
@@ -938,18 +997,5 @@
 		align-items: center;
 		justify-content: center;
 		border: none;
-	}
-
-	.role-tip {
-		flex: 1;
-		text-align: center;
-		color: #999;
-		font-size: 24rpx;
-		line-height: 80rpx;
-	}
-	
-	.btn-danger {
-		background: #ff3b30;
-		color: #ffffff;
 	}
 </style>

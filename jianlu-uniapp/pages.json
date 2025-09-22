@@ -22,7 +22,7 @@
 		{
 			"path": "pages/team/team",
 			"style": {
-				"navigationBarTitleText": "我的团队"
+				"navigationBarTitleText": "全部团队"
 			}
 		},
 		{
