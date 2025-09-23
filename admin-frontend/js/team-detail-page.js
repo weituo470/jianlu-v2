@@ -761,11 +761,11 @@ class TeamDetailPage {
                             <small style="color: #856404;">拒绝理由：${application.rejection_reason}</small>
                         </div>
                     ` : ''}
-                    ${application.processed_at ? `
+                    ${(application.approved_at || application.rejected_at) ? `
                         <div style="margin-top: 8px;">
                             <small class="text-muted">
                                 <i class="fas fa-clock me-1"></i>
-                                处理时间：${new Date(application.processed_at).toLocaleString('zh-CN')}
+                                处理时间：${new Date(application.approved_at || application.rejected_at).toLocaleString('zh-CN')}
                             </small>
                         </div>
                     ` : ''}

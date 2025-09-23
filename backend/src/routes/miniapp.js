@@ -1092,7 +1092,7 @@ router.get('/teams/:id/applications', authenticateToken, async (req, res) => {
       return error(res, '只有团队负责人可以查看申请列表', 403);
     }
 
-    const where = { teamId };
+    const where = { team_id: teamId };
     if (status && ['pending', 'approved', 'rejected', 'cancelled'].includes(status)) {
       where.status = status;
     }
@@ -1106,23 +1106,23 @@ router.get('/teams/:id/applications', authenticateToken, async (req, res) => {
           attributes: ['id', 'username', 'profile']
         }
       ],
-      order: [['applicationTime', 'DESC']],
+      order: [['application_time', 'DESC']],
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit)
     });
 
     const applications = rows.map(application => ({
       id: application.id,
-      teamId: application.teamId,
-      userId: application.userId,
+      team_id: application.team_id,
+      user_id: application.user_id,
       reason: application.reason,
       status: application.status,
-      applicationTime: application.applicationTime,
-      approvedAt: application.approvedAt,
-      approvedBy: application.approvedBy,
-      rejectedAt: application.rejectedAt,
-      rejectedBy: application.rejectedBy,
-      rejectionReason: application.rejectionReason,
+      application_time: application.application_time,
+      approved_at: application.approved_at,
+      approved_by: application.approved_by,
+      rejected_at: application.rejected_at,
+      rejected_by: application.rejected_by,
+      rejection_reason: application.rejection_reason,
       user: application.user ? {
         id: application.user.id,
         username: application.user.username,

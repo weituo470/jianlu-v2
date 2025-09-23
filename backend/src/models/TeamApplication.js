@@ -41,24 +41,38 @@ const TeamApplication = sequelize.define('TeamApplication', {
     allowNull: true,
     comment: '拒绝原因'
   },
-  applied_at: {
+  application_time: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
     comment: '申请时间'
   },
-  processed_at: {
+  approved_at: {
     type: DataTypes.DATE,
     allowNull: true,
-    comment: '处理时间'
+    comment: '批准时间'
   },
-  processed_by: {
+  approved_by: {
     type: DataTypes.UUID,
     allowNull: true,
     references: {
       model: 'users',
       key: 'id'
     },
-    comment: '处理人ID'
+    comment: '批准人ID'
+  },
+  rejected_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: '拒绝时间'
+  },
+  rejected_by: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: '拒绝人ID'
   }
 }, {
   tableName: 'team_applications',
@@ -82,7 +96,7 @@ const TeamApplication = sequelize.define('TeamApplication', {
       fields: ['status']
     },
     {
-      fields: ['applied_at']
+      fields: ['application_time']
     }
   ]
 });
@@ -100,8 +114,13 @@ TeamApplication.associate = (models) => {
   });
 
   TeamApplication.belongsTo(models.User, {
-    foreignKey: 'processed_by',
-    as: 'processor'
+    foreignKey: 'approved_by',
+    as: 'approver'
+  });
+
+  TeamApplication.belongsTo(models.User, {
+    foreignKey: 'rejected_by',
+    as: 'rejecter'
   });
 };
 
@@ -153,7 +172,7 @@ TeamApplication.createApplication = async function(teamId, userId, reason = '') 
     user_id: userId,
     reason: reason,
     status: 'pending',
-    applied_at: new Date()
+    application_time: new Date()
   });
 
   return application;
@@ -183,8 +202,8 @@ TeamApplication.approve = async function(applicationId, approverId, note = '') {
   // 更新申请状态
   await application.update({
     status: 'approved',
-    processed_at: new Date(),
-    processed_by: approverId
+    approved_at: new Date(),
+    approved_by: approverId
   });
 
   // 创建团队成员记录
@@ -239,8 +258,8 @@ TeamApplication.reject = async function(applicationId, rejecterId, reason = '') 
   await application.update({
     status: 'rejected',
     rejection_reason: reason,
-    processed_at: new Date(),
-    processed_by: rejecterId
+    rejected_at: new Date(),
+    rejected_by: rejecterId
   });
 
   // 记录历史
@@ -282,8 +301,7 @@ TeamApplication.cancel = async function(applicationId, userId) {
 
   // 更新申请状态
   await application.update({
-    status: 'cancelled',
-    processed_at: new Date()
+    status: 'cancelled'
   });
 
   // 记录历史
