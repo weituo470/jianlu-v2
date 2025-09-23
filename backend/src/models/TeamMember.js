@@ -188,33 +188,22 @@ TeamMember.applyToTeam = async function(teamId, userId, data = {}) {
     throw new Error('您已经是该团队的成员');
   }
 
-  // 根据团队设置决定是直接加入还是需要审核
-  if (team.require_approval) {
-    // 需要审核，创建申请记录
-    const application = await TeamApplication.createApplication(teamId, userId, data.reason || '');
-    return {
-      type: 'application',
-      data: application,
-      message: '申请已提交，请等待审核'
-    };
-  } else {
-    // 直接加入团队
-    const member = await TeamMember.create({
-      team_id: teamId,
-      user_id: userId,
-      role: 'member',
-      joined_at: new Date()
-    });
+  // 直接加入团队（暂时移除审核功能，等数据库迁移完成后再启用）
+  const member = await TeamMember.create({
+    team_id: teamId,
+    user_id: userId,
+    role: 'member',
+    joined_at: new Date()
+  });
 
-    // 更新团队成员数量
-    await team.increment('member_count');
+  // 更新团队成员数量
+  await team.increment('member_count');
 
-    return {
-      type: 'member',
-      data: member,
-      message: '成功加入团队'
-    };
-  }
+  return {
+    type: 'member',
+    data: member,
+    message: '成功加入团队'
+  };
 };
 
 // 类方法：批准申请（已简化，直接加入团队无需审核）
