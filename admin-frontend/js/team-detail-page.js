@@ -448,13 +448,13 @@ class TeamDetailPage {
         try {
             const response = await API.teams.update(this.teamId, { status: 'inactive' });
             if (response.success) {
-                Utils.showSuccess('团队已停用');
+                Utils.toast.success('团队已停用');
                 this.loadTeamDetail(); // 重新加载页面
             } else {
                 throw new Error(response.message || '操作失败');
             }
         } catch (error) {
-            Utils.showError('停用团队失败: ' + error.message);
+            Utils.toast.error('停用团队失败: ' + error.message);
         }
     }
 
@@ -466,13 +466,13 @@ class TeamDetailPage {
         try {
             const response = await API.teams.update(this.teamId, { status: 'active' });
             if (response.success) {
-                Utils.showSuccess('团队已激活');
+                Utils.toast.success('团队已激活');
                 this.loadTeamDetail(); // 重新加载页面
             } else {
                 throw new Error(response.message || '操作失败');
             }
         } catch (error) {
-            Utils.showError('激活团队失败: ' + error.message);
+            Utils.toast.error('激活团队失败: ' + error.message);
         }
     }
 
@@ -505,7 +505,7 @@ class TeamDetailPage {
             });
 
             if (response.success) {
-                Utils.showSuccess(`审核设置已${action}`);
+                Utils.toast.success(`审核设置已${action}`);
                 this.team.require_approval = requireApproval;
 
                 // 重新渲染页面以更新UI
@@ -520,7 +520,7 @@ class TeamDetailPage {
             }
         } catch (error) {
             console.error('切换审核设置失败:', error);
-            Utils.showError(`${action}审核设置失败: ` + error.message);
+            Utils.toast.error(`${action}审核设置失败: ` + error.message);
 
             // 恢复开关状态
             const switchElement = document.getElementById('requireApprovalSwitch');

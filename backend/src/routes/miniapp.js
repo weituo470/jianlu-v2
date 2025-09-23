@@ -1218,6 +1218,9 @@ router.put('/teams/:teamId/settings', authenticateToken, async (req, res) => {
     const { require_approval } = req.body;
     const userId = req.user.id;
 
+    // 导入所需的模型
+    const { Team, TeamMember } = require('../models');
+
     // 检查用户是否是团队管理员
     const teamMember = await TeamMember.findOne({
       where: {
