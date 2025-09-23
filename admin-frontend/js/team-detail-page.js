@@ -480,19 +480,6 @@ class TeamDetailPage {
     async toggleApprovalSetting(requireApproval) {
         const action = requireApproval ? '开启' : '关闭';
 
-        // 只有关闭时才需要确认，开启时直接执行
-        if (!requireApproval) {
-            const message = '关闭后，用户可以直接加入团队，无需审核。确定要关闭审核模式吗？';
-            if (!confirm(message)) {
-                // 用户取消，恢复开关状态
-                const switchElement = document.getElementById('requireApprovalSwitch');
-                if (switchElement) {
-                    switchElement.checked = true; // 恢复为开启状态
-                }
-                return;
-            }
-        }
-
         try {
             // 显示加载状态
             const switchElement = document.getElementById('requireApprovalSwitch');
