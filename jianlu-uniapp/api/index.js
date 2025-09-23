@@ -57,22 +57,31 @@ export const groupApi = {
 	leave: (id) => post(`/miniapp/teams/${id}/leave`),
 
 	// 申请加入团队
-	apply: (id, data) => post(`/miniapp/teams/${id}/apply`, data),
+	apply: (id, data) => post(`/teams/${id}/apply`, data),
 
 	// 获取我的申请记录
-	getMyApplications: (params) => get('/miniapp/teams/my-applications', { params }),
+	getMyApplications: (params) => get('/miniapp/my-team-applications', params),
+
+	// 团队设置
+	updateTeamSettings: (teamId, data) => put(`/miniapp/teams/${teamId}/settings`, data),
 
 	// 获取团队申请列表（团队负责人）
-	getTeamApplications: (id, params) => get(`/miniapp/teams/${id}/applications`, { params }),
+	getTeamApplications: (teamId) => get(`/miniapp/teams/${teamId}/applications`),
 
-	// 处理申请（批准/拒绝）
-	processApplication: (applicationId, data) => put(`/miniapp/teams/applications/${applicationId}`, data),
+	// 批准申请
+	approveApplication: (teamId, applicationId, data) => post(`/miniapp/teams/${teamId}/applications/${applicationId}/approve`, data),
+
+	// 拒绝申请
+	rejectApplication: (teamId, applicationId, data) => post(`/miniapp/teams/${teamId}/applications/${applicationId}/reject`, data),
+
+	// 取消申请
+	cancelApplication: (memberId) => del(`/teams/applications/${memberId}`),
 
 	// 获取申请统计
 	getApplicationStats: (id) => get(`/miniapp/teams/${id}/application-stats`),
 
 	// 获取团队成员列表
-	getTeamMembers: (id, params) => get(`/miniapp/teams/${id}/members`, { params }),
+	getTeamMembers: (id, params) => get(`/miniapp/teams/${id}/members`, params),
 
 	// 获取团队详情
 	getTeamDetail: (id) => get(`/miniapp/teams/${id}`),

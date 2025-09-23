@@ -62,6 +62,12 @@ const Team = sequelize.define('Team', {
     defaultValue: 'active',
     allowNull: false
   },
+  require_approval: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false,
+    comment: '是否需要审核加入申请'
+  },
   member_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,

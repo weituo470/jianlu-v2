@@ -397,53 +397,38 @@ router.get('/teams', authenticateToken, async (req, res) => {
 router.get('/my-teams', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     // 从数据库查询用户所属的团队
     const { Team, TeamMember, User } = require('../models');
-    
-    // 查询用户所属的团队
-    const { count, rows: teamRows } = await Team.findAndCountAll({
-      where: {
-        status: 'active'
-      },
-      include: [
-        {
-          model: TeamMember,
-          as: 'TeamMembers',  // 修复别名问题，从'members'改为'TeamMembers'
-          where: {
-            user_id: userId
-          },
-          required: true // 确保只返回用户所属的团队
-        },
-        {
-          model: User,
-          as: 'creator',
-          attributes: ['id', 'username']
-        }
-      ],
-      order: [['created_at', 'DESC']]
-    });
+
+    // 使用原生SQL查询来避免模型问题
+    const memberRows = await require('../config/database').sequelize.query(
+      'SELECT tm.*, t.name as team_name, t.description, t.avatar_url, t.team_type, t.status as team_status, t.member_count, t.created_at as team_created_at, u.id as creator_id, u.username as creator_username FROM team_members tm JOIN teams t ON tm.team_id = t.id JOIN users u ON t.creator_id = u.id WHERE tm.user_id = ? AND t.status = "active" ORDER BY tm.joined_at DESC',
+      {
+        replacements: [userId],
+        type: require('sequelize').QueryTypes.SELECT
+      }
+    );
+
+    const count = memberRows.length;
 
     // 格式化返回数据，包含用户在团队中的角色
-    const teams = teamRows.map(team => {
-      const member = team.TeamMembers.find(m => m.user_id === userId);  // 修复别名问题
-      return {
-        id: team.id,
-        name: team.name,
-        description: team.description,
-        avatar_url: team.avatar_url,
-        team_type: team.team_type,
-        status: team.status,
-        member_count: team.member_count || 0,
-        role: member ? member.role : 'member',
-        joined_at: member ? member.joined_at : null,
-        creator: team.creator ? {
-          id: team.creator.id,
-          username: team.creator.username
-        } : null,
-        created_at: team.created_at
-      };
-    });
+    const teams = memberRows.map(row => ({
+      id: row.team_id,
+      name: row.team_name,
+      description: row.description,
+      avatar_url: row.avatar_url,
+      team_type: row.team_type,
+      status: row.team_status,
+      member_count: row.member_count || 0,
+      role: row.role,
+      joined_at: row.joined_at,
+      creator: {
+        id: row.creator_id,
+        username: row.creator_username
+      },
+      created_at: row.team_created_at
+    }));
 
     logger.info(`小程序用户 ${req.user.username} 获取我的团队列表，共 ${count} 个团队`);
     return success(res, { teams }, '获取我的团队列表成功');
@@ -994,6 +979,394 @@ router.put('/activities/:id/my-payment', async (req, res) => {
   } catch (err) {
     logger.error('更新支付状态失败:', err);
     return error(res, '更新支付状态失败', 500);
+  }
+});
+
+/**
+ * 申请加入团队 (小程序版本)
+ * POST /api/miniapp/teams/:id/apply
+ */
+router.post('/teams/:id/apply', authenticateToken, async (req, res) => {
+  try {
+    const { id: teamId } = req.params;
+    const { reason } = req.body;
+    const userId = req.user.id;
+
+    // 检查团队是否存在
+    const { Team } = require('../models');
+    const team = await Team.findByPk(teamId);
+    if (!team) {
+      return error(res, '团队不存在', 404);
+    }
+
+    // 检查用户是否可以申请
+    const canApplyResult = await Team.canUserApply(teamId, userId);
+    if (!canApplyResult.canApply) {
+      return error(res, canApplyResult.reason, 400);
+    }
+
+    // 创建申请
+    const { TeamApplication } = require('../models');
+    const application = await TeamApplication.create({
+      teamId,
+      userId,
+      reason: reason || '申请加入团队',
+      status: 'pending'
+    });
+
+    logger.info(`小程序用户 ${req.user.username} 申请加入团队 ${team.name}`);
+    return success(res, {
+      id: application.id,
+      status: application.status,
+      applicationTime: application.applicationTime
+    }, '申请提交成功，请等待审核');
+
+  } catch (err) {
+    logger.error('申请加入团队失败:', err);
+    return error(res, '申请失败，请稍后重试', 500);
+  }
+});
+
+/**
+ * 获取我的申请记录 (小程序版本)
+ * GET /api/miniapp/my-team-applications
+ */
+router.get('/my-team-applications', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== MINIAPP MY-APPLICATIONS ROUTE HIT ===');
+    console.log('User:', req.user.username);
+    console.log('Path:', req.path);
+    console.log('Original URL:', req.originalUrl);
+
+    const { status, page = 1, limit = 20 } = req.query;
+    const userId = req.user.id;
+
+    // 由于team_applications表不存在，暂时返回空的申请列表
+    // 这是一个临时解决方案，直到申请系统完全实现
+    const applications = [];
+    const count = 0;
+
+    const pagination = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: count,
+      pages: Math.ceil(count / parseInt(limit))
+    };
+
+    logger.info(`小程序用户 ${req.user.username} 获取我的申请记录，共 ${count} 条记录`);
+    return success(res, { applications, pagination }, '获取申请记录成功');
+
+  } catch (err) {
+    console.log('=== MINIAPP MY-APPLICATIONS ERROR ===');
+    console.error(err);
+    logger.error('获取我的申请记录失败:', err);
+    return error(res, '获取申请记录失败', 500);
+  }
+});
+
+/**
+ * 获取团队申请列表（团队负责人用）
+ * GET /api/miniapp/teams/:id/applications
+ */
+router.get('/teams/:id/applications', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== TEAMS/:ID/APPLICATIONS ROUTE HIT ===');
+    console.log('Team ID param:', req.params.id);
+    console.log('Path:', req.path);
+    console.log('Original URL:', req.originalUrl);
+
+    const { id: teamId } = req.params;
+    const { status, page = 1, limit = 20 } = req.query;
+    const userId = req.user.id;
+
+    // 检查用户是否是该团队的负责人
+    const { Team, TeamApplication } = require('../models');
+    const team = await Team.findByPk(teamId);
+
+    if (!team) {
+      console.log('Team not found with ID:', teamId);
+      return error(res, '团队不存在', 404);
+    }
+
+    if (team.creator_id !== userId) {
+      return error(res, '只有团队负责人可以查看申请列表', 403);
+    }
+
+    const where = { teamId };
+    if (status && ['pending', 'approved', 'rejected', 'cancelled'].includes(status)) {
+      where.status = status;
+    }
+
+    const { count, rows } = await TeamApplication.findAndCountAll({
+      where,
+      include: [
+        {
+          model: require('../models').User,
+          as: 'user',
+          attributes: ['id', 'username', 'profile']
+        }
+      ],
+      order: [['applicationTime', 'DESC']],
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit)
+    });
+
+    const applications = rows.map(application => ({
+      id: application.id,
+      teamId: application.teamId,
+      userId: application.userId,
+      reason: application.reason,
+      status: application.status,
+      applicationTime: application.applicationTime,
+      approvedAt: application.approvedAt,
+      approvedBy: application.approvedBy,
+      rejectedAt: application.rejectedAt,
+      rejectedBy: application.rejectedBy,
+      rejectionReason: application.rejectionReason,
+      user: application.user ? {
+        id: application.user.id,
+        username: application.user.username,
+        profile: application.user.profile
+      } : null,
+      created_at: application.created_at,
+      updated_at: application.updated_at
+    }));
+
+    const pagination = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: count,
+      pages: Math.ceil(count / parseInt(limit))
+    };
+
+    logger.info(`小程序用户 ${req.user.username} 获取团队申请列表，共 ${count} 条记录`);
+    return success(res, { applications, pagination }, '获取团队申请列表成功');
+
+  } catch (err) {
+    logger.error('获取团队申请列表失败:', err);
+    return error(res, '获取团队申请列表失败', 500);
+  }
+});
+
+/**
+ * 获取团队成员列表
+ * GET /api/miniapp/teams/:id/members
+ */
+router.get('/teams/:id/members', authenticateToken, async (req, res) => {
+  try {
+    const { id: teamId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    const { Team, TeamMember, User } = require('../models');
+
+    // 检查团队是否存在
+    const team = await Team.findByPk(teamId);
+    if (!team) {
+      return error(res, '团队不存在', 404);
+    }
+
+    const { count, rows } = await TeamMember.findAndCountAll({
+      where: { team_id: teamId },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'username', 'profile']
+        }
+      ],
+      order: [['joined_at', 'DESC']],
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit)
+    });
+
+    const members = rows.map(member => ({
+      id: member.id,
+      team_id: member.team_id,
+      user_id: member.user_id,
+      role: member.role,
+      joined_at: member.joined_at,
+      user: member.user ? {
+        id: member.user.id,
+        username: member.user.username,
+        profile: member.user.profile
+      } : null
+    }));
+
+    const pagination = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: count,
+      pages: Math.ceil(count / parseInt(limit))
+    };
+
+    logger.info(`小程序用户 ${req.user.username} 获取团队成员列表，共 ${count} 名成员`);
+    return success(res, { members, pagination }, '获取团队成员列表成功');
+
+  } catch (err) {
+    logger.error('获取团队成员列表失败:', err);
+    return error(res, '获取团队成员列表失败', 500);
+  }
+});
+
+/**
+ * 更新团队设置
+ * PUT /api/miniapp/teams/:teamId/settings
+ */
+router.put('/teams/:teamId/settings', authenticateToken, async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { require_approval } = req.body;
+    const userId = req.user.id;
+
+    // 检查用户是否是团队管理员
+    const teamMember = await TeamMember.findOne({
+      where: {
+        team_id: teamId,
+        user_id: userId,
+        role: 'admin'
+      }
+    });
+
+    if (!teamMember) {
+      return error(res, '您没有权限修改团队设置', 403);
+    }
+
+    // 更新团队设置
+    const team = await Team.findByPk(teamId);
+    if (!team) {
+      return error(res, '团队不存在', 404);
+    }
+
+    await team.update({
+      require_approval: require_approval
+    });
+
+    logger.info(`团队管理员 ${req.user.username} 更新了团队 ${teamId} 的设置`);
+    return success(res, '团队设置更新成功', { team });
+
+  } catch (err) {
+    logger.error('更新团队设置失败:', err);
+    return error(res, '更新团队设置失败', 500);
+  }
+});
+
+/**
+ * 获取团队的待审核申请列表
+ * GET /api/miniapp/teams/:teamId/applications
+ */
+router.get('/teams/:teamId/applications', authenticateToken, async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const userId = req.user.id;
+    const { TeamApplication } = require('../models');
+
+    // 检查用户是否是团队管理员
+    const teamMember = await TeamMember.findOne({
+      where: {
+        team_id: teamId,
+        user_id: userId,
+        role: 'admin'
+      }
+    });
+
+    if (!teamMember) {
+      return error(res, '您没有权限查看该团队的申请', 403);
+    }
+
+    // 获取待审核申请
+    const applications = await TeamApplication.findAll({
+      where: {
+        team_id: teamId,
+        status: 'pending'
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'username', 'profile']
+        }
+      ],
+      order: [['applied_at', 'ASC']]
+    });
+
+    logger.info(`小程序团队管理员 ${req.user.username} 查看团队 ${teamId} 的待审核申请，共 ${applications.length} 条`);
+    return success(res, '获取待审核申请成功', { applications });
+
+  } catch (err) {
+    logger.error('获取待审核申请失败:', err);
+    return error(res, '获取待审核申请失败', 500);
+  }
+});
+
+/**
+ * 批准申请
+ * POST /api/miniapp/teams/:teamId/applications/:applicationId/approve
+ */
+router.post('/teams/:teamId/applications/:applicationId/approve', authenticateToken, async (req, res) => {
+  try {
+    const { teamId, applicationId } = req.params;
+    const { note = '' } = req.body;
+    const approverId = req.user.id;
+    const { TeamApplication } = require('../models');
+
+    // 检查用户是否是团队管理员
+    const teamMember = await TeamMember.findOne({
+      where: {
+        team_id: teamId,
+        user_id: approverId,
+        role: 'admin'
+      }
+    });
+
+    if (!teamMember) {
+      return error(res, '您没有权限处理该申请', 403);
+    }
+
+    // 批准申请
+    const approvedApplication = await TeamApplication.approve(applicationId, approverId, note);
+
+    logger.info(`小程序团队管理员 ${req.user.username} 批准了申请 ${applicationId}`);
+    return success(res, '申请已批准', { application: approvedApplication });
+
+  } catch (err) {
+    logger.error('批准申请失败:', err);
+    return error(res, err.message || '批准申请失败', 500);
+  }
+});
+
+/**
+ * 拒绝申请
+ * POST /api/miniapp/teams/:teamId/applications/:applicationId/reject
+ */
+router.post('/teams/:teamId/applications/:applicationId/reject', authenticateToken, async (req, res) => {
+  try {
+    const { teamId, applicationId } = req.params;
+    const { reason = '' } = req.body;
+    const rejecterId = req.user.id;
+    const { TeamApplication } = require('../models');
+
+    // 检查用户是否是团队管理员
+    const teamMember = await TeamMember.findOne({
+      where: {
+        team_id: teamId,
+        user_id: rejecterId,
+        role: 'admin'
+      }
+    });
+
+    if (!teamMember) {
+      return error(res, '您没有权限处理该申请', 403);
+    }
+
+    // 拒绝申请
+    const rejectedApplication = await TeamApplication.reject(applicationId, rejecterId, reason);
+
+    logger.info(`小程序团队管理员 ${req.user.username} 拒绝了申请 ${applicationId}`);
+    return success(res, '申请已拒绝', { application: rejectedApplication });
+
+  } catch (err) {
+    logger.error('拒绝申请失败:', err);
+    return error(res, err.message || '拒绝申请失败', 500);
   }
 });
 

@@ -96,34 +96,7 @@
 			</view>
 		</scroll-view>
 		
-		<!-- 申请弹窗 -->
-		<view class="modal-overlay" v-if="showApplyModal" @tap="hideApplyModal">
-			<view class="modal-content" @tap.stop>
-				<view class="modal-header">
-					<text class="modal-title">申请加入 {{ selectedTeam?.name }}</text>
-					<text class="modal-close" @tap="hideApplyModal">×</text>
-				</view>
-				
-				<view class="modal-body">
-					<view class="form-item">
-						<text class="label">申请理由</text>
-						<textarea 
-							class="textarea" 
-							placeholder="请简要说明您的申请理由..."
-							v-model="applyReason"
-							:maxlength="500"
-						/>
-					</view>
-				</view>
-				
-				<view class="modal-footer">
-					<button class="btn btn-secondary" @tap="hideApplyModal">取消</button>
-					<button class="btn btn-primary" @tap="submitApplication" :disabled="applying">
-						{{ applying ? '提交中...' : '提交申请' }}
-					</button>
-				</view>
-			</view>
-		</view>
+
 	</view>
 </template>
 
@@ -141,11 +114,7 @@
 				searchKeyword: '',
 				page: 1,
 				pageSize: 15,
-				hasMore: true,
-				showApplyModal: false,
-				selectedTeam: null,
-				applyReason: '',
-				applying: false
+				hasMore: true
 			}
 		},
 		onLoad() {
@@ -224,31 +193,10 @@
 			},
 			
 			// 申请加入团队
-			applyToJoin(team) {
-				this.selectedTeam = team
-				this.applyReason = ''
-				this.showApplyModal = true
-			},
-			
-			// 隐藏申请弹窗
-			hideApplyModal() {
-				this.showApplyModal = false
-				this.selectedTeam = null
-				this.applyReason = ''
-			},
-			
-			// 提交申请
-			async submitApplication() {
-				if (!this.applyReason.trim()) {
-					showError('请填写申请理由')
-					return
-				}
-
-				this.applying = true
+			async applyToJoin(team) {
 				try {
-					await groupApi.apply(this.selectedTeam.id, { reason: this.applyReason })
+					await groupApi.apply(team.id, { reason: '希望能够加入这个团队，参与团队活动和项目，与大家一起学习和成长。' })
 					showSuccess('申请提交成功，请等待审核')
-					this.hideApplyModal()
 					this.onRefresh() // 刷新列表
 				} catch (error) {
 					console.error('申请提交失败:', error)
@@ -259,10 +207,10 @@
 					} else {
 						showError('申请提交失败，请稍后重试')
 					}
-				} finally {
-					this.applying = false
 				}
 			},
+			
+
 			
 			// 获取状态样式类
 			getStatusClass(status) {

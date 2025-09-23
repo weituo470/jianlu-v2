@@ -59,7 +59,7 @@
 							'btn-secondary': getUserRole(group) === 'member' || getUserRole(group) === 'admin'
 						}"
 					>
-						{{ getUserRole(group) === 'none' ? '加入团队' : '查看详情' }}
+						{{ getGroupActionButtonText(group) }}
 					</button>
 				</view>
 			</view>
@@ -223,13 +223,21 @@
 						</button>
 					</view>
 
-					<!-- 只有未加入的用户才显示加入按钮 -->
+					<!-- 根据用户角色和申请状态显示不同的按钮 -->
 					<button
 						class="btn btn-primary join-btn"
-						@tap="joinGroup(selectedGroup)"
-						v-if="getUserRole(selectedGroup) === 'none'"
+						@tap="applyToJoinGroup(selectedGroup)"
+						v-if="canApplyToGroup(selectedGroup)"
 					>
 						申请加入团队
+					</button>
+					
+					<button
+						class="btn btn-secondary"
+						disabled
+						v-if="isGroupApplied(selectedGroup)"
+					>
+						已申请
 					</button>
 					
 					<!-- 只有成员才显示退出按钮 -->
@@ -269,7 +277,9 @@
 					avatar_url: ''
 				},
 				// 添加用户团队关系数据
-				userTeams: []
+				userTeams: [],
+				// 添加用户申请状态数据
+				userApplications: []
 			}
 		},
 		computed: {
@@ -301,10 +311,24 @@
 				await Promise.all([
 					this.fetchGroups(),
 					this.loadTeamTypes(),
-					this.loadUserTeams()
+					this.loadUserTeams(),
+					this.loadUserApplications() // 加载用户申请记录
 				])
 			},
-
+			
+			// 加载用户申请记录
+			async loadUserApplications() {
+				try {
+					const response = await groupApi.getMyApplications()
+					if (response.success) {
+						this.userApplications = response.data.applications || []
+					}
+				} catch (error) {
+					console.error('加载用户申请记录失败:', error)
+					this.userApplications = []
+				}
+			},
+			
 			// 加载用户已加入的团队
 			async loadUserTeams() {
 				try {
@@ -363,15 +387,43 @@
 				return 'none'
 			},
 			
+			// 检查用户是否已申请加入团队
+			isGroupApplied(group) {
+				return this.userApplications.some(app => 
+					app.teamId === group.id && 
+					app.status === 'pending'
+				)
+			},
+			
+			// 检查用户是否可以申请加入团队
+			canApplyToGroup(group) {
+				const userRole = this.getUserRole(group)
+				// 未加入且未申请的用户才可以申请
+				return userRole === 'none' && !this.isGroupApplied(group)
+			},
+			
+			// 获取团队卡片上的按钮文本
+			getGroupActionButtonText(group) {
+				const userRole = this.getUserRole(group)
+				if (userRole === 'admin' || userRole === 'member') {
+					return '查看详情'
+				}
+				
+				if (this.isGroupApplied(group)) {
+					return '已申请'
+				}
+				
+				return '加入团队'
+			},
+			
 			// 根据用户角色决定点击行为
 			joinOrViewGroup(group) {
-				const role = this.getUserRole(group)
-				if (role === 'none') {
-					// 未加入，显示申请加入
-					this.selectedGroup = group
-					this.showDetailModal = true
+				const userRole = this.getUserRole(group)
+				if (userRole === 'none' && !this.isGroupApplied(group)) {
+					// 未加入且未申请，直接申请加入团队
+					this.applyToJoinGroup(group)
 				} else {
-					// 已加入，查看详情
+					// 已加入或已申请，查看详情
 					this.viewGroup(group)
 				}
 			},
@@ -470,16 +522,23 @@
 				})
 			},
 			
-			// 加入团队
-			async joinGroup(group) {
+			// 申请加入团队
+			async applyToJoinGroup(group) {
 				try {
-					// 显示申请加入弹窗或直接加入
 					const response = await groupApi.apply(group.id, {
-						reason: '申请加入团队'
+						reason: '希望能够加入这个团队，参与团队活动和项目，与大家一起学习和成长。'
 					})
 					if (response.success) {
 						showSuccess('申请已提交，请等待审核')
-						this.hideDetailModal()
+						// 更新本地申请状态
+						this.userApplications.push({
+							id: response.data.id,
+							teamId: group.id,
+							status: 'pending',
+							applicationTime: response.data.applicationTime
+						})
+						// 刷新团队列表以更新状态
+						this.loadInitialData()
 					} else {
 						throw new Error(response.message || '申请失败')
 					}
