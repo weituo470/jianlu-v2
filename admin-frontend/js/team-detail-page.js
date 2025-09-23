@@ -5,6 +5,7 @@ class TeamDetailPage {
         this.team = null;
         this.members = [];
         this.activities = [];
+        this.applications = [];
         this.init();
     }
 
@@ -212,6 +213,14 @@ class TeamDetailPage {
                                         <i class="fas fa-users me-2"></i>团队成员 (${this.members.length})
                                     </a>
                                 </li>
+                                ${this.team.require_approval && Auth.hasPermission(['team:update']) ? `
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-bs-toggle="tab" href="#applications" role="tab" onclick="teamDetailPage.loadApplications()">
+                                            <i class="fas fa-clipboard-list me-2"></i>加入申请
+                                            <span id="applications-count-badge" class="badge bg-warning ms-1" style="display: none;">0</span>
+                                        </a>
+                                    </li>
+                                ` : ''}
                                 <li class="nav-item">
                                     <a class="nav-link" data-bs-toggle="tab" href="#activities" role="tab">
                                         <i class="fas fa-calendar-alt me-2"></i>团队活动 (${this.activities.length})
@@ -225,6 +234,20 @@ class TeamDetailPage {
                                 <div class="tab-pane fade show active" id="members" role="tabpanel">
                                     ${this.renderMembers()}
                                 </div>
+
+                                <!-- 加入申请列表 -->
+                                ${this.team.require_approval && Auth.hasPermission(['team:update']) ? `
+                                    <div class="tab-pane fade" id="applications" role="tabpanel">
+                                        <div id="applications-content">
+                                            <div class="text-center py-4">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">加载中...</span>
+                                                </div>
+                                                <p class="mt-2">正在加载申请列表...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ` : ''}
 
                                 <!-- 活动列表 -->
                                 <div class="tab-pane fade" id="activities" role="tabpanel">
@@ -537,10 +560,98 @@ class TeamDetailPage {
                     badge.textContent = pendingCount;
                     badge.style.display = 'inline-block';
                 }
+
+                // 更新标签页徽章
+                const tabBadge = document.getElementById('applications-count-badge');
+                if (tabBadge && pendingCount > 0) {
+                    tabBadge.textContent = pendingCount;
+                    tabBadge.style.display = 'inline-block';
+                }
             }
         } catch (error) {
             console.error('加载待审核申请数量失败:', error);
         }
+    }
+
+    // 加载申请列表
+    async loadApplications() {
+        if (!this.team.require_approval) return;
+
+        try {
+            const response = await API.get(`/miniapp/teams/${this.teamId}/applications`);
+            if (response.success && response.data) {
+                this.applications = response.data;
+                this.renderApplications();
+            } else {
+                throw new Error(response.message || '获取申请列表失败');
+            }
+        } catch (error) {
+            console.error('加载申请列表失败:', error);
+            const content = document.getElementById('applications-content');
+            if (content) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fas fa-exclamation-circle"></i></div>
+                        <p>加载申请列表失败</p>
+                        <small class="text-muted">${error.message}</small>
+                        <button class="btn btn-sm btn-primary mt-2" onclick="teamDetailPage.loadApplications()">
+                            <i class="fas fa-redo"></i> 重试
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // 渲染申请列表
+    renderApplications() {
+        const content = document.getElementById('applications-content');
+        if (!content) return;
+
+        if (this.applications.length === 0) {
+            content.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-clipboard-list"></i></div>
+                    <p>暂无加入申请</p>
+                    <small class="text-muted">当前没有待处理的团队加入申请</small>
+                </div>
+            `;
+            return;
+        }
+
+        const pendingApplications = this.applications.filter(app => app.status === 'pending');
+        const processedApplications = this.applications.filter(app => app.status !== 'pending');
+
+        content.innerHTML = `
+            ${pendingApplications.length > 0 ? `
+                <div class="mb-4">
+                    <h6 class="text-warning mb-3">
+                        <i class="fas fa-clock me-2"></i>待处理申请 (${pendingApplications.length})
+                    </h6>
+                    <div class="applications-list">
+                        ${pendingApplications.map(app => this.renderApplicationItem(app, true)).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            ${processedApplications.length > 0 ? `
+                <div>
+                    <h6 class="text-muted mb-3">
+                        <i class="fas fa-history me-2"></i>已处理申请 (${processedApplications.length})
+                    </h6>
+                    <div class="applications-list">
+                        ${processedApplications.slice(0, 5).map(app => this.renderApplicationItem(app, false)).join('')}
+                    </div>
+                    ${processedApplications.length > 5 ? `
+                        <div class="text-center mt-3">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="teamDetailPage.showAllProcessedApplications()">
+                                查看全部 ${processedApplications.length} 个已处理申请
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
+        `;
     }
 
     // 辅助方法
@@ -589,6 +700,209 @@ class TeamDetailPage {
             'cancelled': '已取消'
         };
         return labels[status] || status;
+    }
+
+    // 渲染单个申请项目
+    renderApplicationItem(application, isPending) {
+        const statusConfig = {
+            'pending': { color: 'warning', icon: 'clock', text: '待审核' },
+            'approved': { color: 'success', icon: 'check', text: '已批准' },
+            'rejected': { color: 'danger', icon: 'times', text: '已拒绝' },
+            'cancelled': { color: 'secondary', icon: 'ban', text: '已取消' }
+        };
+
+        const config = statusConfig[application.status] || statusConfig.pending;
+        const applicationTime = new Date(application.application_time || application.created_at).toLocaleString('zh-CN');
+
+        return `
+            <div class="application-item ${isPending ? 'pending' : 'processed'}" data-id="${application.id}" style="border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: ${isPending ? '#fff8e1' : '#f8f9fa'};">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex align-items-center">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-weight: bold;">
+                            ${application.user?.profile?.avatar ?
+                                `<img src="${application.user.profile.avatar}" alt="${application.user.username}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">` :
+                                application.user?.username?.charAt(0).toUpperCase() || '?'
+                            }
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #333;">${application.user?.username || '未知用户'}</div>
+                            <div style="font-size: 13px; color: #666;">
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                ${applicationTime}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="badge bg-${config.color}">
+                        <i class="fas fa-${config.icon} me-1"></i>
+                        ${config.text}
+                    </span>
+                </div>
+
+                ${application.reason ? `
+                    <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 12px;">
+                        <i class="fas fa-comment me-2 text-primary"></i>
+                        <span style="color: #555;">${application.reason}</span>
+                    </div>
+                ` : ''}
+
+                ${isPending ? `
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-success" onclick="teamDetailPage.approveApplication('${application.id}')">
+                            <i class="fas fa-check me-1"></i>批准
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="teamDetailPage.showRejectModal('${application.id}')">
+                            <i class="fas fa-times me-1"></i>拒绝
+                        </button>
+                    </div>
+                ` : `
+                    ${application.status === 'rejected' && application.rejection_reason ? `
+                        <div style="background: #fff3cd; padding: 8px; border-radius: 4px; border-left: 3px solid #ffc107;">
+                            <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                            <small style="color: #856404;">拒绝理由：${application.rejection_reason}</small>
+                        </div>
+                    ` : ''}
+                    ${application.processed_at ? `
+                        <div style="margin-top: 8px;">
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                处理时间：${new Date(application.processed_at).toLocaleString('zh-CN')}
+                            </small>
+                        </div>
+                    ` : ''}
+                `}
+            </div>
+        `;
+    }
+
+    // 批准申请
+    async approveApplication(applicationId) {
+        if (!confirm('确定要批准这个加入申请吗？')) {
+            return;
+        }
+
+        try {
+            const response = await API.post(`/miniapp/teams/${this.teamId}/applications/${applicationId}/approve`);
+            if (response.success) {
+                Utils.toast.success('申请已批准');
+                // 重新加载申请列表和成员列表
+                await this.loadApplications();
+                await this.loadTeamDetail();
+            } else {
+                throw new Error(response.message || '批准申请失败');
+            }
+        } catch (error) {
+            console.error('批准申请失败:', error);
+            Utils.toast.error('批准申请失败: ' + error.message);
+        }
+    }
+
+    // 显示拒绝申请模态框
+    showRejectModal(applicationId) {
+        const application = this.applications.find(app => app.id === applicationId);
+        if (!application) return;
+
+        // 创建模态框HTML
+        const modalHtml = `
+            <div class="modal fade" id="rejectApplicationModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                拒绝加入申请
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <strong>申请人：</strong>${application.user?.username || '未知用户'}
+                            </div>
+                            ${application.reason ? `
+                                <div class="mb-3">
+                                    <strong>申请理由：</strong>
+                                    <div class="text-muted">${application.reason}</div>
+                                </div>
+                            ` : ''}
+                            <div class="mb-3">
+                                <label for="rejectionReason" class="form-label">
+                                    <i class="fas fa-comment me-1"></i>拒绝理由 <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control" id="rejectionReason" rows="3"
+                                          placeholder="请输入拒绝理由，这将发送给申请人"></textarea>
+                                <div class="form-text">请详细说明拒绝的原因，帮助申请人了解情况</div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="button" class="btn btn-danger" onclick="teamDetailPage.rejectApplication('${applicationId}')">
+                                <i class="fas fa-times me-1"></i>确认拒绝
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 移除已存在的模态框
+        const existingModal = document.getElementById('rejectApplicationModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // 添加新模态框到页面
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // 显示模态框
+        const modal = new bootstrap.Modal(document.getElementById('rejectApplicationModal'));
+        modal.show();
+
+        // 模态框关闭时清理
+        document.getElementById('rejectApplicationModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    }
+
+    // 拒绝申请
+    async rejectApplication(applicationId) {
+        const reasonTextarea = document.getElementById('rejectionReason');
+        const reason = reasonTextarea?.value?.trim();
+
+        if (!reason) {
+            Utils.toast.error('请输入拒绝理由');
+            reasonTextarea?.focus();
+            return;
+        }
+
+        try {
+            const response = await API.post(`/miniapp/teams/${this.teamId}/applications/${applicationId}/reject`, {
+                reason: reason
+            });
+
+            if (response.success) {
+                Utils.toast.success('申请已拒绝');
+
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(document.getElementById('rejectApplicationModal'));
+                if (modal) {
+                    modal.hide();
+                }
+
+                // 重新加载申请列表
+                await this.loadApplications();
+            } else {
+                throw new Error(response.message || '拒绝申请失败');
+            }
+        } catch (error) {
+            console.error('拒绝申请失败:', error);
+            Utils.toast.error('拒绝申请失败: ' + error.message);
+        }
+    }
+
+    // 显示所有已处理申请
+    showAllProcessedApplications() {
+        // 这里可以实现显示所有已处理申请的逻辑
+        // 暂时简单地重新渲染，显示更多项目
+        this.renderApplications();
     }
 
     showError(message) {
