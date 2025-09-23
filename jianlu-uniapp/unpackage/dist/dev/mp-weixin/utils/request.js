@@ -12,24 +12,37 @@ const request = (options) => {
     if (token) {
       header.Authorization = `Bearer ${token}`;
     }
-    const fullUrl = BASE_URL + options.url;
+    let fullUrl = BASE_URL + options.url;
+    let requestData = options.data || {};
+    if ((options.method || "GET") === "GET" && Object.keys(requestData).length > 0) {
+      const queryString = Object.keys(requestData).map((key) => {
+        const value = requestData[key];
+        if (value === null || value === void 0)
+          return "";
+        return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+      }).filter(Boolean).join("&");
+      if (queryString) {
+        fullUrl += (fullUrl.includes("?") ? "&" : "?") + queryString;
+      }
+      requestData = {};
+    }
     {
-      console.log("发送请求:", {
+      common_vendor.index.__f__("log", "at utils/request.js:44", "发送请求:", {
         url: fullUrl,
         method: options.method || "GET",
-        data: options.data,
+        data: requestData,
         header
       });
     }
     common_vendor.index.request({
       url: fullUrl,
       method: options.method || "GET",
-      data: options.data || {},
+      data: requestData,
       header,
       success: (res) => {
         var _a;
         {
-          console.log("请求响应:", {
+          common_vendor.index.__f__("log", "at utils/request.js:60", "请求响应:", {
             url: fullUrl,
             statusCode: res.statusCode,
             data: res.data
@@ -45,12 +58,12 @@ const request = (options) => {
           });
           reject(new Error("登录已过期"));
         } else {
-          console.error("请求失败:", res);
+          common_vendor.index.__f__("error", "at utils/request.js:80", "请求失败:", res);
           reject(new Error(((_a = res.data) == null ? void 0 : _a.message) || `请求失败 (${res.statusCode})`));
         }
       },
       fail: (err) => {
-        console.error("网络请求失败:", {
+        common_vendor.index.__f__("error", "at utils/request.js:85", "网络请求失败:", {
           url: fullUrl,
           error: err
         });
@@ -95,3 +108,4 @@ exports.del = del;
 exports.get = get;
 exports.post = post;
 exports.put = put;
+//# sourceMappingURL=../../.sourcemap/mp-weixin/utils/request.js.map

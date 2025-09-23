@@ -219,3 +219,4 @@ const activityUtils = {
 exports.activityApi = activityApi;
 exports.activityTypes = activityTypes;
 exports.activityUtils = activityUtils;
+//# sourceMappingURL=../../.sourcemap/mp-weixin/api/activity.js.map

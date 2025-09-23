@@ -19,3 +19,4 @@ const getCurrentConfig = () => {
 };
 const envConfig = getCurrentConfig();
 exports.envConfig = envConfig;
+//# sourceMappingURL=../../.sourcemap/mp-weixin/config/env.js.map

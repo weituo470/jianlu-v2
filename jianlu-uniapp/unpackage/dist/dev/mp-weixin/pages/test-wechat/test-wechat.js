@@ -44,7 +44,7 @@ const _sfc_main = {
           throw new Error(`API响应失败: ${response.message}`);
         }
       } catch (error) {
-        console.error("测试失败:", error);
+        common_vendor.index.__f__("error", "at pages/test-wechat/test-wechat.vue:112", "测试失败:", error);
         testResult.value += `
 测试失败: ${error.message || error.errMsg || "未知错误"}`;
       } finally {
@@ -97,7 +97,7 @@ const _sfc_main = {
       } catch (error) {
         testResult.value += `
 API测试失败: ${error.message || error.errMsg || JSON.stringify(error)}`;
-        console.error("API测试详细错误:", error);
+        common_vendor.index.__f__("error", "at pages/test-wechat/test-wechat.vue:175", "API测试详细错误:", error);
       } finally {
         loading.value = false;
       }
@@ -123,3 +123,4 @@ API测试失败: ${error.message || error.errMsg || JSON.stringify(error)}`;
 };
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["__scopeId", "data-v-c430c098"]]);
 wx.createPage(MiniProgramPage);
+//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/test-wechat/test-wechat.js.map

@@ -20,18 +20,18 @@ if (!Math) {
 const _sfc_main = {
   onLaunch: function() {
     {
-      console.log("简庐日记小程序启动");
+      common_vendor.index.__f__("log", "at App.vue:6", "简庐日记小程序启动");
     }
     this.checkLoginStatus();
   },
   onShow: function() {
     {
-      console.log("简庐日记小程序显示");
+      common_vendor.index.__f__("log", "at App.vue:15", "简庐日记小程序显示");
     }
   },
   onHide: function() {
     {
-      console.log("简庐日记小程序隐藏");
+      common_vendor.index.__f__("log", "at App.vue:21", "简庐日记小程序隐藏");
     }
   },
   methods: {
@@ -53,7 +53,7 @@ function createApp() {
   const app = common_vendor.createSSRApp(_sfc_main);
   app.config.globalProperties.$baseUrl = "http://localhost:3458/api";
   app.config.errorHandler = (err, vm, info) => {
-    console.error("Vue Error:", err, info);
+    common_vendor.index.__f__("error", "at main.js:12", "Vue Error:", err, info);
   };
   return {
     app
@@ -61,3 +61,4 @@ function createApp() {
 }
 createApp().app.mount("#app");
 exports.createApp = createApp;
+//# sourceMappingURL=../.sourcemap/mp-weixin/app.js.map

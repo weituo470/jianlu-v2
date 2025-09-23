@@ -48,10 +48,10 @@ const _sfc_main = {
         const response = await api_index.groupApi.getMyTeams();
         if (response.success) {
           this.myTeams = response.data.teams || [];
-          console.log("加载到的团队列表:", this.myTeams);
+          common_vendor.index.__f__("log", "at pages/activity-create/activity-create.vue:293", "加载到的团队列表:", this.myTeams);
         }
       } catch (error) {
-        console.error("加载团队列表失败:", error);
+        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:296", "加载团队列表失败:", error);
       }
     },
     // 选择活动类型
@@ -214,7 +214,7 @@ const _sfc_main = {
           common_vendor.index.navigateBack();
         }
       } catch (error) {
-        console.error("保存草稿失败:", error);
+        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:492", "保存草稿失败:", error);
         utils_index.showError("保存草稿失败");
       } finally {
         this.submitting = false;
@@ -233,7 +233,7 @@ const _sfc_main = {
           common_vendor.index.navigateBack();
         }
       } catch (error) {
-        console.error("发布活动失败:", error);
+        common_vendor.index.__f__("error", "at pages/activity-create/activity-create.vue:512", "发布活动失败:", error);
         utils_index.showError("发布活动失败");
       } finally {
         this.submitting = false;
@@ -350,3 +350,4 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-095a2a8e"]]);
 wx.createPage(MiniProgramPage);
+//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/activity-create/activity-create.js.map

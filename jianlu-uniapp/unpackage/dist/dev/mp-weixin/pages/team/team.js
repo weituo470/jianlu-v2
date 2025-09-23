@@ -20,7 +20,11 @@ const _sfc_main = {
         description: "",
         team_type: "general",
         avatar_url: ""
-      }
+      },
+      // 添加用户团队关系数据
+      userTeams: [],
+      // 添加用户申请状态数据
+      userApplications: []
     };
   },
   computed: {
@@ -50,8 +54,36 @@ const _sfc_main = {
     async loadInitialData() {
       await Promise.all([
         this.fetchGroups(),
-        this.loadTeamTypes()
+        this.loadTeamTypes(),
+        this.loadUserTeams(),
+        this.loadUserApplications()
+        // 加载用户申请记录
       ]);
+    },
+    // 加载用户申请记录
+    async loadUserApplications() {
+      try {
+        const response = await api_index.groupApi.getMyApplications();
+        if (response.success) {
+          this.userApplications = response.data.applications || [];
+        }
+      } catch (error) {
+        common_vendor.index.__f__("error", "at pages/team/team.vue:327", "加载用户申请记录失败:", error);
+        this.userApplications = [];
+      }
+    },
+    // 加载用户已加入的团队
+    async loadUserTeams() {
+      try {
+        const response = await api_index.groupApi.getMyTeams();
+        if (response.success) {
+          const teams = response.data.teams || response.data || [];
+          this.userTeams = Array.isArray(teams) ? teams : [];
+        }
+      } catch (error) {
+        common_vendor.index.__f__("error", "at pages/team/team.vue:341", "加载用户团队失败:", error);
+        this.userTeams = [];
+      }
     },
     // 加载团队类型
     async loadTeamTypes() {
@@ -61,26 +93,65 @@ const _sfc_main = {
           this.teamTypes = response.data || [];
         }
       } catch (error) {
-        console.error("加载团队类型失败:", error);
+        common_vendor.index.__f__("error", "at pages/team/team.vue:355", "加载团队类型失败:", error);
         this.teamTypes = [
           { value: "general", label: "通用团队" }
         ];
       }
     },
-    // 获取团队列表
+    // 获取团队列表（全部团队）
     async fetchGroups() {
       this.loading = true;
       try {
-        const response = await api_index.groupApi.getMyTeams();
+        const response = await api_index.groupApi.getList();
         if (response.success) {
           const teams = response.data.teams || response.data || [];
           this.groups = Array.isArray(teams) ? teams : [];
         }
       } catch (error) {
         utils_index.showError("获取团队列表失败");
-        console.error("获取团队列表失败:", error);
+        common_vendor.index.__f__("error", "at pages/team/team.vue:375", "获取团队列表失败:", error);
       } finally {
         this.loading = false;
+      }
+    },
+    // 获取用户在团队中的角色
+    getUserRole(group) {
+      const userTeam = this.userTeams.find((t) => t.id === group.id);
+      if (userTeam) {
+        return userTeam.role || "member";
+      }
+      return "none";
+    },
+    // 检查用户是否已申请加入团队
+    isGroupApplied(group) {
+      return this.userApplications.some(
+        (app) => app.teamId === group.id && app.status === "pending"
+      );
+    },
+    // 检查用户是否可以申请加入团队
+    canApplyToGroup(group) {
+      const userRole = this.getUserRole(group);
+      return userRole === "none" && !this.isGroupApplied(group);
+    },
+    // 获取团队卡片上的按钮文本
+    getGroupActionButtonText(group) {
+      const userRole = this.getUserRole(group);
+      if (userRole === "admin" || userRole === "member") {
+        return "查看详情";
+      }
+      if (this.isGroupApplied(group)) {
+        return "已申请";
+      }
+      return "加入团队";
+    },
+    // 根据用户角色决定点击行为
+    joinOrViewGroup(group) {
+      const userRole = this.getUserRole(group);
+      if (userRole === "none" && !this.isGroupApplied(group)) {
+        this.applyToJoinGroup(group);
+      } else {
+        this.viewGroup(group);
       }
     },
     // 显示创建弹窗
@@ -134,11 +205,12 @@ const _sfc_main = {
           utils_index.showSuccess("团队创建成功");
           this.hideModal();
           this.fetchGroups();
+          this.loadUserTeams();
         } else {
           throw new Error(response.message || "创建失败");
         }
       } catch (error) {
-        console.error("创建团队失败:", error);
+        common_vendor.index.__f__("error", "at pages/team/team.vue:496", "创建团队失败:", error);
         utils_index.showError(error.message || "创建失败，请稍后重试");
       } finally {
         this.saving = false;
@@ -162,30 +234,42 @@ const _sfc_main = {
         url: `/pages/activity/activity?groupId=${group.id}`
       });
     },
+    // 申请加入团队
+    async applyToJoinGroup(group) {
+      try {
+        const response = await api_index.groupApi.apply(group.id, {
+          reason: "希望能够加入这个团队，参与团队活动和项目，与大家一起学习和成长。"
+        });
+        if (response.success) {
+          utils_index.showSuccess("申请已提交，请等待审核");
+          this.userApplications.push({
+            id: response.data.id,
+            teamId: group.id,
+            status: "pending",
+            applicationTime: response.data.applicationTime
+          });
+          this.loadInitialData();
+        } else {
+          throw new Error(response.message || "申请失败");
+        }
+      } catch (error) {
+        common_vendor.index.__f__("error", "at pages/team/team.vue:546", "申请加入团队失败:", error);
+        utils_index.showError(error.message || "申请失败，请稍后重试");
+      }
+    },
     // 离开群组
     async leaveGroup(group) {
-      if (group.role === "admin" || group.role === "leader") {
-        utils_index.showError("团队负责人不能退出团队，请先转让负责人权限");
-        return;
-      }
-      const confirmed = await utils_index.showConfirm(`确定要离开群组"${group.name}"吗？`);
+      const confirmed = await utils_index.showConfirm(`确定要离开团队"${group.name}"吗？`);
       if (!confirmed)
         return;
       try {
         await api_index.groupApi.leave(group.id);
-        utils_index.showSuccess("已离开群组");
+        utils_index.showSuccess("已离开团队");
         this.hideDetailModal();
-        this.fetchGroups();
+        this.loadInitialData();
       } catch (error) {
-        console.error("离开群组失败:", error);
-        if (error.message && error.message.includes("负责人")) {
-          utils_index.showError("团队负责人不能退出团队，请先转让负责人权限");
-        } else if (error.message && error.message.includes("不在该团队中")) {
-          utils_index.showError("您不在该团队中，请刷新页面");
-          this.fetchGroups();
-        } else {
-          utils_index.showError("离开群组失败，请稍后重试");
-        }
+        common_vendor.index.__f__("error", "at pages/team/team.vue:563", "离开团队失败:", error);
+        utils_index.showError("离开团队失败，请稍后重试");
       }
     },
     // 浏览团队
@@ -217,7 +301,7 @@ const _sfc_main = {
           this.selectedGroup.leader_name = ((_a = response.data.members.find((m) => m.is_leader)) == null ? void 0 : _a.nickname) || "负责人";
         }
       } catch (error) {
-        console.log("获取成员预览失败:", error);
+        common_vendor.index.__f__("log", "at pages/team/team.vue:601", "获取成员预览失败:", error);
       }
     },
     // 团队类型选择相关方法
@@ -246,20 +330,23 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
         a: common_vendor.t(group.name.charAt(0)),
         b: common_vendor.t(group.name),
         c: common_vendor.t(group.member_count),
-        d: group.role === "admin"
-      }, group.role === "admin" ? {} : {}, {
-        e: common_vendor.t(group.role === "admin" ? "负责人" : "成员"),
-        f: common_vendor.n(group.role),
-        g: group.role === "admin"
-      }, group.role === "admin" ? {} : {}, {
+        d: $options.getUserRole(group) === "admin"
+      }, $options.getUserRole(group) === "admin" ? {} : {}, {
+        e: common_vendor.t($options.getUserRole(group) === "admin" ? "负责人" : $options.getUserRole(group) === "member" ? "成员" : "未加入"),
+        f: common_vendor.n($options.getUserRole(group)),
+        g: $options.getUserRole(group) === "admin"
+      }, $options.getUserRole(group) === "admin" ? {} : {}, {
         h: group.description
       }, group.description ? {
         i: common_vendor.t(group.description)
       } : {}, {
-        j: common_vendor.t($options.formatDate(group.joined_at, "YYYY-MM-DD")),
-        k: common_vendor.o(($event) => $options.viewActivities(group), group.id),
-        l: group.id,
-        m: common_vendor.o(($event) => $options.viewGroup(group), group.id)
+        j: common_vendor.t($options.formatDate(group.created_at, "YYYY-MM-DD")),
+        k: common_vendor.t($options.getGroupActionButtonText(group)),
+        l: common_vendor.o(($event) => $options.joinOrViewGroup(group), group.id),
+        m: $options.getUserRole(group) === "none" ? 1 : "",
+        n: $options.getUserRole(group) === "member" || $options.getUserRole(group) === "admin" ? 1 : "",
+        o: group.id,
+        p: common_vendor.o(($event) => $options.viewGroup(group), group.id)
       });
     })
   } : !$data.loading ? {
@@ -308,8 +395,8 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
       };
     })
   } : common_vendor.e({
-    I: $data.selectedGroup.role === "admin"
-  }, $data.selectedGroup.role === "admin" ? {
+    I: $options.getUserRole($data.selectedGroup) === "admin"
+  }, $options.getUserRole($data.selectedGroup) === "admin" ? {
     J: common_vendor.t($data.selectedGroup.leader_name || "我")
   } : {}, {
     K: $data.selectedGroup.member_count > 1
@@ -317,24 +404,32 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
     L: $data.selectedGroup.member_count > 4
   }, $data.selectedGroup.member_count > 4 ? {} : {}, {
     M: common_vendor.o(($event) => $options.viewTeamDetail($data.selectedGroup)),
-    N: $data.selectedGroup.role === "admin"
-  }, $data.selectedGroup.role === "admin" ? {} : {}, {
-    O: common_vendor.t($options.formatDate($data.selectedGroup.joined_at, "YYYY年MM月DD日"))
+    N: $options.getUserRole($data.selectedGroup) === "admin"
+  }, $options.getUserRole($data.selectedGroup) === "admin" ? {} : $options.getUserRole($data.selectedGroup) === "member" ? {} : {}, {
+    O: $options.getUserRole($data.selectedGroup) === "member",
+    P: common_vendor.t($options.formatDate($data.selectedGroup.created_at, "YYYY年MM月DD日"))
   }) : {}, {
-    P: common_vendor.o(($event) => $options.viewTeamDetail($data.selectedGroup)),
-    Q: common_vendor.o(($event) => $options.viewActivities($data.selectedGroup)),
-    R: $data.selectedGroup.role === "admin" || $data.selectedGroup.role === "leader"
-  }, $data.selectedGroup.role === "admin" || $data.selectedGroup.role === "leader" ? {
-    S: common_vendor.o(($event) => $options.viewApplications($data.selectedGroup))
+    Q: common_vendor.o(($event) => $options.viewTeamDetail($data.selectedGroup)),
+    R: common_vendor.o(($event) => $options.viewActivities($data.selectedGroup)),
+    S: $options.getUserRole($data.selectedGroup) === "admin"
+  }, $options.getUserRole($data.selectedGroup) === "admin" ? {
+    T: common_vendor.o(($event) => $options.viewApplications($data.selectedGroup))
   } : {}, {
-    T: $data.selectedGroup.role !== "admin" && $data.selectedGroup.role !== "leader"
-  }, $data.selectedGroup.role !== "admin" && $data.selectedGroup.role !== "leader" ? {
-    U: common_vendor.o(($event) => $options.leaveGroup($data.selectedGroup))
+    U: $options.canApplyToGroup($data.selectedGroup)
+  }, $options.canApplyToGroup($data.selectedGroup) ? {
+    V: common_vendor.o(($event) => $options.applyToJoinGroup($data.selectedGroup))
   } : {}, {
-    V: common_vendor.o(() => {
+    W: $options.isGroupApplied($data.selectedGroup)
+  }, $options.isGroupApplied($data.selectedGroup) ? {} : {}, {
+    X: $options.getUserRole($data.selectedGroup) === "member"
+  }, $options.getUserRole($data.selectedGroup) === "member" ? {
+    Y: common_vendor.o(($event) => $options.leaveGroup($data.selectedGroup))
+  } : {}, {
+    Z: common_vendor.o(() => {
     }),
-    W: common_vendor.o((...args) => $options.hideDetailModal && $options.hideDetailModal(...args))
+    aa: common_vendor.o((...args) => $options.hideDetailModal && $options.hideDetailModal(...args))
   }) : {});
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-dc51e287"]]);
 wx.createPage(MiniProgramPage);
+//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/team/team.js.map

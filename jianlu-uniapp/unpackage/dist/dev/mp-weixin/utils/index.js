@@ -60,3 +60,4 @@ exports.getActivityStatusText = getActivityStatusText;
 exports.showConfirm = showConfirm;
 exports.showError = showError;
 exports.showSuccess = showSuccess;
+//# sourceMappingURL=../../.sourcemap/mp-weixin/utils/index.js.map

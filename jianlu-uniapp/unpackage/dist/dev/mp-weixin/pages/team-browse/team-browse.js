@@ -12,11 +12,7 @@ const _sfc_main = {
       searchKeyword: "",
       page: 1,
       pageSize: 15,
-      hasMore: true,
-      showApplyModal: false,
-      selectedTeam: null,
-      applyReason: "",
-      applying: false
+      hasMore: true
     };
   },
   onLoad() {
@@ -81,34 +77,16 @@ const _sfc_main = {
     },
     // 查看团队详情
     viewTeamDetail(team) {
-      console.log("查看团队详情:", team);
+      common_vendor.index.__f__("log", "at pages/team-browse/team-browse.vue:192", "查看团队详情:", team);
     },
     // 申请加入团队
-    applyToJoin(team) {
-      this.selectedTeam = team;
-      this.applyReason = "";
-      this.showApplyModal = true;
-    },
-    // 隐藏申请弹窗
-    hideApplyModal() {
-      this.showApplyModal = false;
-      this.selectedTeam = null;
-      this.applyReason = "";
-    },
-    // 提交申请
-    async submitApplication() {
-      if (!this.applyReason.trim()) {
-        utils_index.showError("请填写申请理由");
-        return;
-      }
-      this.applying = true;
+    async applyToJoin(team) {
       try {
-        await api_index.groupApi.apply(this.selectedTeam.id, { reason: this.applyReason });
+        await api_index.groupApi.apply(team.id, { reason: "希望能够加入这个团队，参与团队活动和项目，与大家一起学习和成长。" });
         utils_index.showSuccess("申请提交成功，请等待审核");
-        this.hideApplyModal();
         this.onRefresh();
       } catch (error) {
-        console.error("申请提交失败:", error);
+        common_vendor.index.__f__("error", "at pages/team-browse/team-browse.vue:202", "申请提交失败:", error);
         if (error.message && error.message.includes("已经提交过申请")) {
           utils_index.showError("您已经提交过申请，请等待审核");
         } else if (error.message && error.message.includes("已经是该团队的成员")) {
@@ -116,8 +94,6 @@ const _sfc_main = {
         } else {
           utils_index.showError("申请提交失败，请稍后重试");
         }
-      } finally {
-        this.applying = false;
       }
     },
     // 获取状态样式类
@@ -145,7 +121,6 @@ const _sfc_main = {
   }
 };
 function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
-  var _a;
   return common_vendor.e({
     a: common_vendor.o([($event) => $data.searchKeyword = $event.detail.value, (...args) => $options.onSearchInput && $options.onSearchInput(...args)]),
     b: $data.searchKeyword,
@@ -178,21 +153,9 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
   }, $data.teams.length === 0 && !$data.loading ? {} : {}, {
     g: $data.refreshing,
     h: common_vendor.o((...args) => $options.onRefresh && $options.onRefresh(...args)),
-    i: common_vendor.o((...args) => $options.loadMore && $options.loadMore(...args)),
-    j: $data.showApplyModal
-  }, $data.showApplyModal ? {
-    k: common_vendor.t((_a = $data.selectedTeam) == null ? void 0 : _a.name),
-    l: common_vendor.o((...args) => $options.hideApplyModal && $options.hideApplyModal(...args)),
-    m: $data.applyReason,
-    n: common_vendor.o(($event) => $data.applyReason = $event.detail.value),
-    o: common_vendor.o((...args) => $options.hideApplyModal && $options.hideApplyModal(...args)),
-    p: common_vendor.t($data.applying ? "提交中..." : "提交申请"),
-    q: common_vendor.o((...args) => $options.submitApplication && $options.submitApplication(...args)),
-    r: $data.applying,
-    s: common_vendor.o(() => {
-    }),
-    t: common_vendor.o((...args) => $options.hideApplyModal && $options.hideApplyModal(...args))
-  } : {});
+    i: common_vendor.o((...args) => $options.loadMore && $options.loadMore(...args))
+  });
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-ca2390ce"]]);
 wx.createPage(MiniProgramPage);
+//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/team-browse/team-browse.js.map

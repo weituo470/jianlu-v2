@@ -17,13 +17,34 @@ const request = (options) => {
 			header.Authorization = `Bearer ${token}`
 		}
 		
-		const fullUrl = BASE_URL + options.url
+		// 处理GET请求的查询参数
+		let fullUrl = BASE_URL + options.url
+		let requestData = options.data || {}
+
+		// 如果是GET请求且有参数，将参数添加到URL中
+		if ((options.method || 'GET') === 'GET' && Object.keys(requestData).length > 0) {
+			// 手动构建查询字符串，兼容小程序环境
+			const queryString = Object.keys(requestData)
+				.map(key => {
+					const value = requestData[key]
+					if (value === null || value === undefined) return ''
+					return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+				})
+				.filter(Boolean)
+				.join('&')
+
+			if (queryString) {
+				fullUrl += (fullUrl.includes('?') ? '&' : '?') + queryString
+			}
+			requestData = {} // GET请求的参数已经添加到URL中，清空data
+		}
+
 		// 开发环境才打印详细请求日志
 		if (process.env.NODE_ENV === 'development') {
 			console.log('发送请求:', {
 				url: fullUrl,
 				method: options.method || 'GET',
-				data: options.data,
+				data: requestData,
 				header
 			})
 		}
@@ -31,7 +52,7 @@ const request = (options) => {
 		uni.request({
 			url: fullUrl,
 			method: options.method || 'GET',
-			data: options.data || {},
+			data: requestData,
 			header,
 			success: (res) => {
 			// 开发环境才打印详细响应日志

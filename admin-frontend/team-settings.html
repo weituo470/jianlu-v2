@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>团队设置 - 建陆管理后台</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1>团队设置</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="history.back()">返回</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- 团队基本信息 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>团队信息</h2>
+                </div>
+                <div class="card-body">
+                    <div id="team-info" class="team-info">
+                        <!-- 团队信息将通过JavaScript加载 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 审核设置 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>加入审核设置</h2>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="require-approval" class="checkbox">
+                            <span class="checkbox-custom"></span>
+                            <span class="checkbox-text">
+                                <strong>需要审核新成员申请</strong>
+                                <small>开启后，用户申请加入团队需要管理员审核批准</small>
+                            </span>
+                        </label>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button class="btn btn-primary" id="save-settings">保存设置</button>
+                        <button class="btn btn-secondary" id="reset-settings">重置</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 申请管理 -->
+            <div class="card" id="applications-card" style="display: none;">
+                <div class="card-header">
+                    <h2>待审核申请</h2>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary btn-sm" id="refresh-applications">刷新</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="applications-list" class="applications-list">
+                        <!-- 申请列表将通过JavaScript加载 -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 申请详情模态框 -->
+    <div id="application-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>申请详情</h3>
+                <button class="modal-close" onclick="closeApplicationModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="application-details"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="approve-btn">批准</button>
+                <button class="btn btn-danger" id="reject-btn">拒绝</button>
+                <button class="btn btn-secondary" onclick="closeApplicationModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 拒绝理由模态框 -->
+    <div id="reject-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>拒绝申请</h3>
+                <button class="modal-close" onclick="closeRejectModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="reject-reason">拒绝理由：</label>
+                    <textarea id="reject-reason" class="form-control" rows="4" placeholder="请输入拒绝理由..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="confirm-reject">确认拒绝</button>
+                <button class="btn btn-secondary" onclick="closeRejectModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/team-settings.js"></script>
+</body>
+</html>

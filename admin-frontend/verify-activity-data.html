@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>验证活动数据接入</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">验证活动数据接入功能</h1>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>功能说明</h5>
+            </div>
+            <div class="card-body">
+                <p>此页面用于验证活动详情页面是否能正确接入后台真实数据。</p>
+                <p>请确保：</p>
+                <ol>
+                    <li>后端服务已启动</li>
+                    <li>您已登录系统</li>
+                    <li>您有访问活动详情的权限</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>测试步骤</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="activityId" class="form-label">请输入活动ID:</label>
+                    <input type="text" class="form-control" id="activityId" placeholder="例如: 123456">
+                </div>
+                
+                <button class="btn btn-primary me-2" onclick="testActivityData()">
+                    <i class="fas fa-plug me-2"></i>测试数据接入
+                </button>
+                
+                <button class="btn btn-success" onclick="viewActivityDetail()">
+                    <i class="fas fa-external-link-alt me-2"></i>查看活动详情页
+                </button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5>测试结果</h5>
+            </div>
+            <div class="card-body">
+                <div id="test-results">
+                    <div class="text-center">
+                        <i class="fas fa-info-circle text-primary" style="font-size: 3rem;"></i>
+                        <p class="mt-3">请输入活动ID并点击测试按钮开始验证</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入必要的JavaScript文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/config.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/api.js"></script>
+    
+    <script>
+        // 页面加载完成后检查认证状态
+        window.addEventListener('DOMContentLoaded', function() {
+            updateAuthStatus();
+        });
+        
+        // 更新认证状态显示
+        function updateAuthStatus() {
+            const results = document.getElementById('test-results');
+            
+            try {
+                // 检查必要的组件是否存在
+                if (typeof AppConfig === 'undefined') {
+                    results.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            AppConfig未定义，请检查配置文件是否正确加载
+                        </div>
+                    `;
+                    return;
+                }
+                
+                if (typeof API === 'undefined') {
+                    results.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            API未定义，请检查API文件是否正确加载
+                        </div>
+                    `;
+                    return;
+                }
+                
+                if (typeof Auth === 'undefined') {
+                    results.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Auth未定义，请检查认证文件是否正确加载
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // 检查认证状态
+                const isLoggedIn = Auth.isLoggedIn();
+                const token = Utils.storage.get(AppConfig.TOKEN_KEY);
+                const currentUser = Auth.getCurrentUser();
+                
+                results.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">认证信息</h5>
+                                    <p><strong>认证状态:</strong> ${isLoggedIn ? '<span class="text-success">已登录</span>' : '<span class="text-danger">未登录</span>'}</p>
+                                    <p><strong>Token存在:</strong> ${token ? '<span class="text-success">是</span>' : '<span class="text-danger">否</span>'}</p>
+                                    <p><strong>当前用户:</strong> ${currentUser ? currentUser.username : '无'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">系统配置</h5>
+                                    <p><strong>API Base URL:</strong> ${AppConfig.API_BASE_URL}</p>
+                                    <p><strong>应用名称:</strong> ${AppConfig.APP_NAME}</p>
+                                    <p><strong>应用版本:</strong> ${AppConfig.APP_VERSION}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                if (!isLoggedIn) {
+                    results.innerHTML += `
+                        <div class="alert alert-warning mt-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            请先登录系统再进行测试
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        检查认证状态时出错: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // 测试活动数据接入
+        async function testActivityData() {
+            const activityId = document.getElementById('activityId').value;
+            const results = document.getElementById('test-results');
+            
+            // 验证输入
+            if (!activityId) {
+                results.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        请输入活动ID
+                    </div>
+                `;
+                return;
+            }
+            
+            // 检查认证状态
+            if (!Auth.isLoggedIn()) {
+                results.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        请先登录系统
+                    </div>
+                `;
+                return;
+            }
+            
+            // 显示加载状态
+            results.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-3">正在测试活动数据接入...</p>
+                </div>
+            `;
+            
+            try {
+                // 测试获取活动详情
+                results.innerHTML = `
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        <p class="mt-3">正在获取活动详情...</p>
+                    </div>
+                `;
+                
+                const detailResponse = await API.activities.getDetail(activityId);
+                
+                if (detailResponse.success) {
+                    let resultHtml = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            成功获取活动详情
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5>活动基本信息</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>活动标题:</strong> ${detailResponse.data.title || '未设置'}</p>
+                                        <p><strong>活动类型:</strong> ${detailResponse.data.type || '未设置'}</p>
+                                        <p><strong>活动状态:</strong> ${detailResponse.data.status || '未设置'}</p>
+                                        <p><strong>创建者:</strong> ${detailResponse.data.creator?.username || '未知'}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>开始时间:</strong> ${detailResponse.data.start_time || '未设置'}</p>
+                                        <p><strong>结束时间:</strong> ${detailResponse.data.end_time || '未设置'}</p>
+                                        <p><strong>活动地点:</strong> ${detailResponse.data.location || '未设置'}</p>
+                                        <p><strong>人数限制:</strong> ${detailResponse.data.max_participants || '无限制'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // 测试获取参与者数据
+                    resultHtml += `
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">加载中...</span>
+                            </div>
+                            <p class="mt-3">正在获取参与者数据...</p>
+                        </div>
+                    `;
+                    
+                    results.innerHTML = resultHtml;
+                    
+                    const participantsResponse = await API.activities.getParticipants(activityId);
+                    
+                    if (participantsResponse.success) {
+                        const participants = participantsResponse.data.participants || [];
+                        const approvedCount = participants.filter(p => p.status === 'approved').length;
+                        const pendingCount = participants.filter(p => p.status === 'pending').length;
+                        const rejectedCount = participants.filter(p => p.status === 'rejected').length;
+                        
+                        resultHtml += `
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                成功获取参与者数据
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>参与者信息</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3 bg-primary text-white rounded">
+                                                <h3>${participants.length}</h3>
+                                                <p class="mb-0">总参与人数</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3 bg-success text-white rounded">
+                                                <h3>${approvedCount}</h3>
+                                                <p class="mb-0">已批准</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3 bg-warning text-dark rounded">
+                                                <h3>${pendingCount}</h3>
+                                                <p class="mb-0">待审核</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center p-3 bg-danger text-white rounded">
+                                                <h3>${rejectedCount}</h3>
+                                                <p class="mb-0">已拒绝</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-4">
+                                        <h6>参与者列表 (前5个):</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-striped">
+                                                <thead>
+                                                    <tr>
+                                                        <th>用户名</th>
+                                                        <th>邮箱</th>
+                                                        <th>状态</th>
+                                                        <th>申请时间</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                        `;
+                        
+                        // 显示前5个参与者
+                        participants.slice(0, 5).forEach(participant => {
+                            resultHtml += `
+                                <tr>
+                                    <td>${participant.user?.username || '未知'}</td>
+                                    <td>${participant.user?.email || '无'}</td>
+                                    <td>
+                                        <span class="badge ${
+                                            participant.status === 'approved' ? 'bg-success' : 
+                                            participant.status === 'pending' ? 'bg-warning' : 'bg-danger'
+                                        }">
+                                            ${participant.status === 'approved' ? '已批准' : 
+                                              participant.status === 'pending' ? '待审核' : '已拒绝'}
+                                        </span>
+                                    </td>
+                                    <td>${participant.registered_at || '未知'}</td>
+                                </tr>
+                            `;
+                        });
+                        
+                        resultHtml += `
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-4">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>数据接入测试完成!</strong> 活动详情页面已成功接入后台真实数据。
+                            </div>
+                        `;
+                    } else {
+                        resultHtml += `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                获取参与者数据失败: ${participantsResponse.message}
+                            </div>
+                        `;
+                    }
+                    
+                    results.innerHTML = resultHtml;
+                } else {
+                    results.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            获取活动详情失败: ${detailResponse.message}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        测试过程中出错: ${error.message}
+                    </div>
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h6>错误详情:</h6>
+                            <pre>${error.stack}</pre>
+                        </div>
+                    </div>
+                `;
+                console.error('测试错误:', error);
+            }
+        }
+        
+        // 查看活动详情页
+        function viewActivityDetail() {
+            const activityId = document.getElementById('activityId').value;
+            
+            if (!activityId) {
+                alert('请输入活动ID');
+                return;
+            }
+            
+            // 在新窗口中打开活动详情页面
+            window.open(`activity-detail-page.html?id=${activityId}`, '_blank');
+        }
+    </script>
+</body>
+</html>

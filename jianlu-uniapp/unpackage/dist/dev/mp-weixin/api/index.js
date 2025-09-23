@@ -26,17 +26,23 @@ const groupApi = {
   // 离开群组
   leave: (id) => utils_request.post(`/miniapp/teams/${id}/leave`),
   // 申请加入团队
-  apply: (id, data) => utils_request.post(`/miniapp/teams/${id}/apply`, data),
+  apply: (id, data) => utils_request.post(`/teams/${id}/apply`, data),
   // 获取我的申请记录
-  getMyApplications: (params) => utils_request.get("/miniapp/teams/my-applications", { params }),
+  getMyApplications: (params) => utils_request.get("/miniapp/my-team-applications", params),
+  // 团队设置
+  updateTeamSettings: (teamId, data) => utils_request.put(`/miniapp/teams/${teamId}/settings`, data),
   // 获取团队申请列表（团队负责人）
-  getTeamApplications: (id, params) => utils_request.get(`/miniapp/teams/${id}/applications`, { params }),
-  // 处理申请（批准/拒绝）
-  processApplication: (applicationId, data) => utils_request.put(`/miniapp/teams/applications/${applicationId}`, data),
+  getTeamApplications: (teamId) => utils_request.get(`/miniapp/teams/${teamId}/applications`),
+  // 批准申请
+  approveApplication: (teamId, applicationId, data) => utils_request.post(`/miniapp/teams/${teamId}/applications/${applicationId}/approve`, data),
+  // 拒绝申请
+  rejectApplication: (teamId, applicationId, data) => utils_request.post(`/miniapp/teams/${teamId}/applications/${applicationId}/reject`, data),
+  // 取消申请
+  cancelApplication: (memberId) => utils_request.del(`/teams/applications/${memberId}`),
   // 获取申请统计
   getApplicationStats: (id) => utils_request.get(`/miniapp/teams/${id}/application-stats`),
   // 获取团队成员列表
-  getTeamMembers: (id, params) => utils_request.get(`/miniapp/teams/${id}/members`, { params }),
+  getTeamMembers: (id, params) => utils_request.get(`/miniapp/teams/${id}/members`, params),
   // 获取团队详情
   getTeamDetail: (id) => utils_request.get(`/miniapp/teams/${id}`),
   // 获取团队类型列表
@@ -82,3 +88,4 @@ exports.authApi = authApi;
 exports.bannerApi = bannerApi;
 exports.groupApi = groupApi;
 exports.userApi = userApi;
+//# sourceMappingURL=../../.sourcemap/mp-weixin/api/index.js.map

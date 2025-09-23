@@ -42,6 +42,12 @@ window.Router = {
             requireAuth: true,
             permissions: ['team:read']
         },
+        '/team-settings': {
+            title: '团队设置',
+            component: 'TeamSettingsPage',
+            requireAuth: true,
+            permissions: ['team:update']
+        },
         '/teams/types': {
             title: '团队类型',
             component: 'TeamTypesPageNew',
@@ -264,6 +270,9 @@ window.Router = {
                     break;
                 case 'TeamsListPage':
                     await this.renderTeamsList();
+                    break;
+                case 'TeamSettingsPage':
+                    await this.renderTeamSettings();
                     break;
                 case 'TeamTypesPage':
                     await this.renderTeamTypes();
@@ -1406,6 +1415,9 @@ window.Router = {
                                             <i class="fas fa-eye"></i>
                                         </button>
                                         ${Auth.hasPermission(['team:update']) ? `
+                                            <button class="btn btn-sm btn-info" onclick="Router.navigate('/team-settings?id=${team.id}')" title="团队设置">
+                                                <i class="fas fa-cog"></i>
+                                            </button>
                                             <button class="btn btn-sm btn-warning" onclick="TeamManager.editTeam('${team.id}')" title="编辑">
                                                 <i class="fas fa-edit"></i>
                                             </button>
@@ -2849,6 +2861,74 @@ window.Router = {
                     </div>
                     <div class="empty-state-title">页面加载失败</div>
                     <div class="empty-state-description">${error.message}</div>
+                </div>
+            `;
+        }
+    },
+
+    // 渲染团队设置页面
+    async renderTeamSettings() {
+        const pageContent = document.getElementById('page-content');
+
+        // 获取团队ID
+        const params = Utils.url.getParams();
+        const teamId = params.id;
+
+        if (!teamId) {
+            pageContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="empty-state-title">参数错误</div>
+                    <div class="empty-state-description">未指定团队ID</div>
+                    <button class="btn btn-primary" onclick="Router.navigate('/teams/list')">
+                        <i class="fas fa-arrow-left"></i>
+                        返回团队列表
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        // 加载团队设置页面
+        try {
+            const response = await fetch('/team-settings.html');
+            const html = await response.text();
+
+            // 创建临时容器解析HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+
+            // 提取主要内容
+            const mainContent = tempDiv.querySelector('.container');
+            if (mainContent) {
+                pageContent.innerHTML = mainContent.innerHTML;
+
+                // 动态加载团队设置的JavaScript
+                const script = document.createElement('script');
+                script.src = '/js/team-settings.js';
+                script.onload = () => {
+                    console.log('团队设置页面脚本加载完成');
+                };
+                document.head.appendChild(script);
+            } else {
+                throw new Error('无法解析团队设置页面内容');
+            }
+
+        } catch (error) {
+            console.error('加载团队设置页面失败:', error);
+            pageContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="empty-state-title">页面加载失败</div>
+                    <div class="empty-state-description">${error.message}</div>
+                    <button class="btn btn-primary" onclick="Router.navigate('/teams/list')">
+                        <i class="fas fa-arrow-left"></i>
+                        返回团队列表
+                    </button>
                 </div>
             `;
         }

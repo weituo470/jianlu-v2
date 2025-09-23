@@ -81,7 +81,7 @@ const _sfc_main = {
         }
       } catch (error) {
         utils_index.showError("加载申请列表失败");
-        console.error("加载申请列表失败:", error);
+        common_vendor.index.__f__("error", "at pages/team-applications/team-applications.vue:273", "加载申请列表失败:", error);
       } finally {
         this.loading = false;
       }
@@ -94,7 +94,7 @@ const _sfc_main = {
           this.stats = response.data;
         }
       } catch (error) {
-        console.error("加载统计信息失败:", error);
+        common_vendor.index.__f__("error", "at pages/team-applications/team-applications.vue:287", "加载统计信息失败:", error);
       }
     },
     // 加载更多
@@ -138,7 +138,7 @@ const _sfc_main = {
         this.onRefresh();
       } catch (error) {
         utils_index.showError("处理申请失败");
-        console.error("处理申请失败:", error);
+        common_vendor.index.__f__("error", "at pages/team-applications/team-applications.vue:337", "处理申请失败:", error);
       } finally {
         this.processing = false;
       }
@@ -236,3 +236,4 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-e60624db"]]);
 wx.createPage(MiniProgramPage);
+//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/team-applications/team-applications.js.map

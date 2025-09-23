@@ -381,14 +381,3 @@
 		justify-content: center;
 		border: none;
 }
-.role-tip.data-v-dc51e287 {
-		flex: 1;
-		text-align: center;
-		color: #999;
-		font-size: 24rpx;
-		line-height: 80rpx;
-}
-.btn-danger.data-v-dc51e287 {
-		background: #ff3b30;
-		color: #ffffff;
-}

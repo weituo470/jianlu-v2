@@ -84,6 +84,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/teams', require('./routes/teamApplications')); // 团队申请API路由
 app.use('/api/organizations', require('./routes/organizations')); // 机构管理API路由
 app.use('/api/organizations', require('./routes/organizationMembers')); // 机构成员管理API路由
 app.use('/api/organizations', require('./routes/organizationInvitations')); // 机构邀请管理API路由

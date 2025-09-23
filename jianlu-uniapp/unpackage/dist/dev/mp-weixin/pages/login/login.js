@@ -50,16 +50,16 @@ const _sfc_main = {
         return;
       }
       loading.value = true;
-      console.log("开始登录，用户名:", loginForm.username);
+      common_vendor.index.__f__("log", "at pages/login/login.vue:203", "开始登录，用户名:", loginForm.username);
       try {
-        console.log("发送登录请求到:", "http://localhost:3458/api/auth/login");
-        console.log("登录数据:", loginForm);
+        common_vendor.index.__f__("log", "at pages/login/login.vue:206", "发送登录请求到:", "http://localhost:3458/api/auth/login");
+        common_vendor.index.__f__("log", "at pages/login/login.vue:207", "登录数据:", loginForm);
         const response = await api_index.authApi.login(loginForm);
-        console.log("登录响应:", response);
+        common_vendor.index.__f__("log", "at pages/login/login.vue:210", "登录响应:", response);
         if (response.success) {
           common_vendor.index.setStorageSync("token", response.data.token);
           common_vendor.index.setStorageSync("userInfo", response.data.user);
-          console.log("登录成功，token已保存");
+          common_vendor.index.__f__("log", "at pages/login/login.vue:217", "登录成功，token已保存");
           utils_index.showSuccess("登录成功");
           setTimeout(() => {
             common_vendor.index.switchTab({
@@ -67,11 +67,11 @@ const _sfc_main = {
             });
           }, 1e3);
         } else {
-          console.error("登录失败，响应:", response);
+          common_vendor.index.__f__("error", "at pages/login/login.vue:227", "登录失败，响应:", response);
           utils_index.showError(response.message || "登录失败");
         }
       } catch (error) {
-        console.error("登录异常:", error);
+        common_vendor.index.__f__("error", "at pages/login/login.vue:231", "登录异常:", error);
         utils_index.showError(`登录失败: ${error.message || "网络错误"}`);
       } finally {
         loading.value = false;
@@ -116,7 +116,7 @@ const _sfc_main = {
     const handleWechatLogin = async () => {
       loading.value = true;
       try {
-        console.log("开始微信登录");
+        common_vendor.index.__f__("log", "at pages/login/login.vue:287", "开始微信登录");
         const networkType = await common_vendor.index.getNetworkType();
         if (networkType.networkType === "none") {
           throw new Error("网络不可用，请检查网络连接");
@@ -131,13 +131,13 @@ const _sfc_main = {
           throw new Error("微信登录授权失败");
         }
         const { code } = loginResult;
-        console.log("获取微信登录code成功:", code);
+        common_vendor.index.__f__("log", "at pages/login/login.vue:307", "获取微信登录code成功:", code);
         const response = await api_index.authApi.wechatLogin({ code });
-        console.log("微信登录响应:", response);
+        common_vendor.index.__f__("log", "at pages/login/login.vue:311", "微信登录响应:", response);
         if (response.success) {
           common_vendor.index.setStorageSync("token", response.data.token);
           common_vendor.index.setStorageSync("userInfo", response.data.user);
-          console.log("微信登录成功，token已保存");
+          common_vendor.index.__f__("log", "at pages/login/login.vue:318", "微信登录成功，token已保存");
           utils_index.showSuccess("登录成功");
           setTimeout(() => {
             common_vendor.index.switchTab({
@@ -145,11 +145,11 @@ const _sfc_main = {
             });
           }, 1e3);
         } else {
-          console.error("微信登录失败，响应:", response);
+          common_vendor.index.__f__("error", "at pages/login/login.vue:328", "微信登录失败，响应:", response);
           utils_index.showError(response.message || "微信登录失败");
         }
       } catch (error) {
-        console.error("微信登录异常:", error);
+        common_vendor.index.__f__("error", "at pages/login/login.vue:332", "微信登录异常:", error);
         if (error.errMsg) {
           if (error.errMsg.includes("auth deny")) {
             utils_index.showError("请授权微信登录以继续使用");
@@ -222,3 +222,4 @@ const _sfc_main = {
 };
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["__scopeId", "data-v-e4e4508d"]]);
 wx.createPage(MiniProgramPage);
+//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/login/login.js.map

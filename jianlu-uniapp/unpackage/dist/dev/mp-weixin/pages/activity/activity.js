@@ -42,7 +42,7 @@ const _sfc_main = {
     },
     // 显示搜索
     showSearch() {
-      console.log("显示搜索");
+      common_vendor.index.__f__("log", "at pages/activity/activity.vue:134", "显示搜索");
     },
     // 切换筛选
     changeFilter(filter) {
@@ -96,7 +96,7 @@ const _sfc_main = {
           }
         }
       } catch (error) {
-        console.error("加载活动失败:", error);
+        common_vendor.index.__f__("error", "at pages/activity/activity.vue:203", "加载活动失败:", error);
         utils_index.showError("加载活动失败");
       } finally {
         if (isLoadMore) {
@@ -179,7 +179,7 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
   }, $data.loading && $data.page === 1 ? {} : $data.activities.length > 0 ? common_vendor.e({
     e: common_vendor.f($data.activities, (activity, k0, i0) => {
       return common_vendor.e({
-        a: common_vendor.t(activity.sequence_number || "0"),
+        a: common_vendor.t(activity.sequence_number),
         b: common_vendor.t($options.getTypeInfo(activity.activity_type).icon),
         c: common_vendor.t($options.getStatusInfo(activity).text),
         d: $options.getStatusInfo(activity).color,
@@ -214,3 +214,4 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-da48f91d"]]);
 wx.createPage(MiniProgramPage);
+//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/activity/activity.js.map

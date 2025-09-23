@@ -42,7 +42,7 @@ const _sfc_main = {
           this.loadUnreadCount()
         ]);
       } catch (error) {
-        console.error("加载数据失败:", error);
+        common_vendor.index.__f__("error", "at pages/home/home.vue:199", "加载数据失败:", error);
       } finally {
         this.loading = false;
       }
@@ -53,13 +53,13 @@ const _sfc_main = {
         const response = await api_index.bannerApi.getList();
         if (response.success) {
           this.bannerList = Array.isArray(response.data) ? response.data : [];
-          console.log("轮播图加载成功:", this.bannerList.length, "张");
+          common_vendor.index.__f__("log", "at pages/home/home.vue:212", "轮播图加载成功:", this.bannerList.length, "张");
         } else {
-          console.error("轮播图加载失败:", response.message);
+          common_vendor.index.__f__("error", "at pages/home/home.vue:214", "轮播图加载失败:", response.message);
           this.bannerList = [];
         }
       } catch (error) {
-        console.error("轮播图加载异常:", error);
+        common_vendor.index.__f__("error", "at pages/home/home.vue:218", "轮播图加载异常:", error);
         this.bannerList = [];
       }
     },
@@ -72,7 +72,7 @@ const _sfc_main = {
           this.recentActivities = Array.isArray(activities) ? activities.slice(0, 3) : [];
         }
       } catch (error) {
-        console.error("加载活动失败:", error);
+        common_vendor.index.__f__("error", "at pages/home/home.vue:233", "加载活动失败:", error);
       }
     },
     // 加载我的团队
@@ -84,7 +84,7 @@ const _sfc_main = {
           this.myTeams = Array.isArray(teams) ? teams.slice(0, 3) : [];
         }
       } catch (error) {
-        console.error("加载团队失败:", error);
+        common_vendor.index.__f__("error", "at pages/home/home.vue:247", "加载团队失败:", error);
       }
     },
     // 加载未读消息数量
@@ -121,7 +121,7 @@ const _sfc_main = {
     },
     // 图片加载错误处理
     onImageError(e) {
-      console.error("图片加载失败:", e);
+      common_vendor.index.__f__("error", "at pages/home/home.vue:294", "图片加载失败:", e);
       common_vendor.index.showToast({
         title: "图片加载失败",
         icon: "none",
@@ -130,7 +130,7 @@ const _sfc_main = {
     },
     // Banner 点击事件
     onBannerTap(banner) {
-      console.log("点击轮播图:", banner);
+      common_vendor.index.__f__("log", "at pages/home/home.vue:304", "点击轮播图:", banner);
       if (banner.link_url) {
         if (banner.link_url.startsWith("http://") || banner.link_url.startsWith("https://")) {
           common_vendor.index.setClipboardData({
@@ -292,3 +292,4 @@ function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
 }
 const MiniProgramPage = /* @__PURE__ */ common_vendor._export_sfc(_sfc_main, [["render", _sfc_render], ["__scopeId", "data-v-07e72d3c"]]);
 wx.createPage(MiniProgramPage);
+//# sourceMappingURL=../../../.sourcemap/mp-weixin/pages/home/home.js.map

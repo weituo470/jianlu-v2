@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简庐管理后台</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/responsive.css">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Swiper CSS for banner showcase -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+</head>
+
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>加载中...</p>
+        </div>
+    </div>
+
+    <!-- Login Page -->
+    <div id="login-page" class="login-page" style="display: none;">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="logo">
+                    <i class="fas fa-book"></i>
+                    <h1>简庐管理后台</h1>
+                </div>
+                <p class="subtitle">管理员登录</p>
+            </div>
+
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="username">
+                        <i class="fas fa-user"></i>
+                        用户名
+                    </label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        <i class="fas fa-lock"></i>
+                        密码
+                    </label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="remember-me" name="rememberMe">
+                        <span class="checkmark"></span>
+                        记住登录状态
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-login" id="login-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    登录
+                </button>
+            </form>
+
+            <div class="test-accounts">
+                <h4>测试账户</h4>
+                <div class="account-grid">
+                    <div class="account-card" data-username="admin" data-password="admin123">
+                        <i class="fas fa-crown"></i>
+                        <h5>超级管理员</h5>
+                        <p>admin / admin123</p>
+                    </div>
+                    <div class="account-card" data-username="sysadmin" data-password="sysadmin123">
+                        <i class="fas fa-cog"></i>
+                        <h5>系统管理员</h5>
+                        <p>sysadmin / sysadmin123</p>
+                    </div>
+                    <div class="account-card" data-username="opadmin" data-password="opadmin123">
+                        <i class="fas fa-tasks"></i>
+                        <h5>运营管理员</h5>
+                        <p>opadmin / opadmin123</p>
+                    </div>
+                    <div class="account-card" data-username="teamadmin" data-password="teamadmin123">
+                        <i class="fas fa-users"></i>
+                        <h5>团队管理员</h5>
+                        <p>teamadmin / teamadmin123</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="main-app" class="main-app" style="display: none;">
+        <!-- Top Navigation -->
+        <header class="top-nav">
+            <div class="nav-left">
+                <button class="sidebar-toggle" id="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="logo">
+                    <i class="fas fa-book"></i>
+                    <span>简庐管理后台</span>
+                </div>
+            </div>
+
+            <div class="nav-right">
+                <div class="user-menu">
+                    <div class="user-info" id="user-info">
+                        <img src="https://via.placeholder.com/32x32?text=U" alt="用户头像" class="user-avatar">
+                        <span class="user-name" id="user-name">用户名</span>
+                        <span class="user-role" id="user-role">角色</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="user-dropdown" id="user-dropdown">
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-user"></i>
+                            个人资料
+                        </a>
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-cog"></i>
+                            设置
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item" id="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            退出登录
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <nav class="sidebar-nav">
+                <ul class="nav-menu" id="nav-menu">
+                    <!-- Menu items will be dynamically generated -->
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Breadcrumb -->
+            <div class="breadcrumb" id="breadcrumb">
+                <span class="breadcrumb-item">首页</span>
+            </div>
+
+            <!-- Page Content -->
+            <div class="page-content" id="page-content">
+                <!-- Content will be dynamically loaded -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script>
+        // 全局错误处理
+        window.addEventListener('error', (e) => {
+            console.error('JavaScript错误:', e.error);
+            console.error('文件:', e.filename, '行:', e.lineno, '列:', e.colno);
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('未处理的Promise拒绝:', e.reason);
+        });
+
+        // 脚本加载计数器
+        let scriptsLoaded = 0;
+        const totalScripts = 9;
+        const loadedScripts = new Set();
+
+        function onScriptLoad(scriptName) {
+            if (loadedScripts.has(scriptName)) {
+                return; // 防止重复计数
+            }
+
+            loadedScripts.add(scriptName);
+            scriptsLoaded++;
+            console.log(`✓ 脚本加载完成: ${scriptName} (${scriptsLoaded}/${totalScripts})`);
+
+            if (scriptsLoaded === totalScripts) {
+                console.log('所有脚本加载完成，开始初始化应用...');
+                setTimeout(initializeApp, 100); // 稍微延迟确保所有脚本完全执行
+            }
+        }
+
+        function initializeApp() {
+            try {
+                // 检查必要的全局对象
+                const requiredObjects = ['AppConfig', 'Utils', 'API', 'Auth', 'Components', 'Router', 'App'];
+                const missing = requiredObjects.filter(obj => !window[obj]);
+
+                if (missing.length > 0) {
+                    console.error('缺少必要的对象:', missing);
+                    showErrorPage('缺少必要的JavaScript模块: ' + missing.join(', '));
+                    return;
+                }
+
+                // 初始化应用
+                if (window.App && typeof window.App.init === 'function') {
+                    window.App.init();
+                } else {
+                    console.error('App对象或init方法不存在');
+                    showErrorPage('应用初始化失败');
+                }
+            } catch (error) {
+                console.error('应用初始化错误:', error);
+                showErrorPage('应用初始化错误: ' + error.message);
+            }
+        }
+
+        function showErrorPage(message) {
+            document.body.innerHTML = `
+                <div style="padding: 40px; text-align: center; font-family: Arial, sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px;">
+                        <h2 style="color: #e74c3c; margin-bottom: 20px;">
+                            <i class="fas fa-exclamation-triangle" style="margin-right: 10px;"></i>
+                            加载失败
+                        </h2>
+                        <p style="color: #666; margin-bottom: 20px; line-height: 1.6;">${message}</p>
+                        <button onclick="location.reload()" style="padding: 12px 24px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            刷新页面
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+
+    <!-- JavaScript模块 -->
+    <!-- 加载外部依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    
+    <script>
+        // 动态加载脚本
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                const scriptName = src.split('/').pop();
+
+                script.onload = () => {
+                    console.log(`✓ 加载成功: ${src}`);
+                    onScriptLoad(scriptName);
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error(`✗ 加载失败: ${src}`);
+                    reject(new Error(`Failed to load script: ${src}`));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        // 页面加载完成后开始加载脚本
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('DOM加载完成，开始加载JavaScript模块...');
+
+            try {
+                // 按顺序加载脚本 - 使用绝对路径避免SPA路由刷新问题
+                await loadScript('/js/config.js');
+                await loadScript('/js/utils.js');
+                await loadScript('/js/api.js');
+                await loadScript('/js/auth.js');
+                await loadScript('/js/components.js');
+                await loadScript('/js/banners-manager.js');
+                await loadScript('/js/banner-showcase.js');
+                await loadScript('/js/router.js');
+                await loadScript('/js/app.js');
+            } catch (error) {
+                console.error('脚本加载失败:', error);
+                showErrorPage('JavaScript文件加载失败: ' + error.message);
+            }
+        });
+    </script>
+</body>
+
+</html>
