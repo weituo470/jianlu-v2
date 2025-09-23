@@ -58,6 +58,11 @@ class TeamDetailPage {
 
                 // 渲染页面
                 this.render();
+
+                // 如果开启了审核，加载待审核申请数量
+                if (this.team.require_approval) {
+                    this.loadPendingApplicationsCount();
+                }
             } else {
                 throw new Error(teamResponse.message || '获取团队详情失败');
             }
@@ -163,6 +168,32 @@ class TeamDetailPage {
                                     <div class="info-value">${new Date(this.team.updated_at).toLocaleString('zh-CN')}</div>
                                 </div>
                             </div>
+
+                            <!-- 团队审核设置 -->
+                            ${Auth.hasPermission(['team:update']) ? `
+                                <div class="mt-4 p-3" style="background: var(--gray-100); border-radius: 8px; border-left: 4px solid var(--primary-color);">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="info-label mb-1">
+                                                <i class="fas fa-shield-alt me-2"></i>加入审核设置
+                                            </div>
+                                            <div class="info-value" style="font-size: 13px; color: var(--gray-600);">
+                                                ${this.team.require_approval ? '开启后，用户需要申请并等待管理员审核才能加入团队' : '关闭后，用户可以直接加入团队，无需审核'}
+                                            </div>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="requireApprovalSwitch"
+                                                   ${this.team.require_approval ? 'checked' : ''}
+                                                   onchange="teamDetailPage.toggleApprovalSetting(this.checked)"
+                                                   style="transform: scale(1.2);">
+                                            <label class="form-check-label fw-bold" for="requireApprovalSwitch" style="color: ${this.team.require_approval ? 'var(--success-color)' : 'var(--gray-500)'};">
+                                                ${this.team.require_approval ? '需要审核' : '直接加入'}
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+
                             ${this.team.description ? `
                                 <div class="mt-3">
                                     <div class="info-label">团队描述</div>
@@ -224,6 +255,14 @@ class TeamDetailPage {
                                     <button class="btn-quick btn-manage-members" onclick="teamDetailPage.manageMembers()">
                                         <i class="fas fa-users-cog"></i>
                                         管理团队成员
+                                    </button>
+                                ` : ''}
+
+                                ${this.team.require_approval && Auth.hasPermission(['team:update']) ? `
+                                    <button class="btn-quick" style="background: var(--success-color); color: white;" onclick="teamDetailPage.viewApplications()">
+                                        <i class="fas fa-clipboard-list"></i>
+                                        查看加入申请
+                                        <span id="pending-applications-badge" class="badge bg-warning ms-2" style="display: none;">0</span>
                                     </button>
                                 ` : ''}
 
@@ -434,6 +473,85 @@ class TeamDetailPage {
             }
         } catch (error) {
             Utils.showError('激活团队失败: ' + error.message);
+        }
+    }
+
+    // 切换审核设置
+    async toggleApprovalSetting(requireApproval) {
+        const action = requireApproval ? '开启' : '关闭';
+        const message = requireApproval ?
+            '开启后，用户需要申请并等待管理员审核才能加入团队。确定要开启审核模式吗？' :
+            '关闭后，用户可以直接加入团队，无需审核。确定要关闭审核模式吗？';
+
+        if (!confirm(message)) {
+            // 用户取消，恢复开关状态
+            const switchElement = document.getElementById('requireApprovalSwitch');
+            if (switchElement) {
+                switchElement.checked = !requireApproval;
+            }
+            return;
+        }
+
+        try {
+            // 显示加载状态
+            const switchElement = document.getElementById('requireApprovalSwitch');
+            if (switchElement) {
+                switchElement.disabled = true;
+            }
+
+            const response = await API.put(`/miniapp/teams/${this.teamId}/settings`, {
+                require_approval: requireApproval
+            });
+
+            if (response.success) {
+                Utils.showSuccess(`审核设置已${action}`);
+                this.team.require_approval = requireApproval;
+
+                // 重新渲染页面以更新UI
+                this.render();
+
+                // 如果开启了审核，加载待审核申请数量
+                if (requireApproval) {
+                    this.loadPendingApplicationsCount();
+                }
+            } else {
+                throw new Error(response.message || '操作失败');
+            }
+        } catch (error) {
+            console.error('切换审核设置失败:', error);
+            Utils.showError(`${action}审核设置失败: ` + error.message);
+
+            // 恢复开关状态
+            const switchElement = document.getElementById('requireApprovalSwitch');
+            if (switchElement) {
+                switchElement.checked = !requireApproval;
+                switchElement.disabled = false;
+            }
+        }
+    }
+
+    // 查看团队申请
+    viewApplications() {
+        // 跳转到团队设置页面的申请管理部分
+        window.location.href = `/team-settings.html?id=${this.teamId}#applications`;
+    }
+
+    // 加载待审核申请数量
+    async loadPendingApplicationsCount() {
+        if (!this.team.require_approval) return;
+
+        try {
+            const response = await API.get(`/miniapp/teams/${this.teamId}/applications`);
+            if (response.success && response.data) {
+                const pendingCount = response.data.filter(app => app.status === 'pending').length;
+                const badge = document.getElementById('pending-applications-badge');
+                if (badge && pendingCount > 0) {
+                    badge.textContent = pendingCount;
+                    badge.style.display = 'inline-block';
+                }
+            }
+        } catch (error) {
+            console.error('加载待审核申请数量失败:', error);
         }
     }
 
