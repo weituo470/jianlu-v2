@@ -191,7 +191,6 @@ TeamMember.applyToTeam = async function(teamId, userId, data = {}) {
   // 根据团队设置决定是直接加入还是需要审核
   if (team.require_approval) {
     // 需要审核，创建申请记录
-    const { TeamApplication } = require('./TeamApplication');
     const application = await TeamApplication.createApplication(teamId, userId, data.reason || '');
     return {
       type: 'application',
