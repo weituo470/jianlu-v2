@@ -322,7 +322,8 @@ router.get('/teams', authenticateToken, async (req, res) => {
     const { page = 1, limit = 10, search = '', team_type = '' } = req.query;
 
     // 从数据库查询团队数据
-    const { Team, User } = require('../models');
+    const { Team, User, TeamMember, TeamApplication } = require('../models');
+    const userId = req.user.id;
     
     // 构建查询条件
     const where = {
@@ -358,21 +359,75 @@ router.get('/teams', authenticateToken, async (req, res) => {
       distinct: true
     });
 
+    // 获取用户的成员状态和申请状态
+    const teamIds = teamRows.map(team => team.id);
+
+    // 查询用户在这些团队中的成员状态
+    const memberStatuses = await TeamMember.findAll({
+      where: {
+        team_id: teamIds,
+        user_id: userId
+      },
+      attributes: ['team_id', 'role']
+    });
+
+    // 查询用户对这些团队的申请状态
+    const applicationStatuses = await TeamApplication.findAll({
+      where: {
+        team_id: teamIds,
+        user_id: userId,
+        status: 'pending' // 只查询待处理的申请
+      },
+      attributes: ['team_id', 'status']
+    });
+
+    // 创建状态映射
+    const memberStatusMap = {};
+    memberStatuses.forEach(member => {
+      memberStatusMap[member.team_id] = member.role;
+    });
+
+    const applicationStatusMap = {};
+    applicationStatuses.forEach(application => {
+      applicationStatusMap[application.team_id] = application.status;
+    });
+
     // 格式化返回数据
-    const teams = teamRows.map(team => ({
-      id: team.id,
-      name: team.name,
-      description: team.description,
-      avatar_url: team.avatar_url,
-      team_type: team.team_type,
-      status: team.status,
-      member_count: team.member_count || 0,
-      creator: team.creator ? {
-        id: team.creator.id,
-        username: team.creator.username
-      } : null,
-      created_at: team.created_at
-    }));
+    const teams = teamRows.map(team => {
+      const memberRole = memberStatusMap[team.id];
+      const applicationStatus = applicationStatusMap[team.id];
+
+      // 确定用户对该团队的状态
+      let userStatus = 'none'; // 默认：未加入
+      let canApply = true;
+
+      if (memberRole) {
+        userStatus = 'member';
+        canApply = false;
+      } else if (applicationStatus === 'pending') {
+        userStatus = 'pending';
+        canApply = false;
+      }
+
+      return {
+        id: team.id,
+        name: team.name,
+        description: team.description,
+        avatar_url: team.avatar_url,
+        team_type: team.team_type,
+        status: team.status,
+        member_count: team.member_count || 0,
+        creator: team.creator ? {
+          id: team.creator.id,
+          username: team.creator.username
+        } : null,
+        created_at: team.created_at,
+        // 新增字段
+        application_status: userStatus,
+        can_apply: canApply,
+        user_role: memberRole || null
+      };
+    });
 
     const pagination = {
       page: parseInt(page),

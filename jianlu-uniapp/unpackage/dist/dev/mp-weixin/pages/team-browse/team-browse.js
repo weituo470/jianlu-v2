@@ -35,7 +35,7 @@ const _sfc_main = {
           pageSize: this.pageSize,
           search: this.searchKeyword || void 0
         };
-        const response = await utils_request.get("/wechat/teams", { params });
+        const response = await utils_request.get("/miniapp/teams", { params });
         if (response.success) {
           const newTeams = refresh ? response.data : [...this.teams, ...response.data];
           this.teams = newTeams;

@@ -139,7 +139,7 @@
 						pageSize: this.pageSize,
 						search: this.searchKeyword || undefined
 					}
-					const response = await get('/wechat/teams', { params })
+					const response = await get('/miniapp/teams', { params })
 
 					if (response.success) {
 						const newTeams = refresh ? response.data : [...this.teams, ...response.data]
