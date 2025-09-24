@@ -36,6 +36,12 @@
 								<text class="role-icon" v-if="getUserRole(group) === 'admin'">👑</text>
 								{{ getUserRole(group) === 'admin' ? '负责人' : getUserRole(group) === 'member' ? '成员' : '未加入' }}
 							</text>
+							<text class="joined-badge" v-if="getUserRole(group) === 'admin' || getUserRole(group) === 'member'">
+								已加入
+							</text>
+							<text class="applied-badge" v-if="isGroupApplied(group)">
+								已申请
+							</text>
 						</view>
 					</view>
 					<view class="group-actions" v-if="getUserRole(group) === 'admin'">
@@ -752,6 +758,24 @@
 	.role-icon {
 		margin-right: 4rpx;
 		font-size: 18rpx;
+	}
+
+	.joined-badge {
+		font-size: 20rpx;
+		padding: 4rpx 12rpx;
+		border-radius: 12rpx;
+		background: #34c759;
+		color: #ffffff;
+		font-weight: bold;
+	}
+
+	.applied-badge {
+		font-size: 20rpx;
+		padding: 4rpx 12rpx;
+		border-radius: 12rpx;
+		background: #ff9500;
+		color: #ffffff;
+		font-weight: bold;
 	}
 	
 	.group-actions {

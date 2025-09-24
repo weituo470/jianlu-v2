@@ -1096,10 +1096,46 @@ router.get('/my-team-applications', authenticateToken, async (req, res) => {
     const { status, page = 1, limit = 20 } = req.query;
     const userId = req.user.id;
 
-    // 由于team_applications表不存在，暂时返回空的申请列表
-    // 这是一个临时解决方案，直到申请系统完全实现
-    const applications = [];
-    const count = 0;
+    // 查询用户的申请记录
+    const { TeamApplication, Team } = require('../models');
+
+    const whereClause = {
+      user_id: userId
+    };
+
+    if (status && status !== 'all') {
+      whereClause.status = status;
+    }
+
+    const applications = await TeamApplication.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: Team,
+          as: 'team',
+          attributes: ['id', 'name', 'description', 'avatar_url', 'require_approval', 'member_count']
+        }
+      ],
+      order: [['application_time', 'DESC']],
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit)
+    });
+
+    const count = await TeamApplication.count({
+      where: whereClause
+    });
+
+    // 格式化返回数据
+    const formattedApplications = applications.map(app => ({
+      id: app.id,
+      teamId: app.team_id,
+      team: app.team,
+      status: app.status,
+      reason: app.reason,
+      applicationTime: app.application_time,
+      createdAt: app.application_time,
+      updatedAt: app.application_time
+    }));
 
     const pagination = {
       page: parseInt(page),
@@ -1109,7 +1145,7 @@ router.get('/my-team-applications', authenticateToken, async (req, res) => {
     };
 
     logger.info(`小程序用户 ${req.user.username} 获取我的申请记录，共 ${count} 条记录`);
-    return success(res, { applications, pagination }, '获取申请记录成功');
+    return success(res, { applications: formattedApplications, pagination }, '获取申请记录成功');
 
   } catch (err) {
     console.log('=== MINIAPP MY-APPLICATIONS ERROR ===');

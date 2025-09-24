@@ -162,7 +162,8 @@ TeamMember.addHook('afterDestroy', async (teamMember, options) => {
 
 // 类方法：申请加入团队
 TeamMember.applyToTeam = async function(teamId, userId, data = {}) {
-  const { Team, User, TeamApplication } = sequelize.models;
+  const { Team, User } = sequelize.models;
+  const TeamApplication = require('./TeamApplication');
 
   // 检查用户是否存在
   const user = await User.findByPk(userId);

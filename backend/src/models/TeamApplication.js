@@ -128,6 +128,7 @@ TeamApplication.associate = (models) => {
 // 类方法：创建申请
 TeamApplication.createApplication = async function(teamId, userId, reason = '') {
   const { Team, User } = sequelize.models;
+  const TeamMember = require('./TeamMember');
 
   // 检查用户是否存在
   const user = await User.findByPk(userId);
@@ -142,7 +143,7 @@ TeamApplication.createApplication = async function(teamId, userId, reason = '') 
   }
 
   // 检查是否已经是成员
-  const existingMember = await sequelize.models.TeamMember.findOne({
+  const existingMember = await TeamMember.findOne({
     where: {
       team_id: teamId,
       user_id: userId
@@ -180,7 +181,8 @@ TeamApplication.createApplication = async function(teamId, userId, reason = '') 
 
 // 类方法：批准申请
 TeamApplication.approve = async function(applicationId, approverId, note = '') {
-  const { TeamMember, TeamApplicationHistory } = sequelize.models;
+  const { TeamApplicationHistory } = sequelize.models;
+  const TeamMember = require('./TeamMember');
 
   const application = await TeamApplication.findByPk(applicationId, {
     include: [
