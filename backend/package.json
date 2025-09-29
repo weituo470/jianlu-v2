@@ -8,7 +8,7 @@
                     "dev":  "nodemon src/app.js",
                     "test":  "jest",
                     "test:watch":  "jest --watch",
-                    "dev:inspector":  "node scripts/dev-inspector.js"
+                    "dev:inspector":  "node scripts/dev-inspector-win.js"
                 },
     "keywords":  [
                      "jianlu",
