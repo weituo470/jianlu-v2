@@ -1,4 +1,4 @@
-// 源码定位检查器脚本 - 仅在开发模式下使用
+﻿// 婧愮爜瀹氫綅妫€鏌ュ櫒鑴氭湰 - 浠呭湪寮€鍙戞ā寮忎笅浣跨敤
 (function() {
     'use strict';
 
@@ -6,7 +6,7 @@
     let overlay = null;
     let currentHighlight = null;
 
-    // 创建高亮覆盖层
+    // 鍒涘缓楂樹寒瑕嗙洊灞?
     function createOverlay() {
         overlay = document.createElement('div');
         overlay.style.position = 'fixed';
@@ -19,7 +19,7 @@
         document.body.appendChild(overlay);
     }
 
-    // 高亮显示元素
+    // 楂樹寒鏄剧ず鍏冪礌
     function highlightElement(element) {
         if (!element || !overlay) return;
 
@@ -37,13 +37,13 @@
 
         currentHighlight = element;
 
-        // 显示元素信息
+        // 鏄剧ず鍏冪礌淇℃伅
         showElementInfo(element, rect, scrollX, scrollY);
     }
 
-    // 显示元素信息
+    // 鏄剧ず鍏冪礌淇℃伅
     function showElementInfo(element, rect, scrollX, scrollY) {
-        // 移除之前的信息框
+        // 绉婚櫎涔嬪墠鐨勪俊鎭
         const existingInfo = document.getElementById('dev-inspector-info');
         if (existingInfo) {
             existingInfo.remove();
@@ -70,19 +70,19 @@
         let infoContent = `<div style="margin-bottom: 4px;"><strong>${tagName}</strong>${elementId}${elementClasses}</div>`;
 
         if (devPath) {
-            infoContent += `<div style="color: #4fc3f7; margin-bottom: 4px; word-break: break-all;">📁 ${devPath}</div>`;
-            infoContent += `<div style="color: #81c784; font-size: 11px;">💡 点击打开文件</div>`;
+            infoContent += `<div style="color: #4fc3f7; margin-bottom: 4px; word-break: break-all;">馃搧 ${devPath}</div>`;
+            infoContent += `<div style="color: #81c784; font-size: 11px;">馃挕 鐐瑰嚮鎵撳紑鏂囦欢</div>`;
         } else {
-            infoContent += `<div style="color: #ff9800; font-size: 11px;">⚠️ 无源码路径信息</div>`;
+            infoContent += `<div style="color: #ff9800; font-size: 11px;">鈿狅笍 鏃犳簮鐮佽矾寰勪俊鎭?/div>`;
         }
 
         info.innerHTML = infoContent;
 
-        // 计算信息框位置
+        // 璁＄畻淇℃伅妗嗕綅缃?
         let infoTop = rect.top + scrollY + rect.height + 5;
         let infoLeft = rect.left + scrollX;
 
-        // 确保信息框不超出视窗
+        // 纭繚淇℃伅妗嗕笉瓒呭嚭瑙嗙獥
         const infoRect = info.getBoundingClientRect();
         if (infoLeft + infoRect.width > window.innerWidth) {
             infoLeft = window.innerWidth - infoRect.width - 10;
@@ -97,7 +97,7 @@
         document.body.appendChild(info);
     }
 
-    // 隐藏高亮和信息
+    // 闅愯棌楂樹寒鍜屼俊鎭?
     function hideHighlight() {
         if (overlay) {
             overlay.style.display = 'none';
@@ -109,7 +109,7 @@
         currentHighlight = null;
     }
 
-    // 切换检查器模式
+    // 鍒囨崲妫€鏌ュ櫒妯″紡
     function toggleInspector() {
         inspectorEnabled = !inspectorEnabled;
 
@@ -119,17 +119,17 @@
 
         if (inspectorEnabled) {
             document.body.style.cursor = 'crosshair';
-            console.log('[Dev Inspector] 模式已开启 - 按 Escape 或快捷键关闭');
-            showNotification('源码检查器已开启', 'info');
+            console.log('[Dev Inspector] 妯″紡宸插紑鍚?- 鎸?Escape 鎴栧揩鎹烽敭鍏抽棴');
+            showNotification('婧愮爜妫€鏌ュ櫒宸插紑鍚?, 'info');
         } else {
             document.body.style.cursor = '';
             hideHighlight();
-            console.log('[Dev Inspector] 模式已关闭');
-            showNotification('源码检查器已关闭', 'info');
+            console.log('[Dev Inspector] 妯″紡宸插叧闂?);
+            showNotification('婧愮爜妫€鏌ュ櫒宸插叧闂?, 'info');
         }
     }
 
-    // 显示通知
+    // 鏄剧ず閫氱煡
     function showNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.style.position = 'fixed';
@@ -149,13 +149,13 @@
         notification.textContent = message;
         document.body.appendChild(notification);
 
-        // 动画显示
+        // 鍔ㄧ敾鏄剧ず
         setTimeout(() => {
             notification.style.opacity = '1';
             notification.style.transform = 'translateY(0)';
         }, 10);
 
-        // 自动隐藏
+        // 鑷姩闅愯棌
         setTimeout(() => {
             notification.style.opacity = '0';
             notification.style.transform = 'translateY(-20px)';
@@ -167,57 +167,57 @@
         }, 3000);
     }
 
-    // 在VS Code中打开文件
+    // 鍦╒S Code涓墦寮€鏂囦欢
     function openInVSCode(filePath) {
         if (!filePath) {
-            showNotification('文件路径为空', 'error');
+            showNotification('鏂囦欢璺緞涓虹┖', 'error');
             return;
         }
 
         fetch(`/__open-in-editor?file=${encodeURIComponent(filePath)}`)
             .then(response => {
                 if (response.ok) {
-                    showNotification(`正在VS Code中打开: ${filePath}`, 'success');
-                    console.log(`[Dev Inspector]: 正在打开文件: ${filePath}`);
+                    showNotification(`姝ｅ湪VS Code涓墦寮€: ${filePath}`, 'success');
+                    console.log(`[Dev Inspector]: 姝ｅ湪鎵撳紑鏂囦欢: ${filePath}`);
                 } else {
-                    showNotification('打开文件失败', 'error');
-                    console.error('[Dev Inspector]: 打开文件失败:', response.statusText);
+                    showNotification('鎵撳紑鏂囦欢澶辫触', 'error');
+                    console.error('[Dev Inspector]: 鎵撳紑鏂囦欢澶辫触:', response.statusText);
                 }
             })
             .catch(error => {
-                showNotification('请求失败', 'error');
-                console.error('[Dev Inspector]: 请求错误:', error);
+                showNotification('璇锋眰澶辫触', 'error');
+                console.error('[Dev Inspector]: 璇锋眰閿欒:', error);
             });
     }
 
-    // 键盘事件监听
+    // 閿洏浜嬩欢鐩戝惉
     document.addEventListener('keydown', (e) => {
-        // Alt+Shift+C 切换检查器模式（主要推荐 - 完全不冲突）
+        // Alt+Shift+C 鍒囨崲妫€鏌ュ櫒妯″紡锛堜富瑕佹帹鑽?- 瀹屽叏涓嶅啿绐侊級
         if (e.altKey && e.shiftKey && e.key === 'C') {
             e.preventDefault();
             toggleInspector();
         }
 
-        // Alt+Shift+X 切换检查器模式（备选方案）
+        // Alt+Shift+X 鍒囨崲妫€鏌ュ櫒妯″紡锛堝閫夋柟妗堬級
         if (e.altKey && e.shiftKey && e.key === 'X') {
             e.preventDefault();
             toggleInspector();
         }
 
-        // Ctrl+Shift+K 切换检查器模式（备选方案）
+        // Ctrl+Shift+K 鍒囨崲妫€鏌ュ櫒妯″紡锛堝閫夋柟妗堬級
         if (e.ctrlKey && e.shiftKey && e.key === 'K') {
             e.preventDefault();
             toggleInspector();
         }
 
-        // Escape 键关闭检查器模式
+        // Escape 閿叧闂鏌ュ櫒妯″紡
         if (e.key === 'Escape' && inspectorEnabled) {
             e.preventDefault();
             toggleInspector();
         }
     });
 
-    // 鼠标移动事件监听
+    // 榧犳爣绉诲姩浜嬩欢鐩戝惉
     document.addEventListener('mouseover', (e) => {
         if (!inspectorEnabled) return;
 
@@ -229,7 +229,7 @@
         }
     });
 
-    // 点击事件监听
+    // 鐐瑰嚮浜嬩欢鐩戝惉
     document.addEventListener('click', (e) => {
         if (!inspectorEnabled) return;
 
@@ -245,7 +245,7 @@
         }
     }, true);
 
-    // 防止检查器模式下的默认点击行为
+    // 闃叉妫€鏌ュ櫒妯″紡涓嬬殑榛樿鐐瑰嚮琛屼负
     document.addEventListener('click', (e) => {
         if (inspectorEnabled) {
             const target = e.target.closest('[data-dev-path]');
@@ -256,20 +256,20 @@
         }
     }, true);
 
-    // 页面可见性变化时处理
+    // 椤甸潰鍙鎬у彉鍖栨椂澶勭悊
     document.addEventListener('visibilitychange', () => {
         if (document.hidden && inspectorEnabled) {
             hideHighlight();
         }
     });
 
-    // 窗口大小改变时重新计算高亮位置
+    // 绐楀彛澶у皬鏀瑰彉鏃堕噸鏂拌绠楅珮浜綅缃?
     window.addEventListener('resize', () => {
         if (inspectorEnabled && currentHighlight) {
             highlightElement(currentHighlight);
         }
     });
 
-    console.log('[Dev Inspector]: 源码定位检查器已加载');
-    console.log('[Dev Inspector]: 快捷键: Alt+Shift+C 或 Alt+Shift+X 或 Ctrl+Shift+K 激活/关闭检查器模式');
+    console.log('[Dev Inspector]: 婧愮爜瀹氫綅妫€鏌ュ櫒宸插姞杞?);
+    console.log('[Dev Inspector]: 蹇嵎閿? Alt+Shift+C 鎴?Alt+Shift+X 鎴?Ctrl+Shift+K 婵€娲?鍏抽棴妫€鏌ュ櫒妯″紡');
 })();
