@@ -162,68 +162,84 @@
 
     <!-- Scripts -->
     <script>
-  // Global error handlers (ASCII only to avoid encoding glitches)
-  window.addEventListener("error", (e) => {
-    console.error("JS Error:", e.error);
-    console.error("File:", e.filename, "@", e.lineno, ":", e.colno);
-  });
-  window.addEventListener("unhandledrejection", (e) => {
-    console.error("Unhandled Promise:", e.reason);
-  });
+// ASCII-only safe inline block
+window.addEventListener('error', function(e){
+  try { console.error('JS Error:', e.error); } catch(_) {}
+  try { console.error('File:', e.filename, '@', e.lineno, ':', e.colno); } catch(_) {}
+});
+window.addEventListener('unhandledrejection', function(e){
+  try { console.error('Unhandled Promise:', e.reason); } catch(_) {}
+});
 
-  // Script loading counter
-  let scriptsLoaded = 0;
-  const totalScripts = 9;
-  const loadedScripts = new Set();
+var scriptsLoaded = 0;
+var totalScripts = 9;
+var loadedScripts = new Set();
 
-  function onScriptLoad(scriptName) {
-    if (loadedScripts.has(scriptName)) return; // avoid double count
-    loadedScripts.add(scriptName);
-    scriptsLoaded++;
-    console.log(Loaded:  (/));
-    if (scriptsLoaded === totalScripts) {
-      console.log("All scripts loaded. Initializing app...");
-      setTimeout(initializeApp, 100);
+function onScriptLoad(scriptName){
+  if (loadedScripts.has(scriptName)) return;
+  loadedScripts.add(scriptName);
+  scriptsLoaded++;
+  console.log('Loaded: ' + scriptName + ' (' + scriptsLoaded + '/' + totalScripts + ')');
+  if (scriptsLoaded === totalScripts){
+    console.log('All scripts loaded. Initializing app...');
+    setTimeout(initializeApp, 100);
+  }
+}
+
+function initializeApp(){
+  try {
+    var required = ['AppConfig','Utils','API','Auth','Components','Router','App'];
+    var missing = required.filter(function(k){ return !window[k]; });
+    if (missing.length > 0){
+      console.error('Missing globals:', missing);
+      showErrorPage('Missing JavaScript modules: ' + missing.join(', '));
+      return;
     }
-  }
-
-  function initializeApp() {
-    try {
-      const required = ["AppConfig","Utils","API","Auth","Components","Router","App"];
-      const missing = required.filter(obj => !window[obj]);
-      if (missing.length > 0) {
-        console.error("Missing globals:", missing);
-        showErrorPage("Missing JavaScript modules: " + missing.join(", "));
-        return;
-      }
-      if (window.App && typeof window.App.init === "function") {
-        window.App.init();
-      } else {
-        console.error("App.init not found");
-        showErrorPage("App initialization failed");
-      }
-    } catch (error) {
-      console.error("App initialization error", error);
-      showErrorPage("Initialization error: " + error.message);
+    if (window.App && typeof window.App.init === 'function'){
+      window.App.init();
+    } else {
+      console.error('App.init not found');
+      showErrorPage('App initialization failed');
     }
+  } catch (error){
+    console.error('App initialization error', error);
+    showErrorPage('Initialization error: ' + (error && error.message || error));
   }
+}
 
-  function showErrorPage(message) {
-    document.body.innerHTML = 
-      <div style="padding:40px; text-align:center; font-family: Arial, sans-serif; background:#f5f5f5; min-height:100vh; display:flex; align-items:center; justify-content:center;">
-        <div style="background:white; padding:40px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.1); max-width:500px;">
-          <h2 style="color:#e74c3c; margin-bottom:20px;">
-            <i class="fas fa-exclamation-triangle" style="margin-right:10px;"></i>
-            Load Failed
-          </h2>
-          <p style="color:#666; margin-bottom:20px; line-height:1.6;"></p>
-          <button onclick="location.reload()" style="padding:12px 24px; background:#3498db; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px;">
-            Reload
-          </button>
-        </div>
-      </div>
-    ;
+function showErrorPage(message){
+  var html = '' +
+    '<div style="padding:40px; text-align:center; font-family: Arial, sans-serif; background:#f5f5f5; min-height:100vh; display:flex; align-items:center; justify-content:center;">' +
+    '  <div style="background:white; padding:40px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.1); max-width:500px;">' +
+    '    <h2 style="color:#e74c3c; margin-bottom:20px;">' +
+    '      <i class="fas fa-exclamation-triangle" style="margin-right:10px;"></i> Load Failed' +
+    '    </h2>' +
+    '    <p style="color:#666; margin-bottom:20px; line-height:1.6;">' + (message || '') + '</p>' +
+    '    <button onclick="location.reload()" style="padding:12px 24px; background:#3498db; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px;">Reload</button>' +
+    '  </div>' +
+    '</div>';
+  document.body.innerHTML = html;
+}
+</script><script>
+// Localize visible labels without using non-ASCII in HTML source
+(function(){
+  function applyLabels(){
+    var APP_NAME = '\u7B80\u5E90\u7BA1\u7406\u540E\u53F0';
+    var LOGIN_SUB = '\u7BA1\u7406\u5458\u767B\u5F55';
+    var USER_TXT = '\u7528\u6237';
+    var LOADING = '\u52A0\u8F7D\u4E2D..';
+    var el;
+    el = document.querySelector('.top-nav .logo span'); if (el) el.textContent = APP_NAME;
+    el = document.querySelector('.login-header h1'); if (el) el.textContent = APP_NAME;
+    el = document.querySelector('.login-header .subtitle'); if (el) el.textContent = LOGIN_SUB;
+    el = document.getElementById('user-name'); if (el) el.textContent = USER_TXT;
+    el = document.querySelector('#loading-screen p'); if (el) el.textContent = LOADING;
+    try { document.title = APP_NAME; } catch(_) {}
   }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyLabels);
+  } else { applyLabels(); }
+})();
 </script>
 
     <!-- JavaScript妯″潡 -->
@@ -286,6 +302,7 @@
 </script></body>
 
 </html>
+
 
 
 
