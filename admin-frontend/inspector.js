@@ -4,6 +4,7 @@
   var inspectorEnabled = false;
   var overlay = null;
   var currentHighlight = null;
+  var pressTimer = null;
 
   function createOverlay(){
     overlay = document.createElement('div');
@@ -15,6 +16,26 @@
     overlay.style.display = 'none';
     overlay.style.transition = 'all 0.1s ease';
     document.body.appendChild(overlay);
+  }
+
+  function getCssPath(el){
+    try {
+      if (!el || !el.tagName) return '';
+      if (el.id) return el.tagName.toLowerCase() + '#' + el.id;
+      var path = [];
+      var cur = el;
+      while (cur && cur.nodeType === 1 && path.length < 7) {
+        var sel = cur.tagName.toLowerCase();
+        var cls = String(cur.className || '').trim();
+        if (cls) sel += '.' + cls.split(/\s+/).slice(0,2).join('.');
+        var nth = 1, sib = cur;
+        while ((sib = sib.previousElementSibling)) { if (sib.tagName === cur.tagName) nth++; }
+        sel += ':nth-of-type(' + nth + ')';
+        path.unshift(sel);
+        cur = cur.parentElement;
+      }
+      return path.join(' > ');
+    } catch(e) { return ''; }
   }
 
   function highlightElement(el){
@@ -47,29 +68,25 @@
     info.style.maxWidth = '340px';
     info.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
 
-    var tagName = el.tagName.toLowerCase();
+    var tagName = el.tagName ? el.tagName.toLowerCase() : 'node';
     var elId = el.id ? ('#' + el.id) : '';
     var elCls = el.className ? ('.' + String(el.className).split(' ').join('.')) : '';
-    var devPath = el.getAttribute('data-dev-path');
+    var devPath = (el.getAttribute && el.getAttribute('data-dev-path')) || '';
+    var pathText = devPath || getCssPath(el);
 
-    var html = '<div style="margin-bottom:4px;"><strong>' + tagName + '</strong>' + elId + elCls + '</div>';
-    if (devPath) {
-      html += '<div style="color:#4fc3f7; margin-bottom:4px; word-break:break-all;">FILE ' + devPath + '</div>';
-      html += '<div style="color:#81c784; font-size:11px;">TIP click to open file</div>';
-    } else {
-      html += '<div style="color:#ff9800; font-size:11px;">WARN no dev-path</div>';
-    }
+    var html = '<div style="margin-bottom:4px;"><strong>' + tagName + '</strong>' + elId + elCls + '</div>' +
+               '<div style="color:#4fc3f7; margin-bottom:4px; word-break:break-all;">' + (devPath?('FILE '+devPath):('PATH '+pathText)) + '</div>' +
+               '<div style="color:#81c784; font-size:11px;">TIP hold mouse to copy path</div>';
     info.innerHTML = html;
 
     var top = rect.top + scrollY + rect.height + 5;
     var left = rect.left + scrollX;
-    // keep inside viewport after appended (approx)
-    info.style.top = top + 'px';
-    info.style.left = left + 'px';
     document.body.appendChild(info);
     var b = info.getBoundingClientRect();
-    if (left + b.width > window.innerWidth) info.style.left = (window.innerWidth - b.width - 10) + 'px';
-    if (top + b.height > window.innerHeight) info.style.top = (rect.top + scrollY - b.height - 5) + 'px';
+    if (left + b.width > window.innerWidth) left = window.innerWidth - b.width - 10;
+    if (top + b.height > window.innerHeight) top = rect.top + scrollY - b.height - 5;
+    info.style.top = top + 'px';
+    info.style.left = left + 'px';
   }
 
   function hideHighlight(){
@@ -98,7 +115,21 @@
     n.textContent = message;
     document.body.appendChild(n);
     setTimeout(function(){ n.style.opacity = '1'; n.style.transform = 'translateY(0)'; }, 10);
-    setTimeout(function(){ n.style.opacity = '0'; n.style.transform = 'translateY(-20px)'; setTimeout(function(){ if(n.parentNode) n.parentNode.removeChild(n); }, 300); }, 3000);
+    setTimeout(function(){ n.style.opacity = '0'; n.style.transform = 'translateY(-20px)'; setTimeout(function(){ if(n.parentNode) n.parentNode.removeChild(n); }, 300); }, 1800);
+  }
+
+  function copyText(str){
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(str);
+      } else {
+        var ta = document.createElement('textarea'); ta.value = String(str||'');
+        ta.style.position='fixed'; ta.style.left='-2000px'; document.body.appendChild(ta);
+        ta.focus(); ta.select(); try { document.execCommand('copy'); } catch(_) {}
+        document.body.removeChild(ta);
+      }
+      showNotification('copied: ' + (String(str).slice(0,80)), 'success');
+    } catch(e) { showNotification('copy failed', 'error'); }
   }
 
   function openInVSCode(filePath){
@@ -129,36 +160,46 @@
     }
   }
 
+  // Keyboard hotkeys (not passive, we may preventDefault)
   document.addEventListener('keydown', function(e){
     var c = e.code || '';
     var k = e.key || '';
-    if (e.altKey && e.shiftKey && (c==='KeyC' || k==='C' || k==='c')) { e.preventDefault(); toggleInspector(); }
-    if (e.altKey && e.shiftKey && (c==='KeyX' || k==='X' || k==='x')) { e.preventDefault(); toggleInspector(); }
-    if (e.ctrlKey && e.shiftKey && (c==='KeyK' || k==='K' || k==='k')) { e.preventDefault(); toggleInspector(); }
-    if (k === 'Escape' && inspectorEnabled) { e.preventDefault(); toggleInspector(); }
-  }, {passive:true, capture:true});
+    var combo = (e.altKey && e.shiftKey && (c==='KeyC' || k==='C' || k==='c')) ||
+                (e.altKey && e.shiftKey && (c==='KeyX' || k==='X' || k==='x')) ||
+                (e.ctrlKey && e.shiftKey && (c==='KeyK' || k==='K' || k==='k')) ||
+                (k==='Escape' && inspectorEnabled);
+    if (combo) { try { e.preventDefault(); e.stopPropagation(); } catch(_) {} toggleInspector(); }
+  }, {capture:true});
 
+  // Highlight on hover (any element; prefer data-dev-path if present)
   document.addEventListener('mouseover', function(e){
     if (!inspectorEnabled) return;
-    var t = e.target.closest('[data-dev-path]');
-    if (t) highlightElement(t); else hideHighlight();
-  });
-
-  document.addEventListener('click', function(e){
-    if (!inspectorEnabled) return;
-    var t = e.target.closest('[data-dev-path]');
-    if (t) {
-      e.preventDefault(); e.stopPropagation();
-      var fp = t.getAttribute('data-dev-path'); if (fp) openInVSCode(fp);
-    }
+    var t = e.target.closest ? (e.target.closest('[data-dev-path]') || e.target) : e.target;
+    highlightElement(t);
   }, true);
 
+  // Long-press to copy path (500ms)
+  function startPressTimer(target){
+    clearPressTimer();
+    pressTimer = setTimeout(function(){
+      var el = (target && target.closest) ? (target.closest('[data-dev-path]') || target) : target;
+      var text = (el && el.getAttribute && el.getAttribute('data-dev-path')) || getCssPath(el);
+      copyText(text);
+    }, 500);
+  }
+  function clearPressTimer(){ if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
+  document.addEventListener('mousedown', function(e){ if (inspectorEnabled) startPressTimer(e.target); }, true);
+  document.addEventListener('mouseup', function(){ clearPressTimer(); }, true);
+  document.addEventListener('mouseleave', function(){ clearPressTimer(); }, true);
+
+  // Click to open in editor if data-dev-path exists
   document.addEventListener('click', function(e){
     if (!inspectorEnabled) return;
-    var t = e.target.closest('[data-dev-path]');
-    if (!t) { e.preventDefault(); e.stopPropagation(); }
+    var t = e.target.closest ? e.target.closest('[data-dev-path]') : null;
+    if (t) { try { e.preventDefault(); e.stopPropagation(); } catch(_) {} var fp = t.getAttribute('data-dev-path'); if (fp) openInVSCode(fp); }
   }, true);
 
+  // Keep overlay valid
   document.addEventListener('visibilitychange', function(){ if (document.hidden && inspectorEnabled) hideHighlight(); });
   window.addEventListener('resize', function(){ if (inspectorEnabled && currentHighlight) highlightElement(currentHighlight); });
 

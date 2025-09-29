@@ -318,13 +318,14 @@ function showErrorPage(message){
     } catch (e) { console.warn('[Inspector] toggle failed', e); }
   }
   // Hotkey to preload inspector then toggle (no synthetic key events to avoid recursion)
-  document.addEventListener('keydown', function(e){
+    document.addEventListener('keydown', function(e){
     var c = e.code || '';
     var k = e.key || '';
     if (e.altKey && e.shiftKey && (c==='KeyC' || k==='C' || k==='c')){
+      try { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); } catch(_) {}
       ensure().then(activate).catch(function(err){ console.error('[Inspector] load failed', err); });
     }
-  }, {passive:true, capture:true});
+  }, {capture:true});
   // Also support ?inspector and localStorage flag
   try {
     var p = new URLSearchParams(location.search);
@@ -337,6 +338,7 @@ function showErrorPage(message){
 </script></body>
 
 </html>
+
 
 
 
