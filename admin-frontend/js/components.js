@@ -1,7 +1,7 @@
-﻿// 缁勪欢绠＄悊鏂囦欢
+// 组件管理文件
 
 window.Components = {
-    // 娓叉煋鑿滃崟
+    // 渲染菜单
     renderMenu() {
         const menuContainer = document.getElementById('nav-menu');
         if (!menuContainer) return;
@@ -17,15 +17,15 @@ window.Components = {
         });
     },
     
-    // 鏍规嵁鏉冮檺杩囨护鑿滃崟
+    // 根据权限过滤菜单
     filterMenuByPermissions(items, permissions) {
         return items.filter(item => {
-            // 妫€鏌ユ潈闄?
+            // 检查权限
             if (item.permissions && !item.permissions.some(p => permissions.includes(p))) {
                 return false;
             }
             
-            // 杩囨护瀛愯彍鍗?
+            // 过滤子菜单
             if (item.children) {
                 item.children = this.filterMenuByPermissions(item.children, permissions);
             }
@@ -34,13 +34,13 @@ window.Components = {
         });
     },
     
-    // 鍒涘缓鑿滃崟椤?
+    // 创建菜单项
     createMenuItem(item) {
         const li = document.createElement('li');
         li.className = 'nav-item';
         
         if (item.children && item.children.length > 0) {
-            // 鏈夊瓙鑿滃崟鐨勯」鐩?
+            // 有子菜单的项目
             li.innerHTML = `
                 <a href="#" class="nav-link nav-toggle" data-path="${item.path}">
                     <i class="${item.icon}"></i>
@@ -58,7 +58,7 @@ window.Components = {
                 </ul>
             `;
             
-            // 娣诲姞瀛愯彍鍗曞垏鎹簨浠?
+            // 添加子菜单切换事件
             const toggle = li.querySelector('.nav-toggle');
             const submenu = li.querySelector('.nav-submenu');
             const arrow = li.querySelector('.nav-arrow');
@@ -70,7 +70,7 @@ window.Components = {
                 arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
             });
         } else {
-            // 鏅€氳彍鍗曢」
+            // 普通菜单项
             li.innerHTML = `
                 <a href="#" class="nav-link" data-path="${item.path}">
                     <i class="${item.icon}"></i>
@@ -79,7 +79,7 @@ window.Components = {
             `;
         }
         
-        // 娣诲姞鐐瑰嚮浜嬩欢
+        // 添加点击事件
         const links = li.querySelectorAll('.nav-link:not(.nav-toggle)');
         links.forEach(link => {
             link.addEventListener('click', (e) => {
@@ -92,7 +92,7 @@ window.Components = {
         return li;
     },
     
-    // 鏇存柊娲诲姩鑿滃崟椤?
+    // 更新活动菜单项
     updateActiveMenu(path) {
         const allLinks = document.querySelectorAll('.nav-link');
         allLinks.forEach(link => link.classList.remove('active'));
@@ -101,7 +101,7 @@ window.Components = {
         if (activeLink) {
             activeLink.classList.add('active');
             
-            // 灞曞紑鐖惰彍鍗?
+            // 展开父菜单
             const parentSubmenu = activeLink.closest('.nav-submenu');
             if (parentSubmenu) {
                 parentSubmenu.style.display = 'block';
@@ -113,7 +113,7 @@ window.Components = {
         }
     },
     
-    // 娓叉煋鐢ㄦ埛淇℃伅
+    // 渲染用户信息
     renderUserInfo() {
         const user = Auth.getCurrentUser();
         if (!user) return;
@@ -132,15 +132,15 @@ window.Components = {
         }
         
         if (userAvatarEl) {
-            // 浣跨敤宸ュ叿鍑芥暟澶勭悊澶村儚鏄剧ず
+            // 使用工具函数处理头像显示
             const avatarUrl = Utils.avatar.getUserAvatar(user, 32);
             if (avatarUrl) {
                 userAvatarEl.src = avatarUrl;
                 userAvatarEl.style.display = 'inline-block';
             } else {
-                // 濡傛灉娌℃湁澶村儚URL锛屼娇鐢ㄩ粯璁ゅ浘鏍?
+                // 如果没有头像URL，使用默认图标
                 userAvatarEl.style.display = 'none';
-                // 鍒涘缓鎴栨洿鏂伴粯璁ゅ浘鏍?
+                // 创建或更新默认图标
                 let defaultAvatar = userAvatarEl.parentNode.querySelector('.default-avatar');
                 if (!defaultAvatar) {
                     defaultAvatar = document.createElement('i');
@@ -152,7 +152,7 @@ window.Components = {
         }
     },
     
-    // 娓叉煋闈㈠寘灞?
+    // 渲染面包屑
     renderBreadcrumb(items) {
         const breadcrumbEl = document.getElementById('breadcrumb');
         if (!breadcrumbEl) return;
@@ -162,7 +162,7 @@ window.Components = {
         ).join('');
     },
     
-    // 鍒涘缓缁熻鍗＄墖
+    // 创建统计卡片
     createStatCard(data) {
         const { title, value, change, icon, color = 'primary' } = data;
         
@@ -181,13 +181,13 @@ window.Components = {
                 <div class="stat-card-change ${changeClass}">
                     <i class="fas ${changeIcon}"></i>
                     <span>${Math.abs(change)}%</span>
-                    <span>杈冧笂鏈?/span>
+                    <span>较上期</span>
                 </div>
             </div>
         `;
     },
     
-    // 鍒涘缓鏁版嵁琛ㄦ牸
+    // 创建数据表格
     createTable(config) {
         const { columns, data, actions = [] } = config;
         
@@ -197,7 +197,7 @@ window.Components = {
                     <thead>
                         <tr>
                             ${columns.map(col => `<th>${col.title}</th>`).join('')}
-                            ${actions.length > 0 ? '<th>鎿嶄綔</th>' : ''}
+                            ${actions.length > 0 ? '<th>操作</th>' : ''}
                         </tr>
                     </thead>
                     <tbody>
@@ -211,7 +211,7 @@ window.Components = {
                             <div class="empty-state-icon">
                                 <i class="fas fa-inbox"></i>
                             </div>
-                            <div class="empty-state-title">鏆傛棤鏁版嵁</div>
+                            <div class="empty-state-title">暂无数据</div>
                         </div>
                     </td>
                 </tr>
@@ -223,7 +223,7 @@ window.Components = {
                 columns.forEach(col => {
                     let cellValue = row[col.key];
                     
-                    // 搴旂敤鏍煎紡鍖栧嚱鏁?
+                    // 应用格式化函数
                     if (col.formatter) {
                         cellValue = col.formatter(cellValue, row, index);
                     }
@@ -231,7 +231,7 @@ window.Components = {
                     html += `<td>${cellValue}</td>`;
                 });
                 
-                // 娣诲姞鎿嶄綔鍒?
+                // 添加操作列
                 if (actions.length > 0) {
                     html += '<td><div class="action-buttons">';
                     actions.forEach(action => {
@@ -261,7 +261,7 @@ window.Components = {
         return html;
     },
     
-    // 鍒涘缓鍒嗛〉缁勪欢
+    // 创建分页组件
     createPagination(config) {
         const { current, total, pageSize, onChange } = config;
         const totalPages = Math.ceil(total / pageSize);
@@ -270,7 +270,7 @@ window.Components = {
         
         let html = '<div class="pagination">';
         
-        // 涓婁竴椤?
+        // 上一页
         const prevDisabled = current <= 1 ? 'disabled' : '';
         html += `
             <a href="#" class="pagination-item ${prevDisabled}" data-page="${current - 1}">
@@ -278,7 +278,7 @@ window.Components = {
             </a>
         `;
         
-        // 椤电爜
+        // 页码
         const startPage = Math.max(1, current - 2);
         const endPage = Math.min(totalPages, current + 2);
         
@@ -301,7 +301,7 @@ window.Components = {
             html += `<a href="#" class="pagination-item" data-page="${totalPages}">${totalPages}</a>`;
         }
         
-        // 涓嬩竴椤?
+        // 下一页
         const nextDisabled = current >= totalPages ? 'disabled' : '';
         html += `
             <a href="#" class="pagination-item ${nextDisabled}" data-page="${current + 1}">
@@ -311,7 +311,7 @@ window.Components = {
         
         html += '</div>';
         
-        // 娣诲姞浜嬩欢鐩戝惉
+        // 添加事件监听
         setTimeout(() => {
             const paginationItems = document.querySelectorAll('.pagination-item:not(.disabled)');
             paginationItems.forEach(item => {
@@ -328,9 +328,9 @@ window.Components = {
         return html;
     },
     
-    // 鍒涘缓鎼滅储妗?
+    // 创建搜索框
     createSearchBox(config) {
-        const { placeholder = '鎼滅储...', onSearch, value = '' } = config;
+        const { placeholder = '搜索...', onSearch, value = '' } = config;
         
         const html = `
             <div class="search-box">
@@ -339,7 +339,7 @@ window.Components = {
             </div>
         `;
         
-        // 娣诲姞浜嬩欢鐩戝惉
+        // 添加事件监听
         setTimeout(() => {
             const searchInput = document.querySelector('.search-input');
             if (searchInput && onSearch) {
@@ -353,7 +353,7 @@ window.Components = {
         return html;
     },
     
-    // 鍒涘缓绛涢€夊櫒
+    // 创建筛选器
     createFilters(config) {
         const { filters, onFilter } = config;
         
@@ -364,7 +364,7 @@ window.Components = {
                 <div class="filter-group">
                     <label class="filter-label">${filter.label}</label>
                     <select class="filter-select" data-key="${filter.key}">
-                        <option value="">鍏ㄩ儴</option>
+                        <option value="">全部</option>
                         ${filter.options.map(option => 
                             `<option value="${option.value}" ${option.value === filter.value ? 'selected' : ''}>
                                 ${option.label}
@@ -377,7 +377,7 @@ window.Components = {
         
         html += '</div>';
         
-        // 娣诲姞浜嬩欢鐩戝惉
+        // 添加事件监听
         setTimeout(() => {
             const filterSelects = document.querySelectorAll('.filter-select');
             filterSelects.forEach(select => {
@@ -394,7 +394,7 @@ window.Components = {
         return html;
     },
     
-    // 鍒涘缓妯℃€佹
+    // 创建模态框
     createModal(config) {
         const { title, content, footer, onClose, modalType } = config;
         
@@ -417,13 +417,13 @@ window.Components = {
             </div>
         `;
         
-        // 娣诲姞鍒伴〉闈?
+        // 添加到页面
         document.body.insertAdjacentHTML('beforeend', html);
         
         const modal = document.getElementById(modalId);
         const closeBtn = modal.querySelector('.modal-close');
         
-        // 鍏抽棴浜嬩欢
+        // 关闭事件
         const closeModal = () => {
             modal.classList.remove('show');
             setTimeout(() => {
@@ -432,19 +432,19 @@ window.Components = {
             }, 300);
         };
         
-        // X鎸夐挳浣跨敤鏅鸿兘鍏抽棴閫昏緫
+        // X按钮使用智能关闭逻辑
         closeBtn.addEventListener('click', () => {
             this.handleCloseButtonClick(modal, closeModal);
         });
         
-        // 鐐瑰嚮澶栭儴鍖哄煙鐨勬櫤鑳藉叧闂€昏緫
+        // 点击外部区域的智能关闭逻辑
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 this.handleOverlayClick(modal, closeModal);
             }
         });
         
-        // 鏄剧ず妯℃€佹
+        // 显示模态框
         setTimeout(() => {
             modal.classList.add('show');
         }, 10);
@@ -455,19 +455,19 @@ window.Components = {
         };
     },
     
-    // 澶勭悊鍏抽棴鎸夐挳鐐瑰嚮锛圶鎸夐挳锛?
+    // 处理关闭按钮点击（X按钮）
     handleCloseButtonClick(modal, closeModal) {
-        // 鑾峰彇寮圭獥绫诲瀷
+        // 获取弹窗类型
         const modalType = modal.getAttribute('data-modal-type');
         
-        // 妫€鏌ユ槸鍚︿负鍙椾繚鎶ょ殑寮圭獥绫诲瀷
+        // 检查是否为受保护的弹窗类型
         if (modalType && AppConfig.MODAL_BEHAVIOR_TEMP.PROTECTED_MODALS.includes(modalType)) {
-            // 鍙椾繚鎶ょ殑寮圭獥闇€瑕佺‘璁ゆ暟鎹涪澶?
+            // 受保护的弹窗需要确认数据丢失
             if (AppConfig.MODAL_BEHAVIOR_TEMP.CONFIRM_ON_DATA_LOSS) {
                 const hasFormData = this.checkFormData(modal);
                 
                 if (hasFormData) {
-                    if (confirm('鎮ㄦ湁鏈繚瀛樼殑鏁版嵁锛岀‘瀹氳鍏抽棴鍚楋紵')) {
+                    if (confirm('您有未保存的数据，确定要关闭吗？')) {
                         closeModal();
                     }
                     return;
@@ -475,67 +475,67 @@ window.Components = {
             }
         }
         
-        // 鏅€氬脊绐楁垨鍙椾繚鎶ゅ脊绐楁棤鏁版嵁鏃讹紝妫€鏌ユ槸鍚﹂渶瑕佺‘璁?
+        // 普通弹窗或受保护弹窗无数据时，检查是否需要确认
         if (AppConfig.MODAL_BEHAVIOR_TEMP.CONFIRM_ON_DATA_LOSS) {
             const hasFormData = this.checkFormData(modal);
             
             if (hasFormData) {
-                if (confirm('鎮ㄦ湁鏈繚瀛樼殑鏁版嵁锛岀‘瀹氳鍏抽棴鍚楋紵')) {
+                if (confirm('您有未保存的数据，确定要关闭吗？')) {
                     closeModal();
                 }
                 return;
             }
         }
         
-        // 鏃犳暟鎹垨涓嶉渶瑕佺‘璁ゆ椂鐩存帴鍏抽棴
+        // 无数据或不需要确认时直接关闭
         closeModal();
     },
     
-    // 澶勭悊閬僵灞傜偣鍑?
+    // 处理遮罩层点击
     handleOverlayClick(modal, closeModal) {
-        // 妫€鏌ラ厤缃槸鍚﹀厑璁哥偣鍑诲閮ㄥ叧闂?
+        // 检查配置是否允许点击外部关闭
         if (!AppConfig.MODAL_BEHAVIOR_TEMP.CLICK_OUTSIDE_TO_CLOSE) {
-            return; // 涓嶅厑璁哥偣鍑诲閮ㄥ叧闂?
+            return; // 不允许点击外部关闭
         }
         
-        // 妫€鏌ユ槸鍚︿负鍙椾繚鎶ょ殑寮圭獥绫诲瀷
+        // 检查是否为受保护的弹窗类型
         const modalType = modal.getAttribute('data-modal-type');
         if (modalType && AppConfig.MODAL_BEHAVIOR_TEMP.PROTECTED_MODALS.includes(modalType)) {
-            return; // 鍙椾繚鎶ょ殑寮圭獥涓嶅厑璁哥偣鍑诲閮ㄥ叧闂?
+            return; // 受保护的弹窗不允许点击外部关闭
         }
         
-        // 妫€鏌ユ槸鍚﹂渶瑕佺‘璁ゆ暟鎹涪澶?
+        // 检查是否需要确认数据丢失
         if (AppConfig.MODAL_BEHAVIOR_TEMP.CONFIRM_ON_DATA_LOSS) {
             const hasFormData = this.checkFormData(modal);
             
             if (hasFormData) {
-                // 鏈夋暟鎹椂闇€瑕佺‘璁?
-                if (confirm('鎮ㄦ湁鏈繚瀛樼殑鏁版嵁锛岀‘瀹氳鍏抽棴鍚楋紵')) {
+                // 有数据时需要确认
+                if (confirm('您有未保存的数据，确定要关闭吗？')) {
                     closeModal();
                 }
                 return;
             }
         }
         
-        // 鏃犳暟鎹垨涓嶉渶瑕佺‘璁ゆ椂鐩存帴鍏抽棴
+        // 无数据或不需要确认时直接关闭
         closeModal();
     },
     
-    // 妫€鏌ヨ〃鍗曟槸鍚︽湁鏁版嵁
+    // 检查表单是否有数据
     checkFormData(modal) {
         const forms = modal.querySelectorAll('form');
         
         for (let form of forms) {
             const formData = new FormData(form);
             
-            // 妫€鏌ユ槸鍚︽湁闈炵┖鐨勮緭鍏?
+            // 检查是否有非空的输入
             for (let [key, value] of formData.entries()) {
                 if (value && value.toString().trim() !== '') {
                     return true;
                 }
             }
             
-            // 妫€鏌ユ枃鏈煙鍜岄€夋嫨妗?
+            // 检查文本域和选择框
             const inputs = form.querySelectorAll('input, textarea, select');
             for (let input of inputs) {
                 if (input.value && input.value.trim() !== '' && 
@@ -548,8 +548,8 @@ window.Components = {
         return false;
     },
     
-    // 鍒涘缓鍔犺浇鐘舵€?
-    createLoading(text = '鍔犺浇涓?..') {
+    // 创建加载状态
+    createLoading(text = '加载中...') {
         return `
             <div class="loading-state">
                 <div class="loading-spinner-sm"></div>
@@ -558,22 +558,22 @@ window.Components = {
         `;
     },
     
-    // 鏍煎紡鍖栫姸鎬佹爣绛?
+    // 格式化状态标签
     formatStatus(status) {
         const statusMap = {
-            active: { text: '姝ｅ父', class: 'active' },
-            inactive: { text: '绂佺敤', class: 'inactive' },
-            deleted: { text: '宸插垹闄?, class: 'inactive' },
-            pending: { text: '寰呭鏍?, class: 'pending' },
-            approved: { text: '宸查€氳繃', class: 'active' },
-            rejected: { text: '宸叉嫆缁?, class: 'inactive' }
+            active: { text: '正常', class: 'active' },
+            inactive: { text: '禁用', class: 'inactive' },
+            deleted: { text: '已删除', class: 'inactive' },
+            pending: { text: '待审核', class: 'pending' },
+            approved: { text: '已通过', class: 'active' },
+            rejected: { text: '已拒绝', class: 'inactive' }
         };
         
         const statusInfo = statusMap[status] || { text: status, class: 'draft' };
         return `<span class="status-badge ${statusInfo.class}">${statusInfo.text}</span>`;
     },
     
-    // 鏍煎紡鍖栬鑹叉爣绛?
+    // 格式化角色标签
     formatRole(role) {
         const roleName = Auth.getRoleName(role);
         return `<span class="role-badge ${role}">${roleName}</span>`;

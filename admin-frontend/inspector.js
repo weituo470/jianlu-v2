@@ -1,4 +1,4 @@
-// Dev Inspector (ASCII-safe) with URL + Component ID
+﻿// Dev Inspector (ASCII-safe) with URL + Component ID
 (function(){
   'use strict';
   var inspectorEnabled = false;
@@ -162,8 +162,7 @@
   function toggleInspector(){
     inspectorEnabled = !inspectorEnabled;
     if (!overlay) createOverlay();
-    if (inspectorEnabled) { loadDevMap();('inspector enabled', 'info');
-    } else {
+    if (inspectorEnabled) { document.body.style.cursor = 'crosshair'; console.log('[Dev Inspector] Enabled - press Escape or hotkey to close'); showNotification('inspector enabled', 'info');} else {
       document.body.style.cursor = '';
       hideHighlight();
       console.log('[Dev Inspector] Disabled');
@@ -175,7 +174,9 @@
   document.addEventListener('keydown', function(e){
     var c = e.code || '';
     var k = e.key || '';
-    var combo = (e.altKey && e.shiftKey && (c==='KeyC' || k==='C' || k==='c')) ||\n                (e.altKey && e.shiftKey && (c==='KeyX' || k==='X' || k==='x')) ||\n                (e.ctrlKey && e.shiftKey && (c==='KeyK' || k==='K' || k==='k')) ||\n                (k==='Escape' && inspectorEnabled) || (inspectorEnabled && (c==='KeyM' || k==='m' || k==='M'));\n    if (combo) { try { e.preventDefault(); e.stopPropagation(); } catch(_) {} if(inspectorEnabled && (c==='KeyM' || k==='m' || k==='M')){ if(currentHighlight) promptMap(currentHighlight); } else { toggleInspector(); } }\n  }, {capture:true});
+    var combo = (e.altKey && e.shiftKey && (c==='KeyC' || k==='C' || k==='c')) ||                (e.altKey && e.shiftKey && (c==='KeyX' || k==='X' || k==='x')) ||                (e.ctrlKey && e.shiftKey && (c==='KeyK' || k==='K' || k==='k')) ||                (k==='Escape' && inspectorEnabled) || (inspectorEnabled && (c==='KeyM' || k==='m' || k==='M'));
+    if (combo) { try { e.preventDefault(); e.stopPropagation(); } catch(_) {} if(inspectorEnabled && (c==='KeyM' || k==='m' || k==='M')){ if(currentHighlight) promptMap(currentHighlight); } else { toggleInspector(); } }
+  }, {capture:true});
 
   // Highlight on hover (any element; prefer data-dev-path if present)
   document.addEventListener('mouseover', function(e){
@@ -217,4 +218,7 @@
   window.__INSPECTOR_LOADED__ = true;
   console.log('[Dev Inspector] loaded');
 })();
+
+
+
 
