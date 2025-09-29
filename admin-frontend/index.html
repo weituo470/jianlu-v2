@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jianlu Admin</title>
+    <title>??????</title>
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/responsive.css">
@@ -19,7 +19,7 @@
     <div id="loading-screen" class="loading-screen">
         <div class="loading-spinner">
             <div class="spinner"></div>
-            <p>Loading..</p>
+            <p>???..</p>
         </div>
     </div>
 
@@ -29,9 +29,9 @@
             <div class="login-header">
                 <div class="logo">
                     <i class="fas fa-book"></i>
-                    <h1>Jianlu Admin</h1>
+                    <h1>??????</h1>
                 </div>
-                <p class="subtitle">Sign in</p>
+                <p class="subtitle">?????</p>
             </div>
 
             <form id="login-form" class="login-form">
@@ -103,7 +103,7 @@
                 </button>
                 <div class="logo">
                     <i class="fas fa-book"></i>
-                    <span>Jianlu Admin</span>
+                    <span>??????</span>
                 </div>
             </div>
 
@@ -111,7 +111,7 @@
                 <div class="user-menu">
                     <div class="user-info" id="user-info">
                         <img src="https://via.placeholder.com/32x32?text=U" alt="鐢ㄦ埛澶村儚" class="user-avatar">
-                        <span class="user-name" id="user-name">User</span>
+                        </span>
                         <span class="user-role" id="user-role">瑙掕壊</span>
                         <i class="fas fa-chevron-down"></i>
                     </div>
@@ -179,8 +179,18 @@
 
         function onScriptLoad(scriptName) {
             if (loadedScripts.has(scriptName)) {
-                return; // 闃叉閲嶅璁℃暟
+                return; // ??????
             }
+
+            loadedScripts.add(scriptName);
+            scriptsLoaded++;
+            console.log(??????:  (/));
+
+            if (scriptsLoaded === totalScripts) {
+                console.log('????????????????...');
+                setTimeout(initializeApp, 100); // ??????????????
+            }
+        }
 
             loadedScripts.add(scriptName);
             scriptsLoaded++;
@@ -197,19 +207,19 @@
                 const required = ["AppConfig","Utils","API","Auth","Components","Router","App"];
                 const missing = required.filter(obj => !window[obj]);
                 if (missing.length > 0) {
-                    console.error('Missing required globals:', missing);
-                    showErrorPage('Missing JavaScript modules: '+ missing.join(', '));
+                    console.error('?????????:', missing);
+                    showErrorPage('?????JavaScript??: '+ missing.join(', '));
                     return;
                 }
                 if (window.App && typeof window.App.init === "function") {
                     window.App.init();
                 } else {
-                    console.error('App.init not found');
-                    showErrorPage('App initialization failed');
+                    console.error('??? App.init ??');
+                    showErrorPage('???????');
                 }
             } catch (error) {
-                console.error('App initialization error', error);
-                showErrorPage('Initialization error: '+ error.message);
+                console.error('???????', error);
+                showErrorPage('?????: '+ error.message);
             }
         }
 
