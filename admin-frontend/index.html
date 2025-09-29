@@ -194,26 +194,22 @@
 
         function initializeApp() {
             try {
-                // 妫€鏌ュ繀瑕佺殑鍏ㄥ眬瀵硅薄
-                const requiredObjects = ['AppConfig', 'Utils', 'API', 'Auth', 'Components', 'Router', 'App'];
-                const missing = requiredObjects.filter(obj => !window[obj]);
-
+                const required = ["AppConfig","Utils","API","Auth","Components","Router","App"];
+                const missing = required.filter(obj => !window[obj]);
                 if (missing.length > 0) {
-                    console.error('缂哄皯蹇呰鐨勫璞?', missing);
-                    showErrorPage('缂哄皯蹇呰鐨凧avaScript妯″潡: ' + missing.join(', '));
+                    console.error('Missing required globals:', missing);
+                    showErrorPage('Missing JavaScript modules: '+ missing.join(', '));
                     return;
                 }
-
-                // 鍒濆鍖栧簲鐢?
-                if (window.App && typeof window.App.init === 'function') {
+                if (window.App && typeof window.App.init === "function") {
                     window.App.init();
                 } else {
-                    console.error('App瀵硅薄鎴杋nit鏂规硶涓嶅瓨鍦?);
-                    showErrorPage('搴旂敤鍒濆鍖栧け璐?);
+                    console.error('App.init not found');
+                    showErrorPage('App initialization failed');
                 }
             } catch (error) {
-                console.error('搴旂敤鍒濆鍖栭敊璇?', error);
-                showErrorPage('搴旂敤鍒濆鍖栭敊璇? ' + error.message);
+                console.error('App initialization error', error);
+                showErrorPage('Initialization error: '+ error.message);
             }
         }
 
