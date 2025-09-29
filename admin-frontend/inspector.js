@@ -81,7 +81,7 @@
     var tagName = el && el.tagName ? el.tagName.toLowerCase() : 'node';
     var elId = el && el.id ? ('#' + el.id) : '';
     var elCls = el && el.className ? ('.' + String(el.className).split(' ').join('.')) : '';
-    var devPath = (el && el.getAttribute && el.getAttribute('data-dev-path')) || '';
+    var devPath = (el && el.getAttribute && el.getAttribute('data-dev-path')) || guessFile(el);
     var comp = findComponentRoot(el);
     var pageUrl = String(location.origin + location.pathname + location.search + location.hash);
 
@@ -90,7 +90,7 @@
     html += '<div style="color:#a3d3ff; margin-bottom:4px; word-break:break-all;">URL ' + pageUrl + '</div>';
     html += '<div style="color:#81c784; margin-bottom:4px;">ID ' + (comp.value||'(none)') + (comp.attr?(' ['+comp.attr+']'):'') + '</div>';
     if (devPath) html += '<div style="color:#4fc3f7; margin-bottom:4px; word-break:break-all;">FILE ' + devPath + '</div>';
-    html += '<div style="color:#81c784; font-size:11px;">TIP hold mouse (0.5s) to copy URL+ID</div>';
+    html += '<div style="color:#81c784; font-size:11px;">TIP hold mouse (0.5s) to copy FILE/ID</div>';
     info.innerHTML = html;
 
     var top = rect.top + scrollY + rect.height + 5;
@@ -162,10 +162,7 @@
   function toggleInspector(){
     inspectorEnabled = !inspectorEnabled;
     if (!overlay) createOverlay();
-    if (inspectorEnabled) {
-      document.body.style.cursor = 'crosshair';
-      console.log('[Dev Inspector] Enabled - press Escape or hotkey to close');
-      showNotification('inspector enabled', 'info');
+    if (inspectorEnabled) { loadDevMap();('inspector enabled', 'info');
     } else {
       document.body.style.cursor = '';
       hideHighlight();
@@ -178,12 +175,7 @@
   document.addEventListener('keydown', function(e){
     var c = e.code || '';
     var k = e.key || '';
-    var combo = (e.altKey && e.shiftKey && (c==='KeyC' || k==='C' || k==='c')) ||
-                (e.altKey && e.shiftKey && (c==='KeyX' || k==='X' || k==='x')) ||
-                (e.ctrlKey && e.shiftKey && (c==='KeyK' || k==='K' || k==='k')) ||
-                (k==='Escape' && inspectorEnabled);
-    if (combo) { try { e.preventDefault(); e.stopPropagation(); } catch(_) {} toggleInspector(); }
-  }, {capture:true});
+    var combo = (e.altKey && e.shiftKey && (c==='KeyC' || k==='C' || k==='c')) ||\n                (e.altKey && e.shiftKey && (c==='KeyX' || k==='X' || k==='x')) ||\n                (e.ctrlKey && e.shiftKey && (c==='KeyK' || k==='K' || k==='k')) ||\n                (k==='Escape' && inspectorEnabled) || (inspectorEnabled && (c==='KeyM' || k==='m' || k==='M'));\n    if (combo) { try { e.preventDefault(); e.stopPropagation(); } catch(_) {} if(inspectorEnabled && (c==='KeyM' || k==='m' || k==='M')){ if(currentHighlight) promptMap(currentHighlight); } else { toggleInspector(); } }\n  }, {capture:true});
 
   // Highlight on hover (any element; prefer data-dev-path if present)
   document.addEventListener('mouseover', function(e){
@@ -225,3 +217,4 @@
   window.__INSPECTOR_LOADED__ = true;
   console.log('[Dev Inspector] loaded');
 })();
+
