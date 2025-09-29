@@ -1,10 +1,20 @@
-// Dev Inspector (ASCII-safe)
+// Dev Inspector (ASCII-safe) with URL + Component ID
 (function(){
   'use strict';
   var inspectorEnabled = false;
   var overlay = null;
   var currentHighlight = null;
   var pressTimer = null;
+
+  var ID_ATTRS = ['id','data-component-id','data-comp-id','data-id','data-testid','data-key','data-view-id'];
+  function findComponentRoot(el){
+    var cur = el; var seen = 0;
+    while (cur && cur.nodeType === 1 && seen < 12){
+      for (var i=0;i<ID_ATTRS.length;i++){ var a = ID_ATTRS[i]; var v = cur.getAttribute && cur.getAttribute(a); if (v){ return {root: cur, attr: a, value: v}; } }
+      cur = cur.parentElement; seen++;
+    }
+    return {root: null, attr: '', value: ''};
+  }
 
   function createOverlay(){
     overlay = document.createElement('div');
@@ -65,18 +75,22 @@
     info.style.fontSize = '12px';
     info.style.fontFamily = 'Monaco, Consolas, monospace';
     info.style.zIndex = '100000';
-    info.style.maxWidth = '340px';
+    info.style.maxWidth = '420px';
     info.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
 
-    var tagName = el.tagName ? el.tagName.toLowerCase() : 'node';
-    var elId = el.id ? ('#' + el.id) : '';
-    var elCls = el.className ? ('.' + String(el.className).split(' ').join('.')) : '';
-    var devPath = (el.getAttribute && el.getAttribute('data-dev-path')) || '';
-    var pathText = devPath || getCssPath(el);
+    var tagName = el && el.tagName ? el.tagName.toLowerCase() : 'node';
+    var elId = el && el.id ? ('#' + el.id) : '';
+    var elCls = el && el.className ? ('.' + String(el.className).split(' ').join('.')) : '';
+    var devPath = (el && el.getAttribute && el.getAttribute('data-dev-path')) || '';
+    var comp = findComponentRoot(el);
+    var pageUrl = String(location.origin + location.pathname + location.search + location.hash);
 
-    var html = '<div style="margin-bottom:4px;"><strong>' + tagName + '</strong>' + elId + elCls + '</div>' +
-               '<div style="color:#4fc3f7; margin-bottom:4px; word-break:break-all;">' + (devPath?('FILE '+devPath):('PATH '+pathText)) + '</div>' +
-               '<div style="color:#81c784; font-size:11px;">TIP hold mouse to copy path</div>';
+    var html = '';
+    html += '<div style="margin-bottom:4px;"><strong>' + tagName + '</strong>' + elId + elCls + '</div>';
+    html += '<div style="color:#a3d3ff; margin-bottom:4px; word-break:break-all;">URL ' + pageUrl + '</div>';
+    html += '<div style="color:#81c784; margin-bottom:4px;">ID ' + (comp.value||'(none)') + (comp.attr?(' ['+comp.attr+']'):'') + '</div>';
+    if (devPath) html += '<div style="color:#4fc3f7; margin-bottom:4px; word-break:break-all;">FILE ' + devPath + '</div>';
+    html += '<div style="color:#81c784; font-size:11px;">TIP hold mouse (0.5s) to copy URL+ID</div>';
     info.innerHTML = html;
 
     var top = rect.top + scrollY + rect.height + 5;
@@ -160,7 +174,7 @@
     }
   }
 
-  // Keyboard hotkeys (not passive, we may preventDefault)
+  // Keyboard hotkeys (not passive)
   document.addEventListener('keydown', function(e){
     var c = e.code || '';
     var k = e.key || '';
@@ -178,13 +192,17 @@
     highlightElement(t);
   }, true);
 
-  // Long-press to copy path (500ms)
+  // Long-press to copy URL + ID (+ FILE/PATH)
   function startPressTimer(target){
     clearPressTimer();
     pressTimer = setTimeout(function(){
       var el = (target && target.closest) ? (target.closest('[data-dev-path]') || target) : target;
-      var text = (el && el.getAttribute && el.getAttribute('data-dev-path')) || getCssPath(el);
-      copyText(text);
+      var dev = (el && el.getAttribute && el.getAttribute('data-dev-path'));
+      var comp = findComponentRoot(el);
+      var url = String(location.origin + location.pathname + location.search + location.hash);
+      var out = 'URL ' + url + '\n' + 'ID ' + (comp.value||'(none)');
+      out += '\n' + (dev ? ('FILE ' + dev) : ('PATH ' + getCssPath(el)));
+      copyText(out);
     }, 500);
   }
   function clearPressTimer(){ if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
