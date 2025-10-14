@@ -3,9 +3,12 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const logger = require('./utils/logger');
+const requestContext = require('./middleware/requestContext');
+const requestLogger = require('./middleware/requestLogger');
 const { connectDatabase } = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -17,6 +20,25 @@ const teamRoutes = require('./routes/teams');
 
 const app = express();
 const PORT = process.env.PORT || 3460;
+const ENABLE_INSPECTOR = String(process.env.ENABLE_INSPECTOR || '').toLowerCase();
+const INSPECTOR_ENABLED = ['1','true','yes'].includes(ENABLE_INSPECTOR);
+const inspectorSnippet = INSPECTOR_ENABLED ? '\n<script src="/dev-tools/bootstrap.js"></script>\n' : '';
+
+function sendHtml(res, filePath) {
+  if (!INSPECTOR_ENABLED) {
+    return res.sendFile(filePath, { root: path.join(__dirname, '../../admin-frontend') });
+  }
+  const absolutePath = path.join(__dirname, '../../admin-frontend', filePath);
+  fs.readFile(absolutePath, 'utf8', (err, html) => {
+    if (err) {
+      return res.sendFile(filePath, { root: path.join(__dirname, '../../admin-frontend') });
+    }
+    const patched = html.replace(/<\/body>\s*<\/html>\s*$/i, inspectorSnippet + '</body></html>');
+    const output = patched.includes('</body>') ? patched : html + inspectorSnippet;
+    res.send(output);
+  });
+}
+
 
 // 配置helmet，允许小程序和跨域访问
 app.use(helmet({
@@ -55,14 +77,11 @@ app.use('/api/', limiter);
 app.use('/api/auth', authLimiter);
 
 // 解析请求体
+app.use(requestContext);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(requestLogger);
 
-// 请求日志
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path} - ${req.ip}`);
-  next();
-});
 
 // 健康检查
 app.get('/health', (req, res) => {
@@ -74,8 +93,22 @@ app.get('/health', (req, res) => {
   });
 });
 
+if (INSPECTOR_ENABLED) {
+  app.get(['/', '/*.html'], (req, res, next) => {
+    const target = req.path === '/' ? 'index.html' : req.path.replace(/^\/+/, '');
+    return sendHtml(res, target);
+  });
+}
+
 // 静态文件服务 - 提供管理端前端文件
 app.use(express.static(path.join(__dirname, '../../admin-frontend')));
+
+if (INSPECTOR_ENABLED) {
+  const devToolsDir = path.join(__dirname, '../../admin-frontend/dev-tools');
+  if (fs.existsSync(devToolsDir)) {
+    app.use('/dev-tools', express.static(devToolsDir));
+  }
+}
 
 // 静态文件服务 - 提供上传的文件
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -110,17 +143,13 @@ app.get('*', (req, res) => {
   
   // 检查是否是直接访问HTML文件
   if (req.path.endsWith('.html')) {
-    const filePath = path.join(__dirname, '../../admin-frontend', req.path);
-    return res.sendFile(filePath, (err) => {
-      if (err) {
-        // 如果文件不存在，返回index.html
-        res.sendFile('index.html', { root: path.join(__dirname, '../../admin-frontend') });
-      }
-    });
+    const relative = req.path.replace(/^\/+/, '');
+    const target = relative.length ? relative : 'index.html';
+    return sendHtml(res, target);
   }
-  
+
   // 其他所有路由都返回index.html，让前端路由处理
-  res.sendFile('index.html', { root: path.join(__dirname, '../../admin-frontend') });
+  sendHtml(res, 'index.html');
 });
 
 // 错误处理中间件

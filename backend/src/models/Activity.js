@@ -365,4 +365,89 @@ Activity.createDinnerParty = async function(activityData) {
   return activity;
 };
 
+// 实例方法：计算AA费用分摊
+Activity.prototype.calculateAACosts = async function() {
+  const { sequelize } = require('../config/database');
+  
+  // 获取活动总费用
+  const totalCost = parseFloat(this.total_cost) || 0;
+  
+  // 获取所有参与者及其分摊系数
+  const participants = await sequelize.models.ActivityParticipant.findAll({
+    where: { activity_id: this.id },
+    attributes: ['user_id', 'cost_sharing_ratio']
+  });
+  
+  if (participants.length === 0) {
+    return {
+      totalCost: totalCost.toFixed(2),
+      participantCount: 0,
+      averageCost: 0,
+      participants: []
+    };
+  }
+  
+  // 计算总系数
+  const totalRatio = participants.reduce((sum, p) => sum + parseFloat(p.cost_sharing_ratio), 0);
+  
+  // 如果总系数为0，使用默认AA分摊
+  if (totalRatio === 0) {
+    const averageCost = totalCost / participants.length;
+    return {
+      totalCost: totalCost.toFixed(2),
+      participantCount: participants.length,
+      averageCost: averageCost.toFixed(2),
+      participants: participants.map(p => ({
+        user_id: p.user_id,
+        cost_sharing_ratio: parseFloat(p.cost_sharing_ratio),
+        amount: averageCost.toFixed(2)
+      }))
+    };
+  }
+  
+  // 按系数分摊费用
+  const participantCosts = participants.map(p => {
+    const ratio = parseFloat(p.cost_sharing_ratio);
+    const amount = totalCost * (ratio / totalRatio);
+    return {
+      user_id: p.user_id,
+      cost_sharing_ratio: ratio,
+      amount: amount.toFixed(2)
+    };
+  });
+  
+  const averageCost = totalCost / participants.length;
+  
+  return {
+    totalCost: totalCost.toFixed(2),
+    participantCount: participants.length,
+    averageCost: averageCost.toFixed(2),
+    totalRatio: totalRatio.toFixed(2),
+    participants: participantCosts
+  };
+};
+
+// 实例方法：更新参与者分摊系数
+Activity.prototype.updateParticipantRatio = async function(userId, ratio) {
+  const { sequelize } = require('../config/database');
+  
+  const participant = await sequelize.models.ActivityParticipant.findOne({
+    where: { 
+      activity_id: this.id,
+      user_id: userId
+    }
+  });
+  
+  if (!participant) {
+    throw new Error('参与者不存在');
+  }
+  
+  // 确保系数在合理范围内
+  const validRatio = Math.max(0, Math.min(10, parseFloat(ratio)));
+  
+  await participant.update({ cost_sharing_ratio: validRatio });
+  
+  return participant;
+};
+
 module.exports = Activity;

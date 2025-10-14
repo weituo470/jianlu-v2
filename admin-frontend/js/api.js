@@ -417,6 +417,45 @@ window.API = {
         // 更新参与者支付状态
         updatePaymentStatus(participantId, data) {
             return API.put(`/activities/participant/${participantId}/payment`, data);
+        },
+
+        // ==================== AA费用分摊相关接口 ====================
+        
+        // 计算AA费用分摊
+        calculateAACosts(activityId) {
+            return API.get(`/activities/${activityId}/aa-costs`);
+        },
+
+        // 更新参与者分摊系数
+        updateParticipantRatio(activityId, userId, ratio) {
+            return API.put(`/activities/${activityId}/participants/${userId}/ratio`, { ratio });
+        },
+
+        // ==================== 活动记账相关接口 ====================
+        
+        // 创建活动费用记录
+        createExpense(activityId, data) {
+            return API.post(`/activities/${activityId}/expenses`, data);
+        },
+
+        // 获取活动费用记录列表
+        getExpenses(activityId, params = {}) {
+            return API.get(`/activities/${activityId}/expenses`, params);
+        },
+
+        // 更新活动费用记录
+        updateExpense(activityId, expenseId, data) {
+            return API.put(`/activities/${activityId}/expenses/${expenseId}`, data);
+        },
+
+        // 删除活动费用记录
+        deleteExpense(activityId, expenseId) {
+            return API.delete(`/activities/${activityId}/expenses/${expenseId}`);
+        },
+
+        // 获取活动费用统计
+        getExpenseSummary(activityId) {
+            return API.get(`/activities/${activityId}/expense-summary`);
         }
     },
 

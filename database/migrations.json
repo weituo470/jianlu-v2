@@ -1,0 +1,72 @@
+{
+  "groups": [
+    {
+      "id": "baseline",
+      "title": "基线迁移",
+      "description": "核心表结构和初始化数据",
+      "entries": [
+        {
+          "type": "sql",
+          "file": "create-accounts-simple.sql"
+        },
+        {
+          "type": "sql",
+          "file": "create-activities-table.sql"
+        },
+        {
+          "type": "sql",
+          "file": "create-activity-types-table.sql"
+        },
+        {
+          "type": "sql",
+          "file": "create-activity-types.sql"
+        },
+        {
+          "type": "sql",
+          "file": "extend-activities-simple.sql"
+        },
+        {
+          "type": "sql",
+          "file": "create-team-types-table.sql"
+        },
+        {
+          "type": "sql",
+          "file": "add-team-type-field.sql"
+        },
+        {
+          "type": "sql",
+          "file": "create-banners-table.sql"
+        },
+        {
+          "type": "sql",
+          "file": "add-activity-sequence-field.sql"
+        },
+        {
+          "type": "sql",
+          "file": "add-dinner-party-fields.sql"
+        },
+        {
+          "type": "sql",
+          "file": "add-activity-cost-fields.sql"
+        },
+        {
+          "type": "sql",
+          "file": "extend-activities-cost-sharing.sql"
+        },
+        {
+          "type": "sql",
+          "file": "add-wechat-fields.sql"
+        },
+        {
+          "type": "sql",
+          "file": "optimize-wechat-fields.sql"
+        },
+        {
+          "type": "sql",
+          "file": "create-activity-expenses-table.sql"
+        }
+      ]
+    }
+  ],
+  "defaultGroups": ["baseline"]
+}

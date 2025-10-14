@@ -1,10 +1,13 @@
 {
   "name": "database",
   "version": "1.0.0",
-  "description": "✅ **MySQL 8.0 已安装并可用**\r - 版本: MySQL 8.0.42 for Win64\r - 位置: C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysql.exe",
+  "description": "Database schema tooling and migrations for Jianlu Admin.",
   "main": "auto-fix-team-types.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No automated tests defined\"",
+    "migrate": "node ./scripts/run-migrations.js",
+    "migrate:list": "node ./scripts/run-migrations.js --list",
+    "migrate:dry-run": "node ./scripts/run-migrations.js --dry-run"
   },
   "keywords": [],
   "author": "",

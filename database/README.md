@@ -172,3 +172,7 @@ Get-Content test_connection.sql | mysql -u jianlu_app -pjianlu_app_password_2024
 ```
 
 **任务状态**: ✅ 完成
+
+## 迁移脚本与执行
+
+自 2025-09 起，数据库脚本统一由 migrations.json 管理，可在 database 目录下使用 "npm run migrate -- --list" 查看分组，或参考 [MIGRATIONS.md](./MIGRATIONS.md) 获取详细执行说明。

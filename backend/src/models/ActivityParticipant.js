@@ -81,6 +81,12 @@ const ActivityParticipant = sequelize.define('ActivityParticipant', {
     type: DataTypes.TEXT,
     allowNull: true,
     comment: '支付备注'
+  },
+  // AA分摊系数字段
+  cost_sharing_ratio: {
+    type: DataTypes.DECIMAL(5, 2),
+    defaultValue: 1.00,
+    comment: '费用分摊系数，默认为1'
   }
 }, {
   tableName: 'activity_participants',

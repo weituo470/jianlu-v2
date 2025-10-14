@@ -917,6 +917,94 @@ router.put('/participant/:participantId/payment', authenticateToken, async (req,
   }
 });
 
+// ==================== AA费用分摊相关接口 ====================
+
+// 计算AA费用分摊
+router.get('/:id/aa-costs', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityParticipant, User } = require('../models');
+    const { id: activityId } = req.params;
+
+    // 验证活动
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 计算AA费用分摊
+    const aaCosts = await activity.calculateAACosts();
+
+    // 获取参与者详细信息
+    if (aaCosts.participants.length > 0) {
+      const userIds = aaCosts.participants.map(p => p.user_id);
+      const users = await User.findAll({
+        where: { id: userIds },
+        attributes: ['id', 'username', 'email', 'profile']
+      });
+
+      const userMap = {};
+      users.forEach(user => {
+        userMap[user.id] = user;
+      });
+
+      aaCosts.participants = aaCosts.participants.map(p => ({
+        ...p,
+        user: userMap[p.user_id] || null
+      }));
+    }
+
+    logger.info(`用户 ${req.user.username} 计算活动 ${activity.title} 的AA费用分摊`);
+    return success(res, {
+      activity: {
+        id: activity.id,
+        title: activity.title,
+        total_cost: activity.total_cost
+      },
+      aaCosts
+    }, '计算AA费用分摊成功');
+
+  } catch (err) {
+    logger.error('计算AA费用分摊失败:', err);
+    return error(res, '计算AA费用分摊失败: ' + err.message, 500);
+  }
+});
+
+// 更新参与者分摊系数
+router.put('/:id/participants/:userId/ratio', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityParticipant, User } = require('../models');
+    const { id: activityId, userId } = req.params;
+    const { ratio } = req.body;
+
+    // 验证活动
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 检查权限：只有活动创建者或管理员可以更新分摊系数
+    if (activity.creator_id !== req.user.id && !req.user.permissions.includes('activity:update')) {
+      return error(res, '权限不足，无法更新分摊系数', 403);
+    }
+
+    // 验证用户是否存在
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return error(res, '用户不存在', 404);
+    }
+
+    // 更新分摊系数
+    const participant = await activity.updateParticipantRatio(userId, ratio);
+
+    logger.info(`用户 ${req.user.username} 更新活动 ${activity.title} 中用户 ${user.username} 的分摊系数为 ${ratio}`);
+    return success(res, participant, '更新分摊系数成功');
+
+  } catch (err) {
+    logger.error('更新分摊系数失败:', err);
+    return error(res, '更新分摊系数失败: ' + err.message, 500);
+  }
+});
+
 // ==================== 聚餐活动专用接口 ====================
 
 // 创建聚餐活动验证模式
@@ -1594,4 +1682,327 @@ router.delete('/:id/participants/:participantId', authenticateToken, async (req,
   }
 });
 
+// ==================== 活动记账相关接口 ====================
+
+// 创建活动费用记录
+router.post('/:id/expenses', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityExpense } = require('../models');
+    const { id: activityId } = req.params;
+    const {
+      item,
+      amount,
+      expense_date,
+      description,
+      payer,
+      image_path
+    } = req.body;
+
+    // 验证活动是否存在
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 检查权限：只有活动创建者或管理员可以添加费用记录
+    if (activity.creator_id !== req.user.id && !req.user.permissions.includes('activity:update')) {
+      return error(res, '权限不足，无法添加费用记录', 403);
+    }
+
+    // 验证必填字段
+    if (!item || !amount || !expense_date) {
+      return error(res, '费用事项、金额和日期不能为空', 400);
+    }
+
+    // 创建费用记录
+    const expense = await ActivityExpense.create({
+      activity_id: activityId,
+      item: item.trim(),
+      amount: parseFloat(amount),
+      expense_date: new Date(expense_date),
+      description: description ? description.trim() : null,
+      payer: payer ? payer.trim() : null,
+      image_path: image_path ? image_path.trim() : null,
+      recorder_id: req.user.id
+    });
+
+    logger.info(`用户 ${req.user.username} 为活动 ${activity.title} 添加费用记录: ${item}`);
+    return success(res, expense, '费用记录创建成功', 201);
+
+  } catch (err) {
+    logger.error('创建费用记录失败:', err);
+    return error(res, '创建费用记录失败: ' + err.message, 500);
+  }
+});
+
+// 获取活动费用记录列表
+router.get('/:id/expenses', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityExpense } = require('../models');
+    const { id: activityId } = req.params;
+
+    // 验证活动
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 获取费用记录列表
+    const expenses = await ActivityExpense.findAll({
+      where: { activity_id: activityId },
+      include: [{
+        model: require('../models').User,
+        as: 'recorder',
+        attributes: ['id', 'username', 'email']
+      }],
+      order: [['expense_date', 'DESC'], ['created_at', 'DESC']]
+    });
+
+    logger.info(`用户 ${req.user.username} 获取活动 ${activity.title} 的费用记录列表，共 ${expenses.length} 条`);
+    return success(res, {
+      activity: {
+        id: activity.id,
+        title: activity.title
+      },
+      expenses
+    }, '获取费用记录列表成功');
+
+  } catch (err) {
+    logger.error('获取费用记录列表失败:', err);
+    return error(res, '获取费用记录列表失败: ' + err.message, 500);
+  }
+});
+
+// 更新活动费用记录
+router.put('/:id/expenses/:expenseId', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityExpense } = require('../models');
+    const { id: activityId, expenseId } = req.params;
+    const {
+      item,
+      amount,
+      expense_date,
+      description,
+      payer,
+      image_path
+    } = req.body;
+
+    // 验证活动
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 查找费用记录
+    const expense = await ActivityExpense.findByPk(expenseId);
+    if (!expense) {
+      return error(res, '费用记录不存在', 404);
+    }
+
+    // 验证费用记录是否属于该活动
+    if (expense.activity_id !== activityId) {
+      return error(res, '费用记录不属于该活动', 400);
+    }
+
+    // 检查权限：只有记录人、活动创建者或管理员可以更新费用记录
+    if (expense.recorder_id !== req.user.id && 
+        activity.creator_id !== req.user.id && 
+        !req.user.permissions.includes('activity:update')) {
+      return error(res, '权限不足，无法更新此费用记录', 403);
+    }
+
+    // 更新费用记录
+    await expense.update({
+      item: item ? item.trim() : expense.item,
+      amount: amount ? parseFloat(amount) : expense.amount,
+      expense_date: expense_date ? new Date(expense_date) : expense.expense_date,
+      description: description !== undefined ? (description ? description.trim() : null) : expense.description,
+      payer: payer !== undefined ? (payer ? payer.trim() : null) : expense.payer,
+      image_path: image_path !== undefined ? (image_path ? image_path.trim() : null) : expense.image_path
+    });
+
+    logger.info(`用户 ${req.user.username} 更新活动 ${activity.title} 的费用记录: ${expense.item}`);
+    return success(res, expense, '费用记录更新成功');
+
+  } catch (err) {
+    logger.error('更新费用记录失败:', err);
+    return error(res, '更新费用记录失败: ' + err.message, 500);
+  }
+});
+
+// 删除活动费用记录
+router.delete('/:id/expenses/:expenseId', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityExpense } = require('../models');
+    const { id: activityId, expenseId } = req.params;
+
+    // 验证活动
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 查找费用记录
+    const expense = await ActivityExpense.findByPk(expenseId);
+    if (!expense) {
+      return error(res, '费用记录不存在', 404);
+    }
+
+    // 验证费用记录是否属于该活动
+    if (expense.activity_id !== activityId) {
+      return error(res, '费用记录不属于该活动', 400);
+    }
+
+    // 检查权限：只有记录人、活动创建者或管理员可以删除费用记录
+    if (expense.recorder_id !== req.user.id && 
+        activity.creator_id !== req.user.id && 
+        !req.user.permissions.includes('activity:delete')) {
+      return error(res, '权限不足，无法删除此费用记录', 403);
+    }
+
+    // 删除费用记录
+    await expense.destroy();
+
+    logger.info(`用户 ${req.user.username} 删除活动 ${activity.title} 的费用记录: ${expense.item}`);
+    return success(res, null, '费用记录删除成功');
+
+  } catch (err) {
+    logger.error('删除费用记录失败:', err);
+    return error(res, '删除费用记录失败: ' + err.message, 500);
+  }
+});
+
+// 获取活动费用统计
+router.get('/:id/expense-summary', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityExpense } = require('../models');
+    const { id: activityId } = req.params;
+
+    // 验证活动
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 获取费用统计信息
+    const expenses = await ActivityExpense.findAll({
+      where: { activity_id: activityId }
+    });
+
+    const summary = {
+      totalCount: expenses.length,
+      totalAmount: 0,
+      averageAmount: 0
+    };
+
+    if (expenses.length > 0) {
+      const totalAmount = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
+      summary.totalAmount = parseFloat(totalAmount.toFixed(2));
+      summary.averageAmount = parseFloat((totalAmount / expenses.length).toFixed(2));
+    }
+
+    logger.info(`用户 ${req.user.username} 获取活动 ${activity.title} 的费用统计`);
+    return success(res, {
+      activity: {
+        id: activity.id,
+        title: activity.title
+      },
+      summary
+    }, '获取费用统计成功');
+
+  } catch (err) {
+    logger.error('获取费用统计失败:', err);
+    return error(res, '获取费用统计失败: ' + err.message, 500);
+  }
+});
+
+// ==================== AA费用分摊相关接口 ====================
+
+// 计算AA费用分摊
+router.get('/:id/aa-costs', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityParticipant, User } = require('../models');
+    const { id: activityId } = req.params;
+
+    // 验证活动
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 计算AA费用分摊
+    const aaCosts = await activity.calculateAACosts();
+
+    // 获取参与者详细信息
+    if (aaCosts.participants.length > 0) {
+      const userIds = aaCosts.participants.map(p => p.user_id);
+      const users = await User.findAll({
+        where: { id: userIds },
+        attributes: ['id', 'username', 'email', 'profile']
+      });
+
+      const userMap = {};
+      users.forEach(user => {
+        userMap[user.id] = user;
+      });
+
+      aaCosts.participants = aaCosts.participants.map(p => ({
+        ...p,
+        user: userMap[p.user_id] || null
+      }));
+    }
+
+    logger.info(`用户 ${req.user.username} 计算活动 ${activity.title} 的AA费用分摊`);
+    return success(res, {
+      activity: {
+        id: activity.id,
+        title: activity.title,
+        total_cost: activity.total_cost
+      },
+      aaCosts
+    }, '计算AA费用分摊成功');
+
+  } catch (err) {
+    logger.error('计算AA费用分摊失败:', err);
+    return error(res, '计算AA费用分摊失败: ' + err.message, 500);
+  }
+});
+
+// 更新参与者分摊系数
+router.put('/:id/participants/:userId/ratio', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityParticipant, User } = require('../models');
+    const { id: activityId, userId } = req.params;
+    const { ratio } = req.body;
+
+    // 验证活动
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 检查权限：只有活动创建者或管理员可以更新分摊系数
+    if (activity.creator_id !== req.user.id && !req.user.permissions.includes('activity:update')) {
+      return error(res, '权限不足，无法更新分摊系数', 403);
+    }
+
+    // 验证用户是否存在
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return error(res, '用户不存在', 404);
+    }
+
+    // 更新分摊系数
+    const participant = await activity.updateParticipantRatio(userId, ratio);
+
+    logger.info(`用户 ${req.user.username} 更新活动 ${activity.title} 中用户 ${user.username} 的分摊系数为 ${ratio}`);
+    return success(res, participant, '更新分摊系数成功');
+
+  } catch (err) {
+    logger.error('更新分摊系数失败:', err);
+    return error(res, '更新分摊系数失败: ' + err.message, 500);
+  }
+});
+
+// 导出router
 module.exports = router;

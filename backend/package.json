@@ -1,49 +1,49 @@
-﻿{
-    "name":  "jianlu-admin-backend",
-    "version":  "1.0.0",
-    "description":  "绠€搴愮鐞嗗悗鍙扮郴缁熷悗绔疉PI鏈嶅姟",
-    "main":  "src/app.js",
-    "scripts":  {
-                    "start":  "node src/app.js",
-                    "dev":  "nodemon src/app.js",
-                    "test":  "jest",
-                    "test:watch":  "jest --watch",
-                    "dev:inspector":  "node scripts/dev-inspector-win.js"
-                },
-    "keywords":  [
-                     "jianlu",
-                     "admin",
-                     "backend",
-                     "api"
-                 ],
-    "author":  "Jianlu Team",
-    "license":  "MIT",
-    "dependencies":  {
-                         "bcryptjs":  "^2.4.3",
-                         "cors":  "^2.8.5",
-                         "dotenv":  "^16.3.1",
-                         "express":  "^4.18.2",
-                         "express-rate-limit":  "^7.1.5",
-                         "express-validator":  "^7.2.1",
-                         "helmet":  "^7.1.0",
-                         "joi":  "^17.11.0",
-                         "jsonwebtoken":  "^9.0.2",
-                         "multer":  "^2.0.2",
-                         "mysql2":  "^3.14.3",
-                         "node-cron":  "^4.2.1",
-                         "node-fetch":  "^3.3.2",
-                         "sequelize":  "^6.35.0",
-                         "uuid":  "^9.0.1",
-                         "winston":  "^3.11.0"
-                     },
-    "devDependencies":  {
-                            "@types/jest":  "^29.5.8",
-                            "axios":  "^1.11.0",
-                            "jest":  "^29.7.0",
-                            "nodemon":  "^3.0.2",
-                            "supertest":  "^6.3.3"
-                        },
-    "engines":  {
-                    "node":  "\u003e=18.0.0"
-                }
+{
+    "name": "jianlu-admin-backend",
+    "version": "1.0.0",
+    "description": "绠€搴愮鐞嗗悗鍙扮郴缁熷悗绔疉PI鏈嶅姟",
+    "main": "src/app.js",
+    "scripts": {
+        "start": "node src/app.js",
+        "dev": "nodemon src/app.js",
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "dev:inspector": "node scripts/dev-inspector-win.js"
+    },
+    "keywords": [
+        "jianlu",
+        "admin",
+        "backend",
+        "api"
+    ],
+    "author": "Jianlu Team",
+    "license": "MIT",
+    "dependencies": {
+        "bcryptjs": "^2.4.3",
+        "cors": "^2.8.5",
+        "dotenv": "^16.6.1",
+        "express": "^4.18.2",
+        "express-rate-limit": "^7.1.5",
+        "express-validator": "^7.2.1",
+        "helmet": "^7.1.0",
+        "joi": "^17.11.0",
+        "jsonwebtoken": "^9.0.2",
+        "multer": "^2.0.2",
+        "mysql2": "^3.14.3",
+        "node-cron": "^4.2.1",
+        "node-fetch": "^3.3.2",
+        "sequelize": "^6.35.0",
+        "uuid": "^9.0.1",
+        "winston": "^3.11.0"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.8",
+        "axios": "^1.11.0",
+        "jest": "^29.7.0",
+        "nodemon": "^3.0.2",
+        "supertest": "^6.3.3"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
 }

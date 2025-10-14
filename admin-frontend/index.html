@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/responsive.css">
     <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" onerror="this.onerror=null;this.href='/css/fa-local.min.css';">
     <!-- Swiper CSS for banner showcase -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
 </head>
@@ -287,55 +287,7 @@ function showErrorPage(message){
                 showErrorPage('JavaScript鏂囦欢鍔犺浇澶辫触: ' + error.message);
             }
         });
-    </script>
-<script>
-(function(){
-  var loaded = !!window.__INSPECTOR_LOADED__;
-  var bootstrapping = false;
-  function ensure(){
-    if (loaded || window.__INSPECTOR_LOADED__) return Promise.resolve(true);
-    if (bootstrapping) {
-      return new Promise(function(resolve){
-        var i = setInterval(function(){
-          if (window.__INSPECTOR_LOADED__) { clearInterval(i); loaded = true; resolve(true); }
-        }, 50);
-      });
-    }
-    bootstrapping = true;
-    return new Promise(function(resolve, reject){
-      var s = document.createElement('script');
-      s.src = '/inspector.js';
-      s.onload = function(){ loaded = true; window.__INSPECTOR_LOADED__ = true; bootstrapping = false; resolve(true); };
-      s.onerror = function(e){ bootstrapping = false; reject(e); };
-      document.head.appendChild(s);
-    });
-  }
-  function activate(){
-    try {
-      if (window.DevInspector && typeof window.DevInspector.toggle === 'function') {
-        window.DevInspector.toggle();
-      }
-    } catch (e) { console.warn('[Inspector] toggle failed', e); }
-  }
-  // Hotkey to preload inspector then toggle (no synthetic key events to avoid recursion)
-    document.addEventListener('keydown', function(e){
-    var c = e.code || '';
-    var k = e.key || '';
-    if (e.altKey && e.shiftKey && (c==='KeyC' || k==='C' || k==='c')){
-      try { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); } catch(_) {}
-      ensure().then(activate).catch(function(err){ console.error('[Inspector] load failed', err); });
-    }
-  }, {capture:true});
-  // Also support ?inspector and localStorage flag
-  try {
-    var p = new URLSearchParams(location.search);
-    var flag = localStorage.getItem('inspector') === '1';
-    if (p.get('inspector') === '1') { localStorage.setItem('inspector','1'); ensure(); }
-    if (p.get('inspector') === '0') { localStorage.removeItem('inspector'); }
-    if (!loaded && flag) ensure();
-  } catch(_){}
-})();
-</script></body>
+    </script></body>
 
 </html>
 

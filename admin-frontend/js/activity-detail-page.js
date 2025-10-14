@@ -5,6 +5,9 @@ class ActivityDetailPage {
         this.activityId = null;
         this.activityData = null;
         this.participantsData = [];
+        this.expensesData = []; // 添加费用记录数据属性
+        this.expenseSummary = { totalCount: 0, totalAmount: 0, averageAmount: 0 }; // 添加费用统计数据属性
+        this.aaCostsData = null; // 添加AA费用分摊数据属性
     }
 
     // 初始化页面
@@ -29,10 +32,13 @@ class ActivityDetailPage {
         try {
             console.log('开始加载活动数据，活动ID:', this.activityId);
             
-            // 并行获取活动详情和参与者数据
+            // 并行获取活动详情、参与者数据、费用记录数据、费用统计数据和AA费用分摊数据
             await Promise.all([
                 this.loadActivityDetail(),
-                this.loadParticipants()
+                this.loadParticipants(),
+                this.loadExpenses(), // 加载费用记录数据
+                this.loadExpenseSummary(), // 加载费用统计数据
+                this.loadAACosts() // 加载AA费用分摊数据
             ]);
 
             // 渲染页面
@@ -112,6 +118,66 @@ class ActivityDetailPage {
         }
     }
 
+    // 加载费用记录数据
+    async loadExpenses() {
+        try {
+            console.log('开始获取费用记录数据，活动ID:', this.activityId);
+            const response = await API.activities.getExpenses(this.activityId);
+            console.log('费用记录数据响应:', response);
+            
+            if (response.success) {
+                this.expensesData = response.data.expenses || [];
+                console.log('费用记录数据:', this.expensesData);
+            } else {
+                throw new Error(response.message || '获取费用记录数据失败');
+            }
+        } catch (error) {
+            console.error('获取费用记录数据失败:', error);
+            // 不抛出错误，因为记账功能可能是新功能
+            this.expensesData = [];
+        }
+    }
+
+    // 加载费用统计数据
+    async loadExpenseSummary() {
+        try {
+            console.log('开始获取费用统计数据，活动ID:', this.activityId);
+            const response = await API.activities.getExpenseSummary(this.activityId);
+            console.log('费用统计数据响应:', response);
+            
+            if (response.success) {
+                this.expenseSummary = response.data.summary || { totalCount: 0, totalAmount: 0, averageAmount: 0 };
+                console.log('费用统计数据:', this.expenseSummary);
+            } else {
+                throw new Error(response.message || '获取费用统计数据失败');
+            }
+        } catch (error) {
+            console.error('获取费用统计数据失败:', error);
+            // 使用默认值
+            this.expenseSummary = { totalCount: 0, totalAmount: 0, averageAmount: 0 };
+        }
+    }
+
+    // 加载AA费用分摊数据
+    async loadAACosts() {
+        try {
+            console.log('开始计算AA费用分摊，活动ID:', this.activityId);
+            const response = await API.activities.calculateAACosts(this.activityId);
+            console.log('AA费用分摊数据响应:', response);
+            
+            if (response.success) {
+                this.aaCostsData = response.data.aaCosts || null;
+                console.log('AA费用分摊数据:', this.aaCostsData);
+            } else {
+                throw new Error(response.message || '计算AA费用分摊失败');
+            }
+        } catch (error) {
+            console.error('计算AA费用分摊失败:', error);
+            // 不抛出错误，因为AA分摊功能可能是新功能
+            this.aaCostsData = null;
+        }
+    }
+
     // 渲染页面
     renderPage() {
         const container = document.getElementById('activity-detail-container');
@@ -130,6 +196,9 @@ class ActivityDetailPage {
         const pendingParticipants = this.participantsData.filter(p => p.status === 'pending');
         const approvedParticipants = this.participantsData.filter(p => p.status === 'approved');
         const rejectedParticipants = this.participantsData.filter(p => p.status === 'rejected');
+
+        // 计算总费用（从费用记录数据）
+        const totalExpenses = this.expensesData.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
 
         // 渲染页面内容
         container.innerHTML = `
@@ -185,200 +254,427 @@ class ActivityDetailPage {
                         <div class="stat-label">人均费用</div>
                     </div>
                     ` : ''}
+                    <!-- 添加费用统计卡片 -->
+                    ${this.expenseSummary.totalCount > 0 ? `
+                    <div class="stat-card">
+                        <div class="stat-value">¥${this.expenseSummary.totalAmount.toFixed(2)}</div>
+                        <div class="stat-label">记账总额</div>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
 
-            <div class="row">
-                <!-- 左侧内容 -->
-                <div class="col-lg-8">
-                    <!-- 活动信息卡片 -->
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-info-circle me-2"></i>活动信息</span>
-                            <span class="badge ${this.getStatusBadgeClass(this.activityData.status)}">${this.getStatusLabel(this.activityData.status)}</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="info-label">开始时间</div>
-                                    <div class="info-value">${this.activityData.start_time ? new Date(this.activityData.start_time).toLocaleString() : '未设置'}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">结束时间</div>
-                                    <div class="info-value">${this.activityData.end_time ? new Date(this.activityData.end_time).toLocaleString() : '未设置'}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">活动地点</div>
-                                    <div class="info-value">${this.activityData.location || '未设置'}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">人数限制</div>
-                                    <div class="info-value">${this.activityData.max_participants ? this.activityData.max_participants + '人' : '不限制'}</div>
-                                </div>
-                            </div>
-                            
-                            ${this.activityData.description ? `
-                            <div class="mb-3">
-                                <div class="info-label mb-2">活动描述</div>
-                                <div class="info-value">
-                                    ${this.activityData.description}
-                                </div>
-                            </div>
-                            ` : ''}
-                            
-                            ${this.activityData.cost_description ? `
-                            <div class="mb-3">
-                                <div class="info-label mb-2">费用说明</div>
-                                <div class="info-value">
-                                    ${this.activityData.cost_description}
-                                </div>
-                            </div>
-                            ` : ''}
-                        </div>
-                    </div>
+            <!-- 标签页导航 -->
+            <ul class="nav nav-tabs mb-4" id="activityDetailTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab">
+                        <i class="fas fa-info-circle me-2"></i>活动详情
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="expenses-tab" data-bs-toggle="tab" data-bs-target="#expenses" type="button" role="tab">
+                        <i class="fas fa-receipt me-2"></i>费用记账
+                        ${this.expensesData.length > 0 ? `<span class="badge bg-primary ms-2">${this.expensesData.length}</span>` : ''}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="aa-costs-tab" data-bs-toggle="tab" data-bs-target="#aa-costs" type="button" role="tab">
+                        <i class="fas fa-calculator me-2"></i>AA分摊
+                    </button>
+                </li>
+            </ul>
 
-                    <!-- 参与者列表 -->
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-users me-2"></i>参与者列表</span>
-                            <span class="badge bg-primary">${this.participantsData.length}人</span>
+            <!-- 标签页内容 -->
+            <div class="tab-content" id="activityDetailTabContent">
+                <!-- 活动详情标签页 -->
+                <div class="tab-pane fade show active" id="details" role="tabpanel">
+                    <div class="row">
+                        <!-- 左侧内容 -->
+                        <div class="col-lg-8">
+                            <!-- 活动信息卡片 -->
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-info-circle me-2"></i>活动信息</span>
+                                    <span class="badge ${this.getStatusBadgeClass(this.activityData.status)}">${this.getStatusLabel(this.activityData.status)}</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="info-grid">
+                                        <div class="info-item">
+                                            <div class="info-label">开始时间</div>
+                                            <div class="info-value">${this.activityData.start_time ? new Date(this.activityData.start_time).toLocaleString() : '未设置'}</div>
+                                        </div>
+                                        <div class="info-item">
+                                            <div class="info-label">结束时间</div>
+                                            <div class="info-value">${this.activityData.end_time ? new Date(this.activityData.end_time).toLocaleString() : '未设置'}</div>
+                                        </div>
+                                        <div class="info-item">
+                                            <div class="info-label">活动地点</div>
+                                            <div class="info-value">${this.activityData.location || '未设置'}</div>
+                                        </div>
+                                        <div class="info-item">
+                                            <div class="info-label">人数限制</div>
+                                            <div class="info-value">${this.activityData.max_participants ? this.activityData.max_participants + '人' : '不限制'}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    ${this.activityData.description ? `
+                                    <div class="mb-3">
+                                        <div class="info-label mb-2">活动描述</div>
+                                        <div class="info-value">
+                                            ${this.activityData.description}
+                                        </div>
+                                    </div>
+                                    ` : ''}
+                                    
+                                    ${this.activityData.cost_description ? `
+                                    <div class="mb-3">
+                                        <div class="info-label mb-2">费用说明</div>
+                                        <div class="info-value">
+                                            ${this.activityData.cost_description}
+                                        </div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+
+                            <!-- 参与者列表 -->
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-users me-2"></i>参与者列表</span>
+                                    <span class="badge bg-primary">${this.participantsData.length}人</span>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="nav nav-tabs" id="participantsTab" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">全部 (${this.participantsData.length})</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved" type="button" role="tab">已批准 (${approvedParticipants.length})</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">待审核 (${pendingParticipants.length})</button>
+                                        </li>
+                                    </ul>
+                                    
+                                    <div class="tab-content" id="participantsTabContent">
+                                        <div class="tab-pane fade show active" id="all" role="tabpanel">
+                                            ${this.renderParticipantsTable(this.participantsData)}
+                                        </div>
+                                        
+                                        <div class="tab-pane fade" id="approved" role="tabpanel">
+                                            ${this.renderParticipantsTable(approvedParticipants)}
+                                        </div>
+                                        
+                                        <div class="tab-pane fade" id="pending" role="tabpanel">
+                                            ${this.renderParticipantsTable(pendingParticipants)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <ul class="nav nav-tabs" id="participantsTab" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">全部 (${this.participantsData.length})</button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved" type="button" role="tab">已批准 (${approvedParticipants.length})</button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">待审核 (${pendingParticipants.length})</button>
-                                </li>
-                            </ul>
-                            
-                            <div class="tab-content" id="participantsTabContent">
-                                <div class="tab-pane fade show active" id="all" role="tabpanel">
-                                    ${this.renderParticipantsTable(this.participantsData)}
+
+                        <!-- 右侧内容 -->
+                        <div class="col-lg-4">
+                            <!-- 待审核申请 -->
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-user-clock me-2"></i>待审核申请</span>
+                                    <span class="badge bg-warning text-dark">${pendingParticipants.length}</span>
                                 </div>
-                                
-                                <div class="tab-pane fade" id="approved" role="tabpanel">
-                                    ${this.renderParticipantsTable(approvedParticipants)}
+                                <div class="card-body applications-container">
+                                    ${pendingParticipants.length > 0 ? 
+                                        pendingParticipants.map(participant => this.renderApplicationItem(participant)).join('') :
+                                        `<div class="empty-state">
+                                            <div class="empty-icon">
+                                                <i class="fas fa-inbox"></i>
+                                            </div>
+                                            <p class="mb-0">暂无待审核申请</p>
+                                        </div>`
+                                    }
                                 </div>
-                                
-                                <div class="tab-pane fade" id="pending" role="tabpanel">
-                                    ${this.renderParticipantsTable(pendingParticipants)}
+                            </div>
+
+                            <!-- 参与者统计 -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <span><i class="fas fa-chart-pie me-2"></i>参与者统计</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="stats-grid">
+                                        <div class="stat-box stat-approved">
+                                            <div class="stat-number">${approvedParticipants.length}</div>
+                                            <div class="stat-text">已批准</div>
+                                        </div>
+                                        <div class="stat-box stat-pending">
+                                            <div class="stat-number">${pendingParticipants.length}</div>
+                                            <div class="stat-text">待审核</div>
+                                        </div>
+                                        <div class="stat-box stat-rejected">
+                                            <div class="stat-number">${rejectedParticipants.length}</div>
+                                            <div class="stat-text">已拒绝</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 快速操作 -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <span><i class="fas fa-bolt me-2"></i>快速操作</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="quick-actions">
+                                        ${pendingParticipants.length > 0 ? `
+                                        <button class="btn-quick btn-approve-all" onclick="activityDetailPage.approveAllPending()">
+                                            <i class="fas fa-check-double"></i>
+                                            批准所有申请
+                                        </button>
+                                        ` : ''}
+                                        <button class="btn-quick btn-manage" onclick="activityDetailPage.manageParticipants()">
+                                            <i class="fas fa-users"></i>
+                                            管理所有参与者
+                                        </button>
+                                        ${Auth.hasPermission && Auth.hasPermission(['activity:update']) ? `
+                                        <button class="btn-quick btn-edit" onclick="activityDetailPage.editActivity()">
+                                            <i class="fas fa-edit"></i>
+                                            编辑活动信息
+                                        </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 活动日志 -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <span><i class="fas fa-history me-2"></i>活动日志</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="timeline">
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker">
+                                                <i class="fas fa-plus-circle text-success"></i>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <div class="timeline-title">活动创建</div>
+                                                <div class="timeline-desc">活动已创建</div>
+                                                <div class="timeline-meta">${this.activityData.creator?.username || '未知用户'} · ${this.activityData.created_at ? new Date(this.activityData.created_at).toLocaleString() : '未知时间'}</div>
+                                            </div>
+                                        </div>
+                                        ${this.activityData.status === 'published' ? `
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker">
+                                                <i class="fas fa-bullhorn text-primary"></i>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <div class="timeline-title">活动发布</div>
+                                                <div class="timeline-desc">活动状态更新为已发布</div>
+                                                <div class="timeline-meta">${this.activityData.creator?.username || '未知用户'} · ${this.activityData.updated_at ? new Date(this.activityData.updated_at).toLocaleString() : '未知时间'}</div>
+                                            </div>
+                                        </div>
+                                        ` : ''}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 右侧内容 -->
-                <div class="col-lg-4">
-                    <!-- 待审核申请 -->
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-user-clock me-2"></i>待审核申请</span>
-                            <span class="badge bg-warning text-dark">${pendingParticipants.length}</span>
+                <!-- 费用记账标签页 -->
+                <div class="tab-pane fade" id="expenses" role="tabpanel">
+                    <div class="row">
+                        <!-- 左侧：费用记录表单 -->
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <span><i class="fas fa-plus-circle me-2"></i>添加费用记录</span>
+                                </div>
+                                <div class="card-body">
+                                    <form id="expenseForm">
+                                        <div class="mb-3">
+                                            <label for="expenseItem" class="form-label">费用事项 *</label>
+                                            <input type="text" class="form-control" id="expenseItem" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="expenseAmount" class="form-label">金额 (¥) *</label>
+                                            <input type="number" class="form-control" id="expenseAmount" step="0.01" min="0" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="expenseDate" class="form-label">费用日期 *</label>
+                                            <input type="date" class="form-control" id="expenseDate" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="expensePayer" class="form-label">付款人</label>
+                                            <input type="text" class="form-control" id="expensePayer">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="expenseDescription" class="form-label">备注</label>
+                                            <textarea class="form-control" id="expenseDescription" rows="3"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="expenseImage" class="form-label">图片存档</label>
+                                            <input type="file" class="form-control" id="expenseImage" accept="image/*">
+                                        </div>
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="fas fa-plus me-2"></i>添加费用记录
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card-body applications-container">
-                            ${pendingParticipants.length > 0 ? 
-                                pendingParticipants.map(participant => this.renderApplicationItem(participant)).join('') :
-                                `<div class="empty-state">
-                                    <div class="empty-icon">
-                                        <i class="fas fa-inbox"></i>
-                                    </div>
-                                    <p class="mb-0">暂无待审核申请</p>
-                                </div>`
-                            }
-                        </div>
-                    </div>
 
-                    <!-- 参与者统计 -->
-                    <div class="card">
-                        <div class="card-header">
-                            <span><i class="fas fa-chart-pie me-2"></i>参与者统计</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="stats-grid">
-                                <div class="stat-box stat-approved">
-                                    <div class="stat-number">${approvedParticipants.length}</div>
-                                    <div class="stat-text">已批准</div>
+                        <!-- 右侧：费用记录列表 -->
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-receipt me-2"></i>费用记录列表</span>
+                                    <div>
+                                        <span class="badge bg-success me-2">总费用: ¥${this.expenseSummary.totalAmount.toFixed(2)}</span>
+                                        <span class="badge bg-primary">${this.expenseSummary.totalCount}条记录</span>
+                                    </div>
                                 </div>
-                                <div class="stat-box stat-pending">
-                                    <div class="stat-number">${pendingParticipants.length}</div>
-                                    <div class="stat-text">待审核</div>
-                                </div>
-                                <div class="stat-box stat-rejected">
-                                    <div class="stat-number">${rejectedParticipants.length}</div>
-                                    <div class="stat-text">已拒绝</div>
+                                <div class="card-body">
+                                    ${this.expensesData.length > 0 ? `
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>事项</th>
+                                                    <th>金额</th>
+                                                    <th>日期</th>
+                                                    <th>付款人</th>
+                                                    <th>记录人</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="expenses-table-body">
+                                                ${this.renderExpensesTableBody()}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    ` : `
+                                    <div class="empty-state">
+                                        <div class="empty-icon">
+                                            <i class="fas fa-receipt"></i>
+                                        </div>
+                                        <p class="mb-0">暂无费用记录</p>
+                                        <p class="text-muted small">添加第一条费用记录开始记账</p>
+                                    </div>
+                                    `}
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- 快速操作 -->
-                    <div class="card">
-                        <div class="card-header">
-                            <span><i class="fas fa-bolt me-2"></i>快速操作</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="quick-actions">
-                                ${pendingParticipants.length > 0 ? `
-                                <button class="btn-quick btn-approve-all" onclick="activityDetailPage.approveAllPending()">
-                                    <i class="fas fa-check-double"></i>
-                                    批准所有申请
-                                </button>
-                                ` : ''}
-                                <button class="btn-quick btn-manage" onclick="activityDetailPage.manageParticipants()">
-                                    <i class="fas fa-users"></i>
-                                    管理所有参与者
-                                </button>
-                                ${Auth.hasPermission && Auth.hasPermission(['activity:update']) ? `
-                                <button class="btn-quick btn-edit" onclick="activityDetailPage.editActivity()">
-                                    <i class="fas fa-edit"></i>
-                                    编辑活动信息
-                                </button>
-                                ` : ''}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 活动日志 -->
-                    <div class="card">
-                        <div class="card-header">
-                            <span><i class="fas fa-history me-2"></i>活动日志</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="timeline">
-                                <div class="timeline-item">
-                                    <div class="timeline-marker">
-                                        <i class="fas fa-plus-circle text-success"></i>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <div class="timeline-title">活动创建</div>
-                                        <div class="timeline-desc">活动已创建</div>
-                                        <div class="timeline-meta">${this.activityData.creator?.username || '未知用户'} · ${this.activityData.created_at ? new Date(this.activityData.created_at).toLocaleString() : '未知时间'}</div>
-                                    </div>
-                                </div>
-                                ${this.activityData.status === 'published' ? `
-                                <div class="timeline-item">
-                                    <div class="timeline-marker">
-                                        <i class="fas fa-bullhorn text-primary"></i>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <div class="timeline-title">活动发布</div>
-                                        <div class="timeline-desc">活动状态更新为已发布</div>
-                                        <div class="timeline-meta">${this.activityData.creator?.username || '未知用户'} · ${this.activityData.updated_at ? new Date(this.activityData.updated_at).toLocaleString() : '未知时间'}</div>
-                                    </div>
-                                </div>
-                                ` : ''}
-                            </div>
-                        </div>
+                <!-- AA费用分摊标签页 -->
+                <div class="tab-pane fade" id="aa-costs" role="tabpanel">
+                    <div id="aa-costs-content">
+                        <!-- AA费用分摊内容将通过JavaScript动态渲染 -->
                     </div>
                 </div>
             </div>
         `;
+
+        // 绑定表单提交事件
+        this.bindExpenseFormEvents();
+    }
+
+    // 绑定费用记录表单事件
+    bindExpenseFormEvents() {
+        const expenseForm = document.getElementById('expenseForm');
+        if (expenseForm) {
+            expenseForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.submitExpenseForm();
+            });
+        }
+    }
+
+    // 提交费用记录表单
+    async submitExpenseForm() {
+        const item = document.getElementById('expenseItem').value;
+        const amount = document.getElementById('expenseAmount').value;
+        const expenseDate = document.getElementById('expenseDate').value;
+        const payer = document.getElementById('expensePayer').value;
+        const description = document.getElementById('expenseDescription').value;
+        // 图片上传功能需要额外处理，这里简化处理
+        const image = document.getElementById('expenseImage').files[0];
+
+        // 简单验证
+        if (!item || !amount || !expenseDate) {
+            Utils.toast.error('请填写必填字段');
+            return;
+        }
+
+        try {
+            const expenseData = {
+                item,
+                amount: parseFloat(amount),
+                expense_date: expenseDate,
+                payer: payer || null,
+                description: description || null
+            };
+
+            // 如果有图片，需要先上传图片（这里简化处理）
+            if (image) {
+                // 在实际实现中，这里需要上传图片并获取图片路径
+                expenseData.image_path = 'path/to/image'; // 占位符
+            }
+
+            const response = await API.activities.createExpense(this.activityId, expenseData);
+
+            if (response.success) {
+                Utils.toast.success('费用记录添加成功');
+                // 重置表单
+                document.getElementById('expenseForm').reset();
+                // 重新加载费用数据，而不是整个页面
+                await this.loadExpenses();
+                await this.loadExpenseSummary();
+                // 重新渲染费用标签页内容
+                this.renderExpensesTab();
+                // 激活费用标签页
+                this.activateExpensesTab();
+            } else {
+                Utils.toast.error('添加费用记录失败: ' + response.message);
+            }
+        } catch (error) {
+            console.error('添加费用记录失败:', error);
+            Utils.toast.error('添加费用记录失败: ' + error.message);
+        }
+    }
+
+    // 编辑费用记录
+    async editExpense(expenseId) {
+        // 在实际实现中，这里需要打开编辑模态框或跳转到编辑页面
+        Utils.toast.info('编辑功能开发中');
+    }
+
+    // 删除费用记录
+    async deleteExpense(expenseId) {
+        if (!confirm('确定要删除这条费用记录吗？')) {
+            return;
+        }
+
+        try {
+            const response = await API.activities.deleteExpense(this.activityId, expenseId);
+
+            if (response.success) {
+                Utils.toast.success('费用记录删除成功');
+                // 重新加载费用数据
+                await this.loadExpenses();
+                await this.loadExpenseSummary();
+                // 重新渲染费用标签页内容
+                this.renderExpensesTab();
+                // 激活费用标签页
+                this.activateExpensesTab();
+            } else {
+                Utils.toast.error('删除费用记录失败: ' + response.message);
+            }
+        } catch (error) {
+            console.error('删除费用记录失败:', error);
+            Utils.toast.error('删除费用记录失败: ' + error.message);
+        }
     }
 
     // 渲染参与者表格
@@ -658,6 +954,297 @@ class ActivityDetailPage {
         } else {
             alert('路由功能不可用');
         }
+    }
+
+    // 渲染费用标签页内容
+    renderExpensesTab() {
+        // 更新费用统计信息
+        const totalAmountElement = document.querySelector('#expenses .card-header .badge.bg-success');
+        if (totalAmountElement) {
+            totalAmountElement.textContent = `总费用: ¥${this.expenseSummary.totalAmount.toFixed(2)}`;
+        }
+        
+        const totalCountElement = document.querySelector('#expenses .card-header .badge.bg-primary');
+        if (totalCountElement) {
+            totalCountElement.textContent = `${this.expenseSummary.totalCount}条记录`;
+        }
+
+        // 更新费用记录列表
+        const tableBody = document.querySelector('#expenses-table-body');
+        if (tableBody) {
+            tableBody.innerHTML = this.renderExpensesTableBody();
+        } else {
+            // 如果表格体不存在，重新渲染整个费用标签页内容
+            const cardBody = document.querySelector('#expenses .card-body');
+            if (cardBody) {
+                if (this.expensesData.length > 0) {
+                    cardBody.innerHTML = `
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>事项</th>
+                                        <th>金额</th>
+                                        <th>日期</th>
+                                        <th>付款人</th>
+                                        <th>记录人</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expenses-table-body">
+                                    ${this.renderExpensesTableBody()}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    cardBody.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="fas fa-receipt"></i>
+                            </div>
+                            <p class="mb-0">暂无费用记录</p>
+                            <p class="text-muted small">添加第一条费用记录开始记账</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+    }
+
+    // 激活费用标签页
+    activateExpensesTab() {
+        // 激活费用标签页
+        const expensesTab = document.querySelector('#expenses-tab');
+        if (expensesTab) {
+            const tab = new bootstrap.Tab(expensesTab);
+            tab.show();
+        }
+    }
+
+    // 渲染费用表格内容
+    renderExpensesTableBody() {
+        if (this.expensesData.length === 0) {
+            return '';
+        }
+        
+        // 计算合计金额
+        const totalAmount = this.expensesData.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
+        
+        // 生成表格行
+        let rows = `
+            <!-- 合计行 -->
+            <tr class="table-info">
+                <td><strong>合计</strong></td>
+                <td><strong>¥${totalAmount.toFixed(2)}</strong></td>
+                <td colspan="4"></td>
+            </tr>
+        `;
+        
+        // 添加费用记录行
+        rows += this.expensesData.map(expense => `
+            <tr>
+                <td>${expense.item}</td>
+                <td>¥${parseFloat(expense.amount).toFixed(2)}</td>
+                <td>${new Date(expense.expense_date).toLocaleDateString()}</td>
+                <td>${expense.payer || '-'}</td>
+                <td>${expense.recorder?.username || '-'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="activityDetailPage.editExpense('${expense.id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="activityDetailPage.deleteExpense('${expense.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        return rows;
+    }
+
+    // 更新参与者分摊系数
+    async updateParticipantRatio(userId, ratio) {
+        try {
+            const response = await API.activities.updateParticipantRatio(this.activityId, userId, ratio);
+
+            if (response.success) {
+                Utils.toast.success('更新分摊系数成功');
+                // 重新加载AA费用分摊数据
+                await this.loadAACosts();
+                // 重新渲染AA费用分摊标签页
+                this.renderAACostsTab();
+            } else {
+                Utils.toast.error('更新分摊系数失败: ' + response.message);
+            }
+        } catch (error) {
+            console.error('更新分摊系数失败:', error);
+            Utils.toast.error('更新分摊系数失败: ' + error.message);
+        }
+    }
+
+    // 渲染AA费用分摊标签页
+    renderAACostsTab() {
+        const aaCostsTab = document.getElementById('aa-costs-content');
+        if (!aaCostsTab || !this.aaCostsData) return;
+
+        if (this.aaCostsData.participantCount === 0) {
+            aaCostsTab.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <p class="mb-0">暂无参与者</p>
+                    <p class="text-muted small">活动需要有参与者才能进行费用分摊</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 计算总系数
+        const totalRatio = this.aaCostsData.participants.reduce((sum, p) => sum + parseFloat(p.cost_sharing_ratio), 0);
+
+        aaCostsTab.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calculator me-2"></i>AA费用分摊计算
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-label">活动总费用</div>
+                                <div class="stat-value">¥${this.aaCostsData.totalCost}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-label">参与人数</div>
+                                <div class="stat-value">${this.aaCostsData.participantCount}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-label">平均费用</div>
+                                <div class="stat-value">¥${this.aaCostsData.averageCost}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>参与者</th>
+                                    <th>分摊系数</th>
+                                    <th>应付金额</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${this.aaCostsData.participants.map(participant => `
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="application-avatar me-2">
+                                                    ${Utils.avatar.createAvatarHtml(
+                                                        Utils.avatar.getUserAvatar(participant.user),
+                                                        "头像",
+                                                        32,
+                                                        "",
+                                                        "user"
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold">${participant.user?.username || '未知用户'}</div>
+                                                    <small class="text-muted">${participant.user?.email || ''}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="input-group" style="max-width: 120px;">
+                                                <input type="number" 
+                                                       class="form-control form-control-sm ratio-input" 
+                                                       value="${participant.cost_sharing_ratio}" 
+                                                       min="0" 
+                                                       max="10" 
+                                                       step="0.1"
+                                                       data-user-id="${participant.user_id}">
+                                                <button class="btn btn-outline-primary btn-sm ratio-update" 
+                                                        type="button"
+                                                        data-user-id="${participant.user_id}">
+                                                    <i class="fas fa-sync"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold text-success">¥${participant.amount}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">
+                                                ${((parseFloat(participant.amount) / parseFloat(this.aaCostsData.averageCost)) * 100).toFixed(0)}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                                <tr class="table-info">
+                                    <td><strong>合计</strong></td>
+                                    <td><strong>${totalRatio.toFixed(2)}</strong></td>
+                                    <td><strong>¥${this.aaCostsData.totalCost}</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-info mt-3">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle me-2"></i>分摊说明
+                        </h6>
+                        <p class="mb-1">
+                            <strong>计算公式：</strong>个人应付金额 = 活动总费用 × (个人系数 / 所有参与者系数总和)
+                        </p>
+                        <p class="mb-1">
+                            <strong>系数说明：</strong>默认系数为1，系数越大分摊比例越高，系数为0表示不参与分摊
+                        </p>
+                        <p class="mb-0">
+                            <strong>当前总系数：</strong>${totalRatio.toFixed(2)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 绑定系数更新事件
+        this.bindRatioUpdateEvents();
+    }
+
+    // 绑定系数更新事件
+    bindRatioUpdateEvents() {
+        // 输入框回车事件
+        const ratioInputs = document.querySelectorAll('.ratio-input');
+        ratioInputs.forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const userId = input.dataset.userId;
+                    const ratio = parseFloat(input.value) || 1;
+                    this.updateParticipantRatio(userId, ratio);
+                }
+            });
+        });
+
+        // 更新按钮点击事件
+        const updateButtons = document.querySelectorAll('.ratio-update');
+        updateButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const userId = button.dataset.userId;
+                const input = document.querySelector(`.ratio-input[data-user-id="${userId}"]`);
+                const ratio = parseFloat(input.value) || 1;
+                this.updateParticipantRatio(userId, ratio);
+            });
+        });
     }
 }
 

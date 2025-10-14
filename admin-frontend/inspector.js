@@ -1,19 +1,127 @@
 ﻿// Dev Inspector (ASCII-safe) with URL + Component ID
 (function(){
   'use strict';
+
+  var devMode = typeof window !== 'undefined' && window.__DEV_INSPECTOR__ === true;
   var inspectorEnabled = false;
   var overlay = null;
   var currentHighlight = null;
   var pressTimer = null;
 
   var ID_ATTRS = ['id','data-component-id','data-comp-id','data-id','data-testid','data-key','data-view-id'];
+  var DevMap = {};
+  var mapLoaded = false;
+  var mapLoading = false;
+
   function findComponentRoot(el){
-    var cur = el; var seen = 0;
-    while (cur && cur.nodeType === 1 && seen < 12){
-      for (var i=0;i<ID_ATTRS.length;i++){ var a = ID_ATTRS[i]; var v = cur.getAttribute && cur.getAttribute(a); if (v){ return {root: cur, attr: a, value: v}; } }
-      cur = cur.parentElement; seen++;
+    var cur = el;
+    var seen = 0;
+    while (cur && cur.nodeType === 1 && seen < 12) {
+      for (var i = 0; i < ID_ATTRS.length; i++) {
+        var attr = ID_ATTRS[i];
+        var val = cur.getAttribute && cur.getAttribute(attr);
+        if (val) {
+          return { root: cur, attr: attr, value: val };
+        }
+      }
+      cur = cur.parentElement;
+      seen++;
     }
-    return {root: null, attr: '', value: ''};
+    return { root: null, attr: '', value: '' };
+  }
+
+  function getSelectorKeys(el) {
+    var keys = [];
+    if (!el || el.nodeType !== 1) return keys;
+    if (el.id) keys.push('#' + el.id);
+    for (var i = 0; i < ID_ATTRS.length; i++) {
+      var attr = ID_ATTRS[i];
+      var val = el.getAttribute && el.getAttribute(attr);
+      if (val) {
+        keys.push(attr + ':' + val);
+      }
+    }
+    var cls = (el.className || '').trim();
+    if (cls) {
+      cls.split(/\s+/).slice(0, 3).forEach(function(name){
+        keys.push('.' + name);
+      });
+    }
+    return keys;
+  }
+
+  function loadDevMap() {
+    if (!devMode) {
+      mapLoaded = true;
+      return;
+    }
+    if (mapLoaded || mapLoading) return;
+    mapLoading = true;
+    try {
+      fetch('/__dev-map').then(function(res){
+        if (!res.ok) throw new Error('request failed');
+        return res.json();
+      }).then(function(map){
+        DevMap = map || {};
+      }).catch(function(){
+        DevMap = {};
+      }).finally(function(){
+        mapLoaded = true;
+        mapLoading = false;
+      });
+    } catch (err) {
+      mapLoaded = true;
+      mapLoading = false;
+      DevMap = {};
+    }
+  }
+
+  function guessFile(el){
+    var cur = el;
+    var hops = 0;
+    while (cur && hops < 10) {
+      var direct = cur.getAttribute && cur.getAttribute('data-dev-path');
+      if (direct) return direct;
+      var keys = getSelectorKeys(cur);
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (DevMap[k]) return DevMap[k];
+      }
+      cur = cur.parentElement;
+      hops++;
+    }
+    return '';
+  }
+
+  function promptMap(el){
+    if (!devMode) {
+      console.warn('[Dev Inspector] promptMap skipped: not in development');
+      return;
+    }
+    try {
+      var keys = getSelectorKeys(el);
+      var defaultKey = keys[0] || '';
+      var key = prompt('Inspector: enter selector key (e.g. #id, data-component-id:value, .class)', defaultKey);
+      if (!key) return;
+      var current = DevMap[key] || '';
+      var file = prompt('Inspector: enter source file path', current);
+      if (!file) return;
+      fetch('/__dev-map', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: key, file: file })
+      }).then(function(res){
+        if (!res.ok) throw new Error('request failed');
+        return res.json();
+      }).then(function(){
+        DevMap[key] = file;
+        showNotification('map saved: ' + key + ' -> ' + file, 'success');
+      }).catch(function(){
+        showNotification('map save failed', 'error');
+      });
+    } catch (err) {
+      console.warn('[Dev Inspector] promptMap error', err);
+    }
   }
 
   function createOverlay(){
@@ -32,20 +140,25 @@
     try {
       if (!el || !el.tagName) return '';
       if (el.id) return el.tagName.toLowerCase() + '#' + el.id;
-      var path = [];
+      var pathParts = [];
       var cur = el;
-      while (cur && cur.nodeType === 1 && path.length < 7) {
+      while (cur && cur.nodeType === 1 && pathParts.length < 7) {
         var sel = cur.tagName.toLowerCase();
         var cls = String(cur.className || '').trim();
-        if (cls) sel += '.' + cls.split(/\s+/).slice(0,2).join('.');
-        var nth = 1, sib = cur;
-        while ((sib = sib.previousElementSibling)) { if (sib.tagName === cur.tagName) nth++; }
+        if (cls) sel += '.' + cls.split(/\s+/).slice(0, 2).join('.');
+        var nth = 1;
+        var sib = cur;
+        while ((sib = sib.previousElementSibling)) {
+          if (sib.tagName === cur.tagName) nth++;
+        }
         sel += ':nth-of-type(' + nth + ')';
-        path.unshift(sel);
+        pathParts.unshift(sel);
         cur = cur.parentElement;
       }
-      return path.join(' > ');
-    } catch(e) { return ''; }
+      return pathParts.join(' > ');
+    } catch (e) {
+      return '';
+    }
   }
 
   function highlightElement(el){
@@ -81,15 +194,17 @@
     var tagName = el && el.tagName ? el.tagName.toLowerCase() : 'node';
     var elId = el && el.id ? ('#' + el.id) : '';
     var elCls = el && el.className ? ('.' + String(el.className).split(' ').join('.')) : '';
-    var devPath = (el && el.getAttribute && el.getAttribute('data-dev-path')) || guessFile(el);
+    var devPath = guessFile(el);
     var comp = findComponentRoot(el);
     var pageUrl = String(location.origin + location.pathname + location.search + location.hash);
 
     var html = '';
     html += '<div style="margin-bottom:4px;"><strong>' + tagName + '</strong>' + elId + elCls + '</div>';
     html += '<div style="color:#a3d3ff; margin-bottom:4px; word-break:break-all;">URL ' + pageUrl + '</div>';
-    html += '<div style="color:#81c784; margin-bottom:4px;">ID ' + (comp.value||'(none)') + (comp.attr?(' ['+comp.attr+']'):'') + '</div>';
-    if (devPath) html += '<div style="color:#4fc3f7; margin-bottom:4px; word-break:break-all;">FILE ' + devPath + '</div>';
+    html += '<div style="color:#81c784; margin-bottom:4px;">ID ' + (comp.value || '(none)') + (comp.attr ? (' [' + comp.attr + ']') : '') + '</div>';
+    if (devPath) {
+      html += '<div style="color:#4fc3f7; margin-bottom:4px; word-break:break-all;">FILE ' + devPath + '</div>';
+    }
     html += '<div style="color:#81c784; font-size:11px;">TIP hold mouse (0.5s) to copy FILE/ID</div>';
     info.innerHTML = html;
 
@@ -116,7 +231,7 @@
     n.style.position = 'fixed';
     n.style.top = '20px';
     n.style.right = '20px';
-    n.style.backgroundColor = type === 'info' ? '#007bff' : (type==='success'?'#28a745':'#e74c3c');
+    n.style.backgroundColor = type === 'info' ? '#007bff' : (type === 'success' ? '#28a745' : '#e74c3c');
     n.style.color = 'white';
     n.style.padding = '12px 20px';
     n.style.borderRadius = '4px';
@@ -129,7 +244,7 @@
     n.textContent = message;
     document.body.appendChild(n);
     setTimeout(function(){ n.style.opacity = '1'; n.style.transform = 'translateY(0)'; }, 10);
-    setTimeout(function(){ n.style.opacity = '0'; n.style.transform = 'translateY(-20px)'; setTimeout(function(){ if(n.parentNode) n.parentNode.removeChild(n); }, 300); }, 1800);
+    setTimeout(function(){ n.style.opacity = '0'; n.style.transform = 'translateY(-20px)'; setTimeout(function(){ if (n.parentNode) n.parentNode.removeChild(n); }, 300); }, 1800);
   }
 
   function copyText(str){
@@ -137,32 +252,51 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(str);
       } else {
-        var ta = document.createElement('textarea'); ta.value = String(str||'');
-        ta.style.position='fixed'; ta.style.left='-2000px'; document.body.appendChild(ta);
-        ta.focus(); ta.select(); try { document.execCommand('copy'); } catch(_) {}
+        var ta = document.createElement('textarea');
+        ta.value = String(str || '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-2000px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
         document.body.removeChild(ta);
       }
-      showNotification('copied: ' + (String(str).slice(0,80)), 'success');
-    } catch(e) { showNotification('copy failed', 'error'); }
+      showNotification('copied: ' + (String(str).slice(0, 80)), 'success');
+    } catch (e) {
+      showNotification('copy failed', 'error');
+    }
   }
 
   function openInVSCode(filePath){
     if (!filePath) { showNotification('empty file path', 'error'); return; }
     try {
-      var a = document.createElement('a'); a.href = 'vscode://file/' + String(filePath).replace(/\\\\/g,'/'); a.style.display='none';
-      document.body.appendChild(a); a.click(); setTimeout(function(){ if(a&&a.parentNode) a.parentNode.removeChild(a);}, 1000);
+      var a = document.createElement('a');
+      a.href = 'vscode://file/' + String(filePath).replace(/\\\\/g, '/');
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){ if (a && a.parentNode) a.parentNode.removeChild(a); }, 1000);
       showNotification('open in VS Code: ' + filePath, 'success');
       return;
-    } catch (e) { console.warn('[Dev Inspector] vscode:// failed', e); }
-    fetch('/__open-in-editor?file=' + encodeURIComponent(filePath)).then(function(r){
-      if (r.ok) showNotification('open in VS Code: ' + filePath, 'success'); else showNotification('open failed', 'error');
-    }).catch(function(){ showNotification('request failed', 'error'); });
+    } catch (e) {
+      console.warn('[Dev Inspector] vscode:// failed', e);
+    }
+    fetch('/__open-in-editor?file=' + encodeURIComponent(filePath))
+      .then(function(res){ if (!res.ok) throw new Error('request failed'); })
+      .then(function(){ showNotification('open in VS Code: ' + filePath, 'success'); })
+      .catch(function(){ showNotification('open failed', 'error'); });
   }
 
   function toggleInspector(){
     inspectorEnabled = !inspectorEnabled;
     if (!overlay) createOverlay();
-    if (inspectorEnabled) { document.body.style.cursor = 'crosshair'; console.log('[Dev Inspector] Enabled - press Escape or hotkey to close'); showNotification('inspector enabled', 'info');} else {
+    if (inspectorEnabled) {
+      loadDevMap();
+      document.body.style.cursor = 'crosshair';
+      console.log('[Dev Inspector] Enabled - press Escape or hotkey to close');
+      showNotification('inspector enabled', 'info');
+    } else {
       document.body.style.cursor = '';
       hideHighlight();
       console.log('[Dev Inspector] Disabled');
@@ -170,55 +304,84 @@
     }
   }
 
-  // Keyboard hotkeys (not passive)
   document.addEventListener('keydown', function(e){
     var c = e.code || '';
     var k = e.key || '';
-    var combo = (e.altKey && e.shiftKey && (c==='KeyC' || k==='C' || k==='c')) ||                (e.altKey && e.shiftKey && (c==='KeyX' || k==='X' || k==='x')) ||                (e.ctrlKey && e.shiftKey && (c==='KeyK' || k==='K' || k==='k')) ||                (k==='Escape' && inspectorEnabled) || (inspectorEnabled && (c==='KeyM' || k==='m' || k==='M'));
-    if (combo) { try { e.preventDefault(); e.stopPropagation(); } catch(_) {} if(inspectorEnabled && (c==='KeyM' || k==='m' || k==='M')){ if(currentHighlight) promptMap(currentHighlight); } else { toggleInspector(); } }
-  }, {capture:true});
+    var isToggle = (e.altKey && e.shiftKey && (c === 'KeyC' || k === 'C' || k === 'c')) ||
+                   (e.altKey && e.shiftKey && (c === 'KeyX' || k === 'X' || k === 'x')) ||
+                   (e.ctrlKey && e.shiftKey && (c === 'KeyK' || k === 'K' || k === 'k'));
+    var isEscape = inspectorEnabled && (k === 'Escape' || k === 'Esc');
+    var isMap = inspectorEnabled && (c === 'KeyM' || k === 'm' || k === 'M');
 
-  // Highlight on hover (any element; prefer data-dev-path if present)
+    if (isToggle || isEscape || isMap) {
+      try { e.preventDefault(); e.stopPropagation(); } catch (_) {}
+      if (isMap) {
+        if (currentHighlight) {
+          promptMap(currentHighlight);
+        }
+      } else {
+        toggleInspector();
+      }
+    }
+  }, { capture: true });
+
   document.addEventListener('mouseover', function(e){
     if (!inspectorEnabled) return;
-    var t = e.target.closest ? (e.target.closest('[data-dev-path]') || e.target) : e.target;
-    highlightElement(t);
+    var target = e.target.closest ? (e.target.closest('[data-dev-path]') || e.target) : e.target;
+    highlightElement(target);
   }, true);
 
-  // Long-press to copy URL + ID (+ FILE/PATH)
   function startPressTimer(target){
     clearPressTimer();
     pressTimer = setTimeout(function(){
       var el = (target && target.closest) ? (target.closest('[data-dev-path]') || target) : target;
-      var dev = (el && el.getAttribute && el.getAttribute('data-dev-path'));
+      var file = guessFile(el);
       var comp = findComponentRoot(el);
       var url = String(location.origin + location.pathname + location.search + location.hash);
-      var out = 'URL ' + url + '\n' + 'ID ' + (comp.value||'(none)');
-      out += '\n' + (dev ? ('FILE ' + dev) : ('PATH ' + getCssPath(el)));
-      copyText(out);
+      var payload = 'URL ' + url + '\n' + 'ID ' + (comp.value || '(none)');
+      if (file) {
+        payload += '\nFILE ' + file;
+      } else {
+        payload += '\nPATH ' + getCssPath(el);
+      }
+      copyText(payload);
     }, 500);
   }
-  function clearPressTimer(){ if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
-  document.addEventListener('mousedown', function(e){ if (inspectorEnabled) startPressTimer(e.target); }, true);
-  document.addEventListener('mouseup', function(){ clearPressTimer(); }, true);
-  document.addEventListener('mouseleave', function(){ clearPressTimer(); }, true);
 
-  // Click to open in editor if data-dev-path exists
+  function clearPressTimer(){
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+  }
+
+  document.addEventListener('mousedown', function(e){
+    if (inspectorEnabled) startPressTimer(e.target);
+  }, true);
+  document.addEventListener('mouseup', clearPressTimer, true);
+  document.addEventListener('mouseleave', clearPressTimer, true);
+
   document.addEventListener('click', function(e){
     if (!inspectorEnabled) return;
     var t = e.target.closest ? e.target.closest('[data-dev-path]') : null;
-    if (t) { try { e.preventDefault(); e.stopPropagation(); } catch(_) {} var fp = t.getAttribute('data-dev-path'); if (fp) openInVSCode(fp); }
+    if (t) {
+      try { e.preventDefault(); e.stopPropagation(); } catch (_) {}
+      var fp = guessFile(t);
+      if (fp) openInVSCode(fp);
+    }
   }, true);
 
-  // Keep overlay valid
-  document.addEventListener('visibilitychange', function(){ if (document.hidden && inspectorEnabled) hideHighlight(); });
-  window.addEventListener('resize', function(){ if (inspectorEnabled && currentHighlight) highlightElement(currentHighlight); });
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden && inspectorEnabled) hideHighlight();
+  });
+  window.addEventListener('resize', function(){
+    if (inspectorEnabled && currentHighlight) highlightElement(currentHighlight);
+  });
 
-  window.DevInspector = { toggle: toggleInspector, isEnabled: function(){ return inspectorEnabled; } };
+  window.DevInspector = {
+    toggle: toggleInspector,
+    isEnabled: function(){ return inspectorEnabled; }
+  };
   window.__INSPECTOR_LOADED__ = true;
   console.log('[Dev Inspector] loaded');
 })();
-
-
-
-

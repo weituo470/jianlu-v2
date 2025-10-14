@@ -14,6 +14,7 @@ const { UserAccount, AccountTransaction } = require('./UserAccount');
 const { ActivityRegistration, ActivityCostSharing } = require('./ActivityRegistration');
 const TeamApplication = require('./TeamApplication');
 const TeamApplicationHistory = require('./TeamApplicationHistory');
+const ActivityExpense = require('./ActivityExpense');
 
 // 创建模型对象
 const models = {
@@ -31,7 +32,8 @@ const models = {
   ActivityRegistration,
   ActivityCostSharing,
   TeamApplication,
-  TeamApplicationHistory
+  TeamApplicationHistory,
+  ActivityExpense
 };
 
 // 初始化所有模型关联

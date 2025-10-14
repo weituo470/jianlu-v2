@@ -1,8 +1,13 @@
 const winston = require('winston');
 const path = require('path');
+const fs = require('fs');
 
 // 创建日志目录
 const logDir = path.join(__dirname, '../../logs');
+
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
 
 // 日志格式
 const logFormat = winston.format.combine(

@@ -19,9 +19,14 @@ const sequelize = new Sequelize({
   define: {
     timestamps: true,
     underscored: true,
-    freezeTableName: true
+    freezeTableName: true,
+    charset: 'utf8mb4',
+    collate: 'utf8mb4_unicode_ci'
   },
-  timezone: '+08:00'
+  timezone: '+08:00',
+  dialectOptions: {
+    charset: 'utf8mb4'
+  }
 });
 
 // 连接数据库
