@@ -1114,7 +1114,7 @@ window.Router = {
                     <div class="empty-state-title">暂无活动</div>
                     <div class="empty-state-description">还没有创建任何活动</div>
                     ${Auth.hasPermission(['activity:create']) ? `
-                        <button class="btn btn-primary" onclick="ActivityManager.showCreateModal()">
+                        <button class="btn btn-primary" onclick="activitiesManager.showCreateActivityModal()">
                             <i class="fas fa-plus"></i>
                             创建第一个活动
                         </button>
@@ -1199,12 +1199,12 @@ window.Router = {
                                             <i class="fas fa-eye"></i>
                                         </button>
                                         ${Auth.hasPermission(['activity:update']) ? `
-                                            <button class="btn btn-sm btn-warning" onclick="ActivityManager.editActivity('${activity.id}')" title="编辑">
+                                            <button class="btn btn-sm btn-warning" onclick="activitiesManager.editActivity('${activity.id}')" title="编辑">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                         ` : ''}
                                         ${Auth.hasPermission(['activity:delete']) ? `
-                                            <button class="btn btn-sm btn-danger" onclick="ActivityManager.deleteActivity('${activity.id}')" title="删除">
+                                            <button class="btn btn-sm btn-danger" onclick="activitiesManager.deleteActivity('${activity.id}')" title="删除">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         ` : ''}
@@ -1829,11 +1829,11 @@ window.Router = {
                             
                             <!-- 创建活动按钮 -->
                             ${Auth.hasPermission(['activity:create']) ? `
-                                <button class="btn btn-primary" onclick="ActivityManager.showCreateModal()" style="height: 36px; white-space: nowrap;">
+                                <button class="btn btn-primary" onclick="activitiesManager.showCreateActivityModal()" style="height: 36px; white-space: nowrap;">
                                     <i class="fas fa-plus"></i>
                                     创建活动
                                 </button>
-                                <button class="btn btn-success" onclick="ActivityManager.showAAActivityModal()" style="height: 36px; white-space: nowrap; margin-left: 8px;">
+                                <button class="btn btn-success" onclick="activitiesManager.showCreateActivityModal()" style="height: 36px; white-space: nowrap; margin-left: 8px;">
                                     <i class="fas fa-money-bill-wave"></i>
                                     创建AA活动
                                 </button>
@@ -1921,20 +1921,41 @@ window.Router = {
                 await this.loadScript('/js/activities-manager.js');
             }
             
-            // 动态加载ActivityManager脚本（用于创建活动）
-            if (typeof ActivityManager === 'undefined') {
-                await this.loadScript('/js/activity-manager.js');
-            }
-
+  
             // 初始化活动管理器
             if (typeof activitiesManager === 'undefined') {
                 window.activitiesManager = new ActivitiesManager();
+                console.log('🔧 Router: 创建新的activitiesManager实例');
             }
+
+            // 总是强制重新加载数据，确保显示最新信息
+            console.log('🔧 Router: 开始强制重新加载活动数据...');
             await activitiesManager.init();
-            
-            // 初始化ActivityManager
-            if (typeof ActivityManager !== 'undefined') {
-                ActivityManager.init();
+            console.log('🔧 Router: 活动数据重新加载完成');
+
+            // 添加全局测试函数
+            if (typeof window.testForceRefresh === 'undefined') {
+                window.testForceRefresh = async () => {
+                    console.log('🧪 测试：调用forceRefresh方法');
+                    if (typeof activitiesManager !== 'undefined' && activitiesManager.forceRefresh) {
+                        await activitiesManager.forceRefresh();
+                    } else {
+                        console.error('🧪 测试失败：activitiesManager或forceRefresh方法不存在');
+                    }
+                };
+                console.log('🧪 测试函数已添加到window.testForceRefresh()');
+            }
+
+            // 添加手动刷新按钮到页面
+            const headerActions = document.querySelector('.header-actions');
+            if (headerActions && !headerActions.querySelector('.force-refresh-btn')) {
+                const refreshBtn = document.createElement('button');
+                refreshBtn.className = 'btn btn-outline-primary force-refresh-btn';
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> 强制刷新';
+                refreshBtn.onclick = async () => {
+                    await activitiesManager.forceRefresh();
+                };
+                headerActions.appendChild(refreshBtn);
             }
 
         } catch (error) {
@@ -2049,12 +2070,12 @@ window.Router = {
                                                 <i class="fas fa-eye"></i>
                                             </button>
                                             ${Auth.hasPermission(['activity:update']) ? `
-                                                <button class="btn btn-sm btn-warning" onclick="ActivityManager.editActivity('${activity.id}')" title="编辑">
+                                                <button class="btn btn-sm btn-warning" onclick="activitiesManager.editActivity('${activity.id}')" title="编辑">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
                                             ` : ''}
                                             ${Auth.hasPermission(['activity:delete']) ? `
-                                                <button class="btn btn-sm btn-danger" onclick="ActivityManager.deleteActivity('${activity.id}')" title="删除">
+                                                <button class="btn btn-sm btn-danger" onclick="activitiesManager.deleteActivity('${activity.id}')" title="删除">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             ` : ''}
@@ -2100,13 +2121,13 @@ window.Router = {
                             </div>
                             <div class="header-actions" style="display: flex; gap: 8px;">
                                 ${Auth.hasPermission(['activity:update']) ? `
-                                    <button class="btn btn-warning" onclick="ActivityManager.editActivity('${activityId}')">
+                                    <button class="btn btn-warning" onclick="activitiesManager.editActivity('${activityId}')">
                                         <i class="fas fa-edit"></i>
                                         编辑活动
                                     </button>
                                 ` : ''}
                                 ${Auth.hasPermission(['activity:delete']) ? `
-                                    <button class="btn btn-danger" onclick="ActivityManager.deleteActivity('${activityId}')">
+                                    <button class="btn btn-danger" onclick="activitiesManager.deleteActivity('${activityId}')">
                                         <i class="fas fa-trash"></i>
                                         删除活动
                                     </button>
@@ -2161,13 +2182,13 @@ window.Router = {
                             </div>
                             <div class="header-actions" style="display: flex; gap: 8px;">
                                 ${Auth.hasPermission(['activity:update']) ? `
-                                    <button class="btn btn-warning" onclick="ActivityManager.editActivity('${activityId}')">
+                                    <button class="btn btn-warning" onclick="activitiesManager.editActivity('${activityId}')">
                                         <i class="fas fa-edit"></i>
                                         编辑活动
                                     </button>
                                 ` : ''}
                                 ${Auth.hasPermission(['activity:delete']) ? `
-                                    <button class="btn btn-danger" onclick="ActivityManager.deleteActivity('${activityId}')">
+                                    <button class="btn btn-danger" onclick="activitiesManager.deleteActivity('${activityId}')">
                                         <i class="fas fa-trash"></i>
                                         删除活动
                                     </button>

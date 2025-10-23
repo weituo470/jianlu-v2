@@ -62,30 +62,33 @@ class ActivitiesManager {
         try {
             console.log('🔄 正在加载活动数据...');
             console.log('当前筛选条件:', this.currentFilters);
-            
+            console.log('🔄 loadActivities: 调用API前，当前activities数量:', this.activities.length);
+
             const response = await API.activities.getList(this.currentFilters);
             console.log('📡 API完整响应:', response);
             console.log('📡 响应类型:', typeof response);
             console.log('📡 响应成功标志:', response.success);
             console.log('📡 响应数据:', response.data);
-            
+
             if (response.success) {
-                this.activities = response.data?.activities || [];
-                console.log(`✅ 成功加载 ${this.activities.length} 个活动`);
-                
-                // 打印所有活动的关键信息
-                this.activities.forEach((activity, index) => {
-                    console.log(`\n📋 活动 ${index + 1}:`);
+                const newActivities = response.data?.activities || [];
+                console.log('📡 从API获取的新活动数量:', newActivities.length);
+
+                // 详细检查新活动
+                newActivities.forEach((activity, index) => {
+                    console.log(`\n📋 新活动 ${index + 1}:`);
                     console.log('  ID:', activity.id);
                     console.log('  标题:', activity.title);
                     console.log('  team_id:', activity.team_id);
-                    console.log('  team_name:', activity.team_name);
-                    console.log('  team_name类型:', typeof activity.team_name);
-                    console.log('  creator_id:', activity.creator_id);
-                    console.log('  creator_name:', activity.creator_name);
-                    console.log('  creator_name类型:', typeof activity.creator_name);
+                    console.log('  sequence_number:', activity.sequence_number);
+                    console.log('  created_at:', activity.created_at);
                 });
-                
+
+                // 更新活动数组
+                this.activities = newActivities;
+                console.log(`✅ 成功更新activities数组，当前数量: ${this.activities.length}`);
+                console.log('🔄 loadActivities: 数据更新完成');
+
                 return true;
             } else {
                 console.error('❌ API返回失败:', response.message);
@@ -171,10 +174,15 @@ class ActivitiesManager {
 
     // 渲染活动列表
     renderActivitiesList() {
+        console.log('🎨 renderActivitiesList: 开始渲染活动列表，活动数量:', this.activities.length);
         const container = document.getElementById('activities-container');
-        if (!container) return;
+        if (!container) {
+            console.error('🎨 renderActivitiesList: 找不到容器元素 #activities-container');
+            return;
+        }
 
         if (this.activities.length === 0) {
+            console.log('🎨 renderActivitiesList: 没有活动数据，显示空状态');
             container.innerHTML = `
                 <div class="text-center py-5">
                     <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
@@ -189,12 +197,14 @@ class ActivitiesManager {
             return;
         }
 
+        console.log('🎨 renderActivitiesList: 开始生成活动卡片HTML');
         const activitiesHtml = this.activities.map(activity => this.createActivityCard(activity)).join('');
-        container.innerHTML = `
-            <div class="row">
-                ${activitiesHtml}
-            </div>
-        `;
+        console.log('🎨 renderActivitiesList: 活动卡片HTML生成完成，长度:', activitiesHtml.length);
+
+        const finalHtml = `<div class="row">${activitiesHtml}</div>`;
+        console.log('🎨 renderActivitiesList: 设置容器HTML');
+        container.innerHTML = finalHtml;
+        console.log('🎨 renderActivitiesList: 活动列表渲染完成');
     }
 
     // 创建活动卡片
@@ -442,11 +452,40 @@ class ActivitiesManager {
     // 刷新列表
     async refreshList() {
         try {
+            console.log('🔄 refreshList: 开始重新加载活动数据...');
             await this.loadActivities();
+            console.log('🔄 refreshList: 活动数据加载完成，数量:', this.activities.length);
             this.renderActivitiesList();
+            console.log('🔄 refreshList: 活动列表渲染完成');
             this.showMessage('活动列表已刷新', 'success');
         } catch (error) {
+            console.error('🔄 refreshList: 刷新失败:', error);
             this.showMessage('刷新失败: ' + error.message, 'error');
+        }
+    }
+
+    // 强制刷新方法（用于调试）
+    async forceRefresh() {
+        console.log('🔧 forceRefresh: 强制刷新开始');
+        console.log('🔧 forceRefresh: 刷新前活动数量:', this.activities.length);
+
+        try {
+            // 清空当前数据
+            this.activities = [];
+            console.log('🔧 forceRefresh: 已清空活动数组');
+
+            // 强制重新加载
+            await this.loadActivities();
+            console.log('🔧 forceRefresh: 强制加载完成，新活动数量:', this.activities.length);
+
+            // 强制重新渲染
+            this.renderActivitiesList();
+            console.log('🔧 forceRefresh: 强制渲染完成');
+
+            this.showMessage('强制刷新完成', 'success');
+        } catch (error) {
+            console.error('🔧 forceRefresh: 强制刷新失败:', error);
+            this.showMessage('强制刷新失败: ' + error.message, 'error');
         }
     }
 
@@ -482,7 +521,7 @@ class ActivitiesManager {
     // 显示创建活动模态框
     async showCreateModal() {
         try {
-            // 直接使用我们自己的AA制功能模态框
+            // 直接使用活动创建模态框
             await this.showCreateActivityModal();
         } catch (error) {
             console.error('显示创建活动模态框失败:', error);
@@ -490,7 +529,7 @@ class ActivitiesManager {
         }
     }
 
-    // 创建活动模态框（包含AA制功能）
+    // 创建活动模态框
     // TODO: 函数较长(200+行)，考虑拆分为多个小函数提高可读性
     async showCreateActivityModal() {
         // 调试：检查活动类型数据
@@ -511,7 +550,7 @@ class ActivitiesManager {
                         <div class="form-group mb-3">
                             <label for="activityType" class="form-label">活动类型</label>
                             <select class="form-control" id="activityType" name="type">
-                                <option value="">请选择活动类型</option>
+                                <option value="unset">未设置</option>
                                 ${this.activityTypes.map(type => `
                                     <option value="${type.value}">${type.label}</option>
                                 `).join('')}
@@ -525,7 +564,7 @@ class ActivitiesManager {
                         <div class="form-group mb-3">
                             <label for="activityTeam" class="form-label">所属团队</label>
                             <select class="form-control" id="activityTeam" name="team_id">
-                                <option value="">请选择团队</option>
+                                <option value="none">非团队活动</option>
                                 ${this.teams.map(team => `
                                     <option value="${team.id}">${team.name}</option>
                                 `).join('')}
@@ -602,93 +641,15 @@ class ActivitiesManager {
                     <textarea class="form-control" id="activityDescription" name="description" rows="3"
                               placeholder="请输入活动描述"></textarea>
                 </div>
-                
-                <!-- AA制费用设置区域 -->
-                <div class="card mt-4">
-                    <div class="card-header">
-                        <h6 class="mb-0">
-                            <i class="fas fa-money-bill-wave me-2"></i>
-                            AA制费用设置
-                            <small class="text-muted">(可选，用于活动费用分摊)</small>
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="activityTotalCost" class="form-label">活动总费用 (元)</label>
-                                    <input type="number" class="form-control" id="activityTotalCost" name="total_cost" 
-                                           step="0.01" min="0" placeholder="0.00" onchange="activitiesManager.calculateCosts()">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="activityOrganizerCost" class="form-label">发起人承担费用 (元)</label>
-                                    <input type="number" class="form-control" id="activityOrganizerCost" name="organizer_cost" 
-                                           step="0.01" min="0" placeholder="0.00" onchange="activitiesManager.calculateCosts()">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="activityPaymentDeadline" class="form-label">支付截止时间</label>
-                                    <input type="datetime-local" class="form-control" id="activityPaymentDeadline" name="payment_deadline">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label class="form-label">费用预览</label>
-                                    <div class="cost-preview p-3 bg-light rounded">
-                                        <div class="row text-center">
-                                            <div class="col-4">
-                                                <div class="text-primary">
-                                                    <strong id="organizerCostPreview">¥0.00</strong>
-                                                </div>
-                                                <small class="text-muted">发起人承担</small>
-                                            </div>
-                                            <div class="col-4">
-                                                <div class="text-success">
-                                                    <strong id="participantCostTotal">¥0.00</strong>
-                                                </div>
-                                                <small class="text-muted">参与者总计</small>
-                                            </div>
-                                            <div class="col-4">
-                                                <div class="text-warning">
-                                                    <strong id="costPerPersonPreview">¥0.00</strong>
-                                                </div>
-                                                <small class="text-muted">每人应付</small>
-                                            </div>
-                                        </div>
-                                        <div class="text-center mt-2">
-                                            <small class="text-muted">
-                                                <i class="fas fa-info-circle"></i>
-                                                每人费用将根据实际报名人数动态计算
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group mb-0">
-                            <label for="activityCostDescription" class="form-label">费用说明</label>
-                            <textarea class="form-control" id="activityCostDescription" name="cost_description" rows="2"
-                                      placeholder="例如：包含餐费、场地费、交通费等"></textarea>
-                        </div>
-                    </div>
-                </div>
             </form>
         `;
 
         // 创建模态框
-        const modal = this.createModal({
+        const modal = Components.createModal({
             title: '创建活动',
             content: modalContent,
-            size: 'lg',
             footer: `
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-secondary" onclick="Components.closeModal()">取消</button>
                 <button type="button" class="btn btn-primary" onclick="activitiesManager.submitCreateActivity()">
                     <i class="fas fa-plus"></i>
                     创建活动
@@ -696,16 +657,166 @@ class ActivitiesManager {
             `
         });
 
-        // 设置默认时间（当前时间+1小时 到 当前时间+2小时）
-        const now = new Date();
-        const startTime = new Date(now.getTime() + 60 * 60 * 1000); // +1小时
-        const endTime = new Date(now.getTime() + 2 * 60 * 60 * 1000); // +2小时
+        this.currentModal = modal;
 
-        document.getElementById('activityStartTime').value = this.formatDateTimeLocal(startTime);
-        document.getElementById('activityEndTime').value = this.formatDateTimeLocal(endTime);
+        // 等待模态框显示完成后再设置表单值
+        setTimeout(() => {
+            // 设置默认时间（当前时间+1小时 到 当前时间+2小时）
+            const now = new Date();
+            const startTime = new Date(now.getTime() + 60 * 60 * 1000); // +1小时
+            const endTime = new Date(now.getTime() + 2 * 60 * 60 * 1000); // +2小时
+
+            const startTimeInput = document.getElementById('activityStartTime');
+            const endTimeInput = document.getElementById('activityEndTime');
+
+            if (startTimeInput) startTimeInput.value = this.formatDateTimeLocal(startTime);
+            if (endTimeInput) endTimeInput.value = this.formatDateTimeLocal(endTime);
+
+            // 添加实时字段验证
+            this.setupFormValidation();
+        }, 100);
+    }
+
+    // 设置表单实时验证
+    setupFormValidation() {
+        const form = document.getElementById('createActivityForm');
+        if (!form) return;
+
+        // 标题验证
+        const titleInput = document.getElementById('activityTitle');
+        if (titleInput) {
+            titleInput.addEventListener('input', (e) => {
+                const value = e.target.value.trim();
+                this.clearFieldError('activityTitle');
+
+                if (value.length > 0 && value.length < 2) {
+                    this.showFieldError('activityTitle', '活动标题至少需要2个字符');
+                } else if (value.length > 200) {
+                    this.showFieldError('activityTitle', '活动标题不能超过200个字符');
+                }
+            });
+
+            titleInput.addEventListener('blur', (e) => {
+                const value = e.target.value.trim();
+                if (value === '') {
+                    this.showFieldError('activityTitle', '活动标题不能为空');
+                }
+            });
+        }
+
         
-        // 初始计算费用
-        this.calculateCosts();
+        // 描述长度验证
+        const descriptionTextarea = document.getElementById('activityDescription');
+        if (descriptionTextarea) {
+            descriptionTextarea.addEventListener('input', (e) => {
+                const value = e.target.value;
+                this.clearFieldError('activityDescription');
+
+                if (value.length > 1000) {
+                    this.showFieldError('activityDescription', `活动描述不能超过1000个字符（当前：${value.length}）`);
+                }
+            });
+        }
+
+        // 地点长度验证
+        const locationInput = document.getElementById('activityLocation');
+        if (locationInput) {
+            locationInput.addEventListener('input', (e) => {
+                const value = e.target.value;
+                this.clearFieldError('activityLocation');
+
+                if (value.length > 255) {
+                    this.showFieldError('activityLocation', `活动地点不能超过255个字符（当前：${value.length}）`);
+                }
+            });
+        }
+
+        // 时间验证
+        const startTimeInput = document.getElementById('activityStartTime');
+        const endTimeInput = document.getElementById('activityEndTime');
+
+        if (startTimeInput && endTimeInput) {
+            const validateTimes = () => {
+                const startTime = startTimeInput.value;
+                const endTime = endTimeInput.value;
+
+                this.clearFieldError('activityStartTime');
+                this.clearFieldError('activityEndTime');
+
+                if (startTime && endTime) {
+                    const startDate = new Date(startTime);
+                    const endDate = new Date(endTime);
+
+                    if (endDate <= startDate) {
+                        this.showFieldError('activityEndTime', '结束时间必须晚于开始时间');
+                    }
+                }
+            };
+
+            startTimeInput.addEventListener('change', validateTimes);
+            endTimeInput.addEventListener('change', validateTimes);
+        }
+
+        // 人数验证
+        const minParticipantsInput = document.getElementById('activityMinParticipants');
+        const maxParticipantsInput = document.getElementById('activityMaxParticipants');
+
+        if (minParticipantsInput && maxParticipantsInput) {
+            const validateParticipants = () => {
+                const min = parseInt(minParticipantsInput.value) || 0;
+                const max = parseInt(maxParticipantsInput.value) || 0;
+
+                this.clearFieldError('activityMinParticipants');
+                this.clearFieldError('activityMaxParticipants');
+
+                if (min < 1) {
+                    this.showFieldError('activityMinParticipants', '最小参与人数至少为1人');
+                }
+                if (max < 1) {
+                    this.showFieldError('activityMaxParticipants', '最大参与人数至少为1人');
+                }
+                if (min > 0 && max > 0 && min > max) {
+                    this.showFieldError('activityMinParticipants', '最小参与人数不能大于最大参与人数');
+                }
+            };
+
+            minParticipantsInput.addEventListener('input', validateParticipants);
+            maxParticipantsInput.addEventListener('input', validateParticipants);
+        }
+    }
+
+    // 显示字段错误
+    showFieldError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+
+        field.classList.add('is-invalid');
+
+        // 移除旧的错误消息
+        const existingFeedback = field.parentNode.querySelector('.invalid-feedback');
+        if (existingFeedback) {
+            existingFeedback.remove();
+        }
+
+        // 添加新的错误消息
+        const feedback = document.createElement('div');
+        feedback.className = 'invalid-feedback';
+        feedback.textContent = message;
+        field.parentNode.appendChild(feedback);
+    }
+
+    // 清除字段错误
+    clearFieldError(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+
+        field.classList.remove('is-invalid');
+
+        // 移除错误消息
+        const feedback = field.parentNode.querySelector('.invalid-feedback');
+        if (feedback) {
+            feedback.remove();
+        }
     }
 
     // 查看活动详情 - 全新设计
@@ -2083,8 +2194,113 @@ class ActivitiesManager {
         }
     }
 
+    // 显示详细错误信息
+    showDetailedErrorMessage(message, status = 500) {
+        // 处理前端验证错误（包含换行符和项目符号）
+        let userMessage = message;
+        let suggestions = [];
+
+        // 如果是前端验证错误，格式化为列表显示
+        if (message.includes('请填写以下必填字段：') || message.includes('请修正以下问题：')) {
+            // 解析列表项
+            const lines = message.split('\n');
+            const items = lines.filter(line => line.startsWith('• ')).map(line => line.substring(2));
+            const title = lines[0];
+
+            let fullMessage = `<strong>${title}</strong><br><br>`;
+            if (items.length > 0) {
+                fullMessage += `<div class="error-list">`;
+                fullMessage += `<ul class="mb-0">`;
+                items.forEach(item => {
+                    fullMessage += `<li>${item}</li>`;
+                });
+                fullMessage += `</ul>`;
+                fullMessage += `</div>`;
+            }
+
+            // 添加通用建议
+            fullMessage += `<div class="error-suggestions mt-3">`;
+            fullMessage += `<strong>请检查相关字段并重新提交</strong>`;
+            fullMessage += `</div>`;
+
+            this.showMessage(fullMessage, 'error', 8000);
+            return;
+        }
+
+        // 解析错误信息，提供更友好的提示
+        if (status === 400) {
+            // 客户端错误 - 通常是数据验证问题
+            if (message.includes('活动标题')) {
+                suggestions.push('请检查活动标题是否符合要求（2-200个字符）');
+            }
+            if (message.includes('活动类型')) {
+                suggestions.push('请选择活动类型');
+            }
+            if (message.includes('团队不存在') || message.includes('所属团队')) {
+                suggestions.push('请选择有效的团队，或联系管理员创建团队');
+            }
+            if (message.includes('最大参与人数') || message.includes('最小参与人数')) {
+                suggestions.push('请检查人数设置是否合理（最少1人）');
+            }
+            if (message.includes('开始时间') || message.includes('结束时间')) {
+                suggestions.push('请检查时间设置是否正确，结束时间必须晚于开始时间');
+            }
+            if (message.includes('活动地点')) {
+                suggestions.push('请检查活动地点是否过长（最多255个字符）');
+            }
+            if (message.includes('审批设置')) {
+                suggestions.push('请检查审批设置是否正确');
+            }
+        } else if (status === 401) {
+            // 身份验证错误
+            userMessage = '身份验证失败';
+            suggestions.push('请重新登录后再试');
+            suggestions.push('如果问题持续存在，请联系管理员');
+        } else if (status === 403) {
+            // 权限错误
+            userMessage = '权限不足';
+            suggestions.push('您没有创建活动的权限');
+            suggestions.push('请联系管理员申请相关权限');
+        } else if (status === 409) {
+            // 冲突错误
+            userMessage = '数据冲突';
+            suggestions.push('请稍后重试');
+            suggestions.push('如果问题持续存在，请联系管理员');
+        } else if (status === 503) {
+            // 服务不可用
+            userMessage = '数据库连接失败';
+            suggestions.push('请稍后重试');
+            suggestions.push('如果问题持续存在，请联系技术支持');
+        } else {
+            // 其他错误
+            suggestions.push('请检查输入数据是否正确');
+            suggestions.push('如果问题持续存在，请联系管理员');
+        }
+
+        // 构建完整的错误消息
+        let fullMessage = `<strong>创建活动失败</strong><br><br>`;
+        fullMessage += `<div class="error-details">`;
+        fullMessage += `<div class="error-message">${userMessage}</div>`;
+
+        if (suggestions.length > 0) {
+            fullMessage += `<div class="error-suggestions mt-2">`;
+            fullMessage += `<strong>建议解决方案：</strong><br>`;
+            fullMessage += `<ul class="mb-0">`;
+            suggestions.forEach(suggestion => {
+                fullMessage += `<li>${suggestion}</li>`;
+            });
+            fullMessage += `</ul>`;
+            fullMessage += `</div>`;
+        }
+
+        fullMessage += `</div>`;
+
+        // 显示详细的错误消息
+        this.showMessage(fullMessage, 'error', 10000); // 显示10秒
+    }
+
     // 显示消息
-    showMessage(message, type = 'info') {
+    showMessage(message, type = 'info', duration = 5000) {
         // 创建消息提示
         const alertClass = {
             'success': 'alert-success',
@@ -2152,31 +2368,7 @@ class ActivitiesManager {
         }
     }
 
-    // 计算费用预览
-    calculateCosts() {
-        const totalCostInput = document.getElementById('activityTotalCost');
-        const organizerCostInput = document.getElementById('activityOrganizerCost');
-        
-        if (!totalCostInput || !organizerCostInput) return;
-        
-        const totalCost = parseFloat(totalCostInput.value) || 0;
-        const organizerCost = parseFloat(organizerCostInput.value) || 0;
-        
-        // 计算各项费用
-        const participantCostTotal = Math.max(0, totalCost - organizerCost);
-        const estimatedParticipants = 10; // 预估参与人数，用于预览
-        const costPerPerson = estimatedParticipants > 0 ? participantCostTotal / estimatedParticipants : 0;
-        
-        // 更新预览显示
-        const organizerCostPreview = document.getElementById('organizerCostPreview');
-        const participantCostTotalElem = document.getElementById('participantCostTotal');
-        const costPerPersonPreview = document.getElementById('costPerPersonPreview');
-        
-        if (organizerCostPreview) organizerCostPreview.textContent = `¥${organizerCost.toFixed(2)}`;
-        if (participantCostTotalElem) participantCostTotalElem.textContent = `¥${participantCostTotal.toFixed(2)}`;
-        if (costPerPersonPreview) costPerPersonPreview.textContent = `¥${costPerPerson.toFixed(2)}`;
-    }
-
+    
     // 提交创建活动
     async submitCreateActivity() {
         const form = document.getElementById('createActivityForm');
@@ -2193,20 +2385,43 @@ class ActivitiesManager {
             enable_participant_limit: formData.get('enable_participant_limit') === 'on',
             min_participants: formData.get('min_participants') ? parseInt(formData.get('min_participants')) : 3,
             max_participants: formData.get('max_participants') ? parseInt(formData.get('max_participants')) : 30,
-            need_approval: formData.get('need_approval') === 'true',
-            // AA制费用相关字段
-            total_cost: formData.get('total_cost') ? parseFloat(formData.get('total_cost')) : 0,
-            organizer_cost: formData.get('organizer_cost') ? parseFloat(formData.get('organizer_cost')) : 0,
-            payment_deadline: formData.get('payment_deadline') || null,
-            cost_description: formData.get('cost_description') ? formData.get('cost_description').trim() : '',
-            cost_sharing_type: 'equal',
+            require_approval: formData.get('need_approval') === 'true',
             activity_status: 'published'
         };
 
         // 验证必填字段
-        if (!activityData.title) {
-            this.showMessage('请填写活动标题', 'error');
+        const missingFields = [];
+
+        if (!activityData.title || activityData.title.trim() === '') {
+            missingFields.push('活动标题');
+        }
+
+        // 如果有必填字段缺失，显示详细错误
+        if (missingFields.length > 0) {
+            const errorMessage = `请填写以下必填字段：\n• ${missingFields.join('\n• ')}`;
+            this.showDetailedErrorMessage(errorMessage, 400);
             return;
+        }
+
+        // 验证字段格式和逻辑
+        const validationErrors = [];
+
+        // 验证标题长度
+        if (activityData.title.length < 2) {
+            validationErrors.push('活动标题至少需要2个字符');
+        }
+        if (activityData.title.length > 200) {
+            validationErrors.push('活动标题不能超过200个字符');
+        }
+
+        // 验证描述长度
+        if (activityData.description && activityData.description.length > 1000) {
+            validationErrors.push('活动描述不能超过1000个字符');
+        }
+
+        // 验证地点长度
+        if (activityData.location && activityData.location.length > 255) {
+            validationErrors.push('活动地点不能超过255个字符');
         }
 
         // 验证时间（如果都有值的话）
@@ -2214,45 +2429,68 @@ class ActivitiesManager {
             const startTime = new Date(activityData.start_time);
             const endTime = new Date(activityData.end_time);
             if (endTime <= startTime) {
-                this.showMessage('结束时间必须晚于开始时间', 'error');
-                return;
+                validationErrors.push('结束时间必须晚于开始时间');
             }
         }
 
-        // 验证费用信息
-        if (activityData.total_cost > 0) {
-            if (activityData.organizer_cost > activityData.total_cost) {
-                this.showMessage('发起人承担费用不能超过活动总费用', 'error');
-                return;
+        // 验证人数设置
+        if (activityData.min_participants && activityData.max_participants) {
+            const minParticipants = parseInt(activityData.min_participants);
+            const maxParticipants = parseInt(activityData.max_participants);
+
+            if (minParticipants < 1) {
+                validationErrors.push('最小参与人数至少为1人');
             }
+            if (maxParticipants < 1) {
+                validationErrors.push('最大参与人数至少为1人');
+            }
+            if (minParticipants > maxParticipants) {
+                validationErrors.push('最小参与人数不能大于最大参与人数');
+            }
+        }
+
+        // 如果有验证错误，显示详细错误
+        if (validationErrors.length > 0) {
+            const errorMessage = `请修正以下问题：\n• ${validationErrors.join('\n• ')}`;
+            this.showDetailedErrorMessage(errorMessage, 400);
+            return;
         }
 
         try {
-            // 根据是否有费用信息选择不同的API接口
-            const response = activityData.total_cost > 0 
-                ? await API.activities.createWithCost(activityData)
-                : await API.activities.create(activityData);
-            
+            // 直接使用创建活动接口
+            const response = await API.activities.create(activityData);
+
             if (response.success) {
                 this.showMessage('活动创建成功', 'success');
-                
+                console.log('🎉 活动创建成功，响应数据:', response);
+
                 // 关闭模态框
-                const modal = document.querySelector('.modal.show');
-                if (modal) {
-                    const bsModal = bootstrap.Modal.getInstance(modal);
-                    if (bsModal) {
-                        bsModal.hide();
-                    }
-                }
-                
+                Components.closeModal();
+
+                // 等待一小段时间确保模态框完全关闭
+                await new Promise(resolve => setTimeout(resolve, 300));
+
                 // 刷新活动列表
+                console.log('🔄 开始刷新活动列表...');
                 await this.refreshList();
+                console.log('✅ 活动列表刷新完成，当前活动数量:', this.activities.length);
+
+                // 额外的验证步骤
+                console.log('🔍 验证刷新效果...');
+                setTimeout(() => {
+                    console.log('🔍 延迟验证 - 当前活动数量:', this.activities.length);
+                    if (this.activities.length === 0) {
+                        console.warn('⚠️ 刷新后活动数量为0，可能存在问题');
+                        // 强制再次刷新
+                        this.forceRefresh();
+                    }
+                }, 1000);
             } else {
-                this.showMessage('创建失败: ' + response.message, 'error');
+                this.showDetailedErrorMessage(response.message, response.status || 500);
             }
         } catch (error) {
             console.error('创建活动失败:', error);
-            this.showMessage('创建失败: ' + error.message, 'error');
+            this.showDetailedErrorMessage(error.message, error.status || 500);
         }
     }
 

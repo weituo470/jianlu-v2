@@ -68,12 +68,19 @@ window.API = {
 
             // 处理其他错误
             if (!response.ok) {
-                throw new Error(data.message || `请求失败 (${response.status})`);
+                const error = new Error(data.message || `请求失败 (${response.status})`);
+                error.status = response.status;
+                error.data = data;
+                throw error;
             }
 
             return data;
         } catch (error) {
             console.error('API请求失败:', error);
+            // 如果错误对象没有status，从response中获取
+            if (!error.status && error.response) {
+                error.status = error.response.status;
+            }
             throw error;
         }
     },

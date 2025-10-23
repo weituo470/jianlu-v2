@@ -64,6 +64,12 @@ const Activity = sequelize.define('Activity', {
     defaultValue: 3,
     comment: '最少参与人数，默认3人'
   },
+  require_approval: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false,
+    comment: '是否需要审批，默认不需要'
+  },
   current_participants: {
     type: DataTypes.INTEGER,
     defaultValue: 0

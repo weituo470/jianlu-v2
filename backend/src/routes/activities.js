@@ -91,7 +91,7 @@ router.get('/', authenticateToken, async (req, res) => {
       current_participants: activity.current_participants,
       status: activity.status,
       team_id: activity.team_id,
-      team_name: activity.team?.name,
+      team_name: activity.team?.name || (activity.team_id ? null : '非团队活动'),
       creator_id: activity.creator_id,
       creator_name: activity.creator?.username,
       created_at: activity.created_at,
@@ -198,6 +198,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       end_time: activity.end_time,
       location: activity.location,
       max_participants: activity.max_participants,
+      min_participants: activity.min_participants,
+      require_approval: activity.require_approval,
       current_participants: participantCount,
       status: activity.status,
       // 费用相关字段
@@ -274,36 +276,44 @@ const createActivitySchema = Joi.object({
     .default(null)
     .messages({
       'number.min': '最大参与人数至少为1'
+    }),
+  min_participants: Joi.number()
+    .integer()
+    .min(1)
+    .allow(null)
+    .default(3)
+    .messages({
+      'number.min': '最小参与人数至少为1'
+    }),
+  require_approval: Joi.boolean()
+    .default(false)
+    .messages({
+      'boolean.base': '审批设置必须是布尔值'
     })
 });
 
 // 创建活动
 router.post('/', authenticateToken, requirePermission('activity:create'), validate(createActivitySchema), async (req, res) => {
   try {
-    const { title, description, type, team_id, start_time, end_time, location, max_participants } = req.body;
+    const { title, description, type, team_id, start_time, end_time, location, max_participants, min_participants, require_approval } = req.body;
     const { Activity, Team } = require('../models');
 
-    // 如果没有指定团队，使用用户的第一个团队
-    let finalTeamId = team_id;
-    if (!team_id) {
-      // 获取用户所属的第一个团队
-      const userTeams = await Team.findAll({
-        limit: 1,
-        order: [['created_at', 'ASC']]
-      });
-      
-      if (userTeams.length > 0) {
-        finalTeamId = userTeams[0].id;
-      } else {
-        return error(res, '系统中没有可用的团队，请先创建团队', 400);
+    // 处理活动类型和团队的特殊值
+    let finalType = type || 'other';
+    if (type === 'unset') {
+      finalType = 'other'; // 默认为其他类型
+    }
+
+    let finalTeamId = null; // 默认为非团队活动
+    if (team_id && team_id !== 'none') {
+      // 如果指定了团队，验证团队是否存在
+      const team = await Team.findByPk(team_id);
+      if (!team) {
+        return error(res, '指定的团队不存在', 400);
       }
+      finalTeamId = team_id;
     }
-    
-    // 验证团队是否存在
-    const team = await Team.findByPk(finalTeamId);
-    if (!team) {
-      return error(res, '指定的团队不存在', 400);
-    }
+    // 如果team_id为空、null或"none"，则保持为null（非团队活动）
 
     // 获取当前最大的序号并加1
     const maxSequence = await Activity.max('sequence_number') || 0;
@@ -314,12 +324,14 @@ router.post('/', authenticateToken, requirePermission('activity:create'), valida
       id: uuidv4(),
       title,
       description: description || '',
-      type: type || 'other',
+      type: finalType,
       team_id: finalTeamId,
       start_time: start_time ? new Date(start_time) : null,
       end_time: end_time ? new Date(end_time) : null,
       location: location || null,
       max_participants: max_participants || null,
+      min_participants: min_participants || 3,
+      require_approval: require_approval || false,
       current_participants: 0,
       status: 'draft',
       creator_id: req.user.id,
@@ -352,10 +364,12 @@ router.post('/', authenticateToken, requirePermission('activity:create'), valida
       end_time: fullActivity.end_time,
       location: fullActivity.location,
       max_participants: fullActivity.max_participants,
+      min_participants: fullActivity.min_participants,
+      require_approval: fullActivity.require_approval,
       current_participants: fullActivity.current_participants,
       status: fullActivity.status,
       team_id: fullActivity.team_id,
-      team_name: fullActivity.team?.name,
+      team_name: fullActivity.team?.name || (fullActivity.team_id ? null : '非团队活动'),
       creator_id: fullActivity.creator_id,
       creator_name: fullActivity.creator?.username,
       created_at: fullActivity.created_at,
@@ -368,14 +382,82 @@ router.post('/', authenticateToken, requirePermission('activity:create'), valida
 
   } catch (err) {
     logger.error('创建活动失败:', err);
-    
+
     // 处理数据库约束错误
     if (err.name === 'SequelizeValidationError') {
-      const messages = err.errors.map(e => e.message);
-      return error(res, messages.join(', '), 400);
+      const fieldErrors = err.errors.map(e => {
+        const fieldName = e.path;
+        let fieldLabel = '';
+
+        // 将字段名转换为用户友好的标签
+        switch (fieldName) {
+          case 'title': fieldLabel = '活动标题'; break;
+          case 'description': fieldLabel = '活动描述'; break;
+          case 'type': fieldLabel = '活动类型'; break;
+          case 'team_id': fieldLabel = '所属团队'; break;
+          case 'start_time': fieldLabel = '开始时间'; break;
+          case 'end_time': fieldLabel = '结束时间'; break;
+          case 'location': fieldLabel = '活动地点'; break;
+          case 'max_participants': fieldLabel = '最大参与人数'; break;
+          case 'min_participants': fieldLabel = '最小参与人数'; break;
+          case 'require_approval': fieldLabel = '审批设置'; break;
+          default: fieldLabel = fieldName;
+        }
+
+        return `${fieldLabel}: ${e.message}`;
+      });
+      return error(res, fieldErrors.join('; '), 400);
     }
-    
-    return error(res, '创建活动失败，请检查输入数据', 500);
+
+    // 处理外键约束错误
+    if (err.name === 'SequelizeForeignKeyConstraintError') {
+      if (err.index === 'activities_team_id_fkey') {
+        return error(res, '指定的团队不存在，请选择有效的团队或选择"非团队活动"', 400);
+      }
+      if (err.index === 'activities_creator_id_fkey') {
+        return error(res, '用户身份验证失败，请重新登录', 401);
+      }
+      return error(res, '关联数据不存在，请检查相关字段', 400);
+    }
+
+    // 处理唯一约束错误
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      return error(res, '活动标识冲突，请稍后重试', 409);
+    }
+
+    // 处理数据库连接错误
+    if (err.code === 'ECONNREFUSED') {
+      return error(res, '数据库连接失败，请联系管理员', 503);
+    }
+
+    // 处理权限错误
+    if (err.message && err.message.includes('permission')) {
+      return error(res, '权限不足，无法创建活动', 403);
+    }
+
+    // 处理其他已知错误
+    if (err.message) {
+      // 检查是否是已知的业务错误
+      if (err.message.includes('团队不存在')) {
+        return error(res, err.message, 400);
+      }
+      if (err.message.includes('系统中没有可用的团队')) {
+        return error(res, err.message + '，请联系管理员创建团队', 400);
+      }
+    }
+
+    // 未知错误返回详细信息给管理员，用户看到友好提示
+    if (process.env.NODE_ENV === 'development') {
+      return error(res, `创建活动失败: ${err.message}`, 500);
+    } else {
+      logger.error('创建活动未知错误:', {
+        error: err.message,
+        stack: err.stack,
+        user: req.user?.id,
+        body: req.body
+      });
+      return error(res, '创建活动失败，请检查输入数据或联系管理员', 500);
+    }
   }
 });
 

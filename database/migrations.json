@@ -66,7 +66,18 @@
           "file": "create-activity-expenses-table.sql"
         }
       ]
+    },
+    {
+      "id": "activity-approval",
+      "title": "活动审批功能",
+      "description": "添加活动审批开关和最小参与人数功能",
+      "entries": [
+        {
+          "type": "sql",
+          "file": "add-require-approval-field.sql"
+        }
+      ]
     }
   ],
-  "defaultGroups": ["baseline"]
+  "defaultGroups": ["baseline", "activity-approval"]
 }

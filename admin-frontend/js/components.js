@@ -454,7 +454,20 @@ window.Components = {
             close: closeModal
         };
     },
-    
+
+    // 全局关闭模态框方法
+    closeModal() {
+        const modal = document.querySelector('.modal-overlay.show');
+        if (modal) {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (document.body.contains(modal)) {
+                    document.body.removeChild(modal);
+                }
+            }, 300);
+        }
+    },
+
     // 处理关闭按钮点击（X按钮）
     handleCloseButtonClick(modal, closeModal) {
         // 获取弹窗类型
