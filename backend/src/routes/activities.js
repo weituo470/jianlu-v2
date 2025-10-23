@@ -1641,6 +1641,24 @@ router.put('/:id/participants/:participantId/status', authenticateToken, require
       })
     });
 
+    // 同步更新ActivityRegistration状态
+    const { ActivityRegistration } = require('../models/ActivityRegistration');
+    await ActivityRegistration.update(
+      {
+        status: status,
+        ...(status === 'approved' && {
+          approvalTime: new Date(),
+          approvedBy: req.user.id
+        })
+      },
+      {
+        where: {
+          activityId: id,
+          userId: participant.user_id
+        }
+      }
+    );
+
     // 如果批准，更新活动的当前参与人数
     if (status === 'approved') {
       const approvedCount = await ActivityParticipant.count({

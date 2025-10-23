@@ -115,7 +115,19 @@ export const activityApi = {
 	delete: (id) => del(`/miniapp/activities/${id}`),
 
 	// 报名活动
-	register: (id, data) => post(`/miniapp/activities/${id}/register`, data),
+	register: (id, data) => {
+		const requestData = {
+			activityId: id,
+			participantNote: data.notes || ''
+		};
+
+		// 只有当电话号码存在时才添加
+		if (data.phone && data.phone.trim()) {
+			requestData.contactPhone = data.phone.trim();
+		}
+
+		return post('/registrations/register', requestData);
+	},
 
 	// 取消报名
 	cancelRegistration: (id) => del(`/miniapp/activities/${id}/register`),

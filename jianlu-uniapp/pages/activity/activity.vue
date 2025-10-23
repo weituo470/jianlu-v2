@@ -62,6 +62,25 @@
 
 						<view class="activity-footer">
 							<text class="creator">由 {{ activity.creator_name }} 创建</text>
+							<!-- 申请按钮 -->
+							<view class="activity-actions" @tap.stop>
+								<!-- 已申请状态 -->
+								<view v-if="activity.user_registered" class="btn-applied">
+									<text class="applied-text">{{ getRegistrationStatusText(activity.user_registration_status) }}</text>
+								</view>
+								<!-- 可申请状态 -->
+								<button
+									v-else-if="canRegisterActivity(activity)"
+									class="btn-apply"
+									:class="{ 'btn-approval': activity.require_approval }"
+									@tap="quickRegister(activity)">
+									{{ activity.require_approval ? '申请加入' : '立即报名' }}
+								</button>
+								<!-- 不可申请状态 -->
+								<view v-else class="register-disabled">
+									{{ getRegisterDisabledReason(activity) }}
+								</view>
+							</view>
 						</view>
 					</view>
 				</view>
@@ -83,7 +102,8 @@
 
 <script>
 	import { activityApi } from '../../api/index.js'
-	import { showSuccess, showError, formatDate } from '../../utils/index.js'
+	import { activityUtils } from '../../api/activity.js'
+	import { showSuccess, showError, formatDate, showConfirm } from '../../utils/index.js'
 
 	export default {
 		data() {
@@ -273,6 +293,59 @@
 					other: { icon: '📅', name: '其他' }
 				}
 				return typeMap[type] || { icon: '📅', name: '未知' }
+			},
+
+			// 检查活动是否可以报名
+			canRegisterActivity(activity) {
+				return activityUtils.canRegister(activity).canRegister
+			},
+
+			// 获取不能报名的原因
+			getRegisterDisabledReason(activity) {
+				return activityUtils.canRegister(activity).reason
+			},
+
+			// 快速报名
+			async quickRegister(activity) {
+				const confirmed = await showConfirm(
+					activity.require_approval
+						? `确定要申请加入"${activity.title}"吗？\n提交后需要等待管理员审核`
+						: `确定要报名"${activity.title}"吗？`
+				)
+
+				if (!confirmed) return
+
+				try {
+					const response = await activityApi.register(activity.id, {
+						notes: activity.require_approval ? '通过列表快速申请' : '',
+						phone: '',
+					})
+
+					if (response.success) {
+						showSuccess(
+							activity.require_approval
+								? '申请提交成功，请等待管理员审核'
+								: '报名成功'
+						)
+						// 刷新列表以更新报名状态
+						this.resetAndLoad()
+					}
+				} catch (error) {
+					console.error('报名失败:', error)
+					showError(error.message || '报名失败')
+				}
+			},
+
+			// 获取报名状态文本
+			getRegistrationStatusText(status) {
+				const statusMap = {
+					pending: '已申请',
+					approved: '已报名',
+					rejected: '已拒绝',
+					cancelled: '已取消',
+					completed: '已完成'
+				}
+				return statusMap[status] || '已申请'
 			}
 		}
 	}
@@ -471,11 +544,72 @@
 	.activity-footer {
 		border-top: 1rpx solid #f0f0f0;
 		padding-top: 20rpx;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 	}
 
 	.creator {
 		font-size: 24rpx;
 		color: #999;
+		flex: 1;
+	}
+
+	.activity-actions {
+		margin-left: 20rpx;
+	}
+
+	.btn-apply {
+		padding: 12rpx 24rpx;
+		font-size: 26rpx;
+		border-radius: 30rpx;
+		border: none;
+		background: linear-gradient(135deg, #007aff, #5ac8fa);
+		color: white;
+		font-weight: 500;
+		min-width: 120rpx;
+		text-align: center;
+		line-height: 1.2;
+	}
+
+	.btn-apply.btn-approval {
+		background: linear-gradient(135deg, #ff9500, #ff6b35);
+	}
+
+	.btn-apply:active {
+		opacity: 0.8;
+		transform: scale(0.98);
+	}
+
+	.btn-applied {
+		padding: 12rpx 24rpx;
+		font-size: 26rpx;
+		border-radius: 30rpx;
+		background: linear-gradient(135deg, #28a745, #20c997);
+		color: white;
+		font-weight: 500;
+		min-width: 120rpx;
+		text-align: center;
+		line-height: 1.2;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.applied-text {
+		font-size: 26rpx;
+		color: white;
+	}
+
+	.register-disabled {
+		padding: 12rpx 24rpx;
+		font-size: 24rpx;
+		color: #999;
+		background: #f5f5f5;
+		border-radius: 30rpx;
+		text-align: center;
+		min-width: 120rpx;
+		border: 1rpx solid #e0e0e0;
 	}
 
 	.empty-state {

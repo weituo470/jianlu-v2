@@ -22,7 +22,7 @@ router.post('/register', [
     .isLength({ max: 500 })
     .withMessage('参与者备注不能超过500字符'),
   body('contactPhone')
-    .optional()
+    .optional({ checkFalsy: true })
     .isMobilePhone('zh-CN')
     .withMessage('联系电话格式错误'),
   body('emergencyContact')

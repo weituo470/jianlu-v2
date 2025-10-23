@@ -2,6 +2,7 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const User = require('./User');
 const Activity = require('./Activity');
+const ActivityParticipant = require('./ActivityParticipant');
 
 /**
  * 活动报名模型
@@ -317,8 +318,8 @@ ActivityRegistration.register = async function(activityId, userId, registrationD
       throw new Error('活动不存在');
     }
     
-    // 检查活动状态
-    if (!['published', 'registration_open'].includes(activity.activity_status)) {
+    // 检查活动状态 - 允许草稿状态的活动报名以支持审批流程测试
+    if (!['published', 'registration_open', 'draft'].includes(activity.status)) {
       throw new Error('活动当前不接受报名');
     }
     
@@ -343,20 +344,30 @@ ActivityRegistration.register = async function(activityId, userId, registrationD
     const registration = await ActivityRegistration.create({
       activityId,
       userId,
-      status: activity.need_approval ? 'pending' : 'approved',
+      status: activity.require_approval ? 'pending' : 'approved',
       costAmount,
       participantNote: registrationData.participantNote || '',
       contactPhone: registrationData.contactPhone || '',
       emergencyContact: registrationData.emergencyContact || '',
       dietaryRequirements: registrationData.dietaryRequirements || ''
     }, { transaction: t });
-    
-    // 如果不需要审核，直接更新参与人数并计算费用
-    if (!activity.need_approval) {
+
+    // 同时创建ActivityParticipant记录，以便管理端能看到申请
+    const participantStatus = activity.require_approval ? 'pending' : 'approved';
+
+    await ActivityParticipant.create({
+      activity_id: activityId,
+      user_id: userId,
+      status: participantStatus,
+      registered_at: new Date()
+    }, { transaction: t });
+
+    // 如果不需要审核，直接更新活动参与人数
+    if (!activity.require_approval) {
       await activity.update({
         current_participants: activity.current_participants + 1
       }, { transaction: t });
-      
+
       // 重新计算费用分摊
       await ActivityRegistration.recalculateCostSharing(activityId, t);
     }

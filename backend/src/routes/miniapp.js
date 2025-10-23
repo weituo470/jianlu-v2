@@ -207,32 +207,62 @@ router.get('/activities', authenticateToken, async (req, res) => {
       offset: (parseInt(page) - 1) * parseInt(limit)
     });
 
+    // 获取用户报名状态
+    const { ActivityRegistration } = require('../models/ActivityRegistration');
+    const userId = req.user.id;
+    const activityIds = activityRows.map(activity => activity.id);
+
+    let userRegistrations = [];
+    if (activityIds.length > 0) {
+      const registrations = await ActivityRegistration.findAll({
+        where: {
+          activityId: { [Op.in]: activityIds },
+          userId: userId
+        },
+        attributes: ['activityId', 'status']
+      });
+      userRegistrations = registrations.map(reg => ({
+        activityId: reg.activityId,
+        status: reg.status
+      }));
+    }
+
     // 格式化返回数据
-    const activities = activityRows.map(activity => ({
-      id: activity.id,
-      title: activity.title,
-      description: activity.description,
-      activity_type: activity.type,
-      visibility: activity.visibility,
-      start_time: activity.start_time,
-      end_time: activity.end_time,
-      location: activity.location,
-      max_participants: activity.max_participants,
-      registration_count: activity.registration_count || 0,
-      status: activity.status,
-      team: activity.team ? {
-        id: activity.team.id,
-        name: activity.team.name,
-        avatar_url: activity.team.avatar_url
-      } : null,
-      creator: activity.creator ? {
-        id: activity.creator.id,
-        username: activity.creator.username
-      } : null,
-      creator_name: activity.creator ? activity.creator.username : '未知',
-      sequence_number: activity.sequence_number,
-      created_at: activity.created_at
-    }));
+    const activities = activityRows.map(activity => {
+      // 查找用户对该活动的报名状态
+      const userRegistration = userRegistrations.find(reg => reg.activityId === activity.id);
+
+      return {
+        id: activity.id,
+        title: activity.title,
+        description: activity.description,
+        activity_type: activity.type,
+        visibility: activity.visibility,
+        start_time: activity.start_time,
+        end_time: activity.end_time,
+        location: activity.location,
+        max_participants: activity.max_participants,
+        min_participants: activity.min_participants,
+        enable_participant_limit: activity.enable_participant_limit,
+        require_approval: activity.require_approval,
+        registration_count: activity.registration_count || 0,
+        status: activity.status,
+        user_registered: !!userRegistration,
+        user_registration_status: userRegistration ? userRegistration.status : null,
+        team: activity.team ? {
+          id: activity.team.id,
+          name: activity.team.name,
+          avatar_url: activity.team.avatar_url
+        } : null,
+        creator: activity.creator ? {
+          id: activity.creator.id,
+          username: activity.creator.username
+        } : null,
+        creator_name: activity.creator ? activity.creator.username : '未知',
+        sequence_number: activity.sequence_number,
+        created_at: activity.created_at
+      };
+    });
 
     const pagination = {
       page: parseInt(page),
@@ -289,6 +319,9 @@ router.get('/activities/:id', authenticateToken, async (req, res) => {
       end_time: activity.end_time,
       location: activity.location,
       max_participants: activity.max_participants,
+      min_participants: activity.min_participants,
+      enable_participant_limit: activity.enable_participant_limit,
+      require_approval: activity.require_approval,
       registration_count: activity.registration_count || 0,
       status: activity.status,
       team: activity.team ? {

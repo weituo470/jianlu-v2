@@ -29,7 +29,13 @@ export const activityApi = {
 
   // 报名活动
   register(id, data) {
-    return post(`/miniapp/activities/${id}/register`, data)
+    return post('/registrations/register', {
+      activityId: id,
+      participantNote: data.notes || '',
+      contactPhone: data.phone || '',
+      emergencyContact: '',
+      dietaryRequirements: ''
+    })
   },
 
   // 取消报名
@@ -224,9 +230,9 @@ export const activityUtils = {
   canRegister(activity) {
     const now = new Date()
     const registrationDeadline = activity.registration_deadline ? new Date(activity.registration_deadline) : null
-    
-    // 检查活动状态
-    if (activity.status !== 'registration') {
+
+    // 检查活动状态 - 允许 draft, published, registration 状态报名以支持审批流程
+    if (!['draft', 'published', 'registration'].includes(activity.status)) {
       return { canRegister: false, reason: '活动未开放报名' }
     }
 

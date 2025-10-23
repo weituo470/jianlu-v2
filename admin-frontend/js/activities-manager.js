@@ -33,7 +33,7 @@ class ActivitiesManager {
     // 加载初始数据
     async loadInitialData() {
         if (this.isLoading) return;
-        
+
         this.isLoading = true;
         try {
             // 并行加载所有必要数据
@@ -45,10 +45,11 @@ class ActivitiesManager {
 
             // 初始化筛选器选项
             this.initializeFilters();
-            
-            // 渲染活动列表
-            this.renderActivitiesList();
-            
+
+            // 注意：不要在这里调用renderActivitiesList()，因为当通过Router调用时，
+            // Router会负责渲染。renderActivitiesList()只在ActivitiesManager独立使用时才需要。
+            console.log('🔧 ActivitiesManager: 初始数据加载完成，由Router负责渲染');
+
         } catch (error) {
             console.error('初始化失败:', error);
             this.showMessage('初始化失败: ' + error.message, 'error');
@@ -453,10 +454,18 @@ class ActivitiesManager {
     async refreshList() {
         try {
             console.log('🔄 refreshList: 开始重新加载活动数据...');
-            await this.loadActivities();
-            console.log('🔄 refreshList: 活动数据加载完成，数量:', this.activities.length);
-            this.renderActivitiesList();
-            console.log('🔄 refreshList: 活动列表渲染完成');
+
+            // 获取当前URL参数以保持筛选状态
+            const params = Utils.url.getParams();
+            const currentPage = parseInt(params.page) || 1;
+            const searchQuery = params.search || '';
+            const statusFilter = params.status || '';
+            const typeFilter = params.type || '';
+
+            // 使用Router的loadActivitiesData方法来刷新数据（这会更新正确的容器）
+            await window.Router.loadActivitiesData(currentPage, searchQuery, statusFilter, typeFilter);
+
+            console.log('🔄 refreshList: 活动列表刷新完成');
             this.showMessage('活动列表已刷新', 'success');
         } catch (error) {
             console.error('🔄 refreshList: 刷新失败:', error);
@@ -467,20 +476,18 @@ class ActivitiesManager {
     // 强制刷新方法（用于调试）
     async forceRefresh() {
         console.log('🔧 forceRefresh: 强制刷新开始');
-        console.log('🔧 forceRefresh: 刷新前活动数量:', this.activities.length);
 
         try {
-            // 清空当前数据
-            this.activities = [];
-            console.log('🔧 forceRefresh: 已清空活动数组');
+            // 获取当前URL参数以保持筛选状态
+            const params = Utils.url.getParams();
+            const currentPage = parseInt(params.page) || 1;
+            const searchQuery = params.search || '';
+            const statusFilter = params.status || '';
+            const typeFilter = params.type || '';
 
-            // 强制重新加载
-            await this.loadActivities();
-            console.log('🔧 forceRefresh: 强制加载完成，新活动数量:', this.activities.length);
-
-            // 强制重新渲染
-            this.renderActivitiesList();
-            console.log('🔧 forceRefresh: 强制渲染完成');
+            // 使用Router的loadActivitiesData方法来强制刷新数据
+            await window.Router.loadActivitiesData(currentPage, searchQuery, statusFilter, typeFilter);
+            console.log('🔧 forceRefresh: 强制刷新完成');
 
             this.showMessage('强制刷新完成', 'success');
         } catch (error) {
@@ -2664,6 +2671,10 @@ class ActivitiesManager {
         const pendingParticipants = modal.participants.filter(p => p.status === 'pending');
         if (pendingParticipants.length === 0) {
             this.showMessage('没有待审核的申请', 'info');
+            return;
+        }
+
+        if (!confirm(`确定要删除以下 ${activityIds.length} 个活动吗？\n\n${activityTitles.join('\n')}\n\n此操作不可撤销。`)) {
             return;
         }
 

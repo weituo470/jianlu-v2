@@ -124,11 +124,11 @@
 		<view class="action-bar" v-if="activity">
 			<view class="action-buttons">
 				<!-- 报名按钮 -->
-				<button 
+				<button
 					v-if="!activity.user_registered && canRegisterResult.canRegister"
 					class="btn btn-primary"
 					@tap="showRegistrationModal">
-					立即报名
+					{{ activity.require_approval ? '申请加入' : '立即报名' }}
 				</button>
 
 				<!-- 取消报名按钮 -->
