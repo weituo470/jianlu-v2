@@ -1046,24 +1046,40 @@ class ActivityDetailPage {
         console.log('🔄 renderExpensesTab: 开始渲染费用标签页');
         console.log('📊 当前费用数据:', this.expensesData);
 
-        // 更新费用统计信息
-        const totalAmountElement = document.querySelector('#expenses .card-header .badge.bg-success');
+        // 更新费用统计信息 - 使用更精确的选择器
+        const totalAmountElement = document.querySelector('#expenses-tab-pane .card-header .badge.bg-success') ||
+                                 document.querySelector('#expenses .card-header .badge.bg-success');
         if (totalAmountElement) {
             totalAmountElement.textContent = `总费用: ¥${this.expenseSummary.totalAmount.toFixed(2)}`;
         }
 
-        const totalCountElement = document.querySelector('#expenses .card-header .badge.bg-primary');
+        const totalCountElement = document.querySelector('#expenses-tab-pane .card-header .badge.bg-primary') ||
+                                document.querySelector('#expenses .card-header .badge.bg-primary');
         if (totalCountElement) {
             totalCountElement.textContent = `${this.expenseSummary.totalCount}条记录`;
         }
 
-        // 获取或创建表格结构
-        const cardBody = document.querySelector('#expenses .card-body');
+        // 获取右侧费用记录列表的容器 - 使用正确的ID
+        const cardBody = document.getElementById('expenses-card-body');
         if (!cardBody) {
-            console.error('❌ 未找到费用标签页的card-body元素');
+            console.error('❌ 未找到费用记录列表容器 #expenses-card-body');
+            // 降级方案：尝试查找其他可能的容器
+            const fallbackCardBody = document.querySelector('#expenses .col-lg-8 .card-body');
+            if (fallbackCardBody) {
+                console.log('✅ 使用降级方案找到容器');
+                this.updateExpensesContainer(fallbackCardBody);
+            } else {
+                console.error('❌ 降级方案也失败，无法找到容器');
+            }
             return;
         }
 
+        console.log('✅ 找到正确的容器 #expenses-card-body');
+        this.updateExpensesContainer(cardBody);
+    }
+
+    // 更新费用记录容器内容
+    updateExpensesContainer(cardBody) {
         if (this.expensesData.length > 0) {
             // 有费用记录，确保表格结构存在并更新内容
             const tableBody = document.querySelector('#expenses-table-body');
