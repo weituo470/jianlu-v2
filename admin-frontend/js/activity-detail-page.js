@@ -609,15 +609,9 @@ class ActivityDetailPage {
         console.log('返回活动列表页面');
 
         try {
-            // 优先使用Router导航
-            if (typeof Router !== 'undefined' && Router && Router.navigate) {
-                console.log('使用Router导航到活动列表');
-                Router.navigate('/activities/list');
-            } else {
-                console.log('Router不可用，使用window.location导航');
-                // 降级方案：直接使用window.location
-                window.location.href = '/activities/list';
-            }
+            console.log('使用window.location跳转到活动列表页面');
+            // 直接跳转到活动列表页面，不使用Router
+            window.location.href = '/activities/list';
         } catch (error) {
             console.error('导航失败:', error);
             // 最后的降级方案
@@ -1327,16 +1321,8 @@ function goToList() {
     if (typeof window.activityDetailPage !== 'undefined' && window.activityDetailPage) {
         window.activityDetailPage.goBackToList();
     } else {
-        // 降级方案
-        try {
-            if (typeof Router !== 'undefined' && Router && Router.navigate) {
-                Router.navigate('/activities/list');
-            } else {
-                window.location.href = '/activities/list';
-            }
-        } catch (error) {
-            console.error('导航失败:', error);
-            window.location.href = '/activities/list';
-        }
+        // 降级方案：直接跳转
+        console.log('页面实例不存在，直接跳转到活动列表页面');
+        window.location.href = '/activities/list';
     }
 }
