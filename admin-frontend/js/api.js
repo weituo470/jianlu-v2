@@ -442,6 +442,8 @@ window.API = {
         
         // 创建活动费用记录
         createExpense(activityId, data) {
+            console.log('💰 API.js - 创建费用记录:', { activityId, data });
+            console.log('📡 API.js - 请求URL:', `/activities/${activityId}/expenses`);
             return API.post(`/activities/${activityId}/expenses`, data);
         },
 

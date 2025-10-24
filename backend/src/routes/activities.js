@@ -1855,23 +1855,46 @@ router.post('/:id/expenses', authenticateToken, async (req, res) => {
       image_path
     } = req.body;
 
+    console.log('💰 后端 - 收到创建费用记录请求:', {
+      activityId,
+      item,
+      amount,
+      expense_date,
+      description,
+      payer,
+      image_path,
+      userId: req.user.id,
+      username: req.user.username
+    });
+
     // 验证活动是否存在
     const activity = await Activity.findByPk(activityId);
     if (!activity) {
+      console.log('❌ 后端 - 活动不存在:', activityId);
       return error(res, '活动不存在', 404);
     }
+    console.log('✅ 后端 - 活动存在:', activity.title);
 
     // 检查权限：只有活动创建者或管理员可以添加费用记录
     if (activity.creator_id !== req.user.id && !req.user.permissions.includes('activity:update')) {
+      console.log('❌ 后端 - 权限不足:', {
+        activityCreatorId: activity.creator_id,
+        userId: req.user.id,
+        userPermissions: req.user.permissions
+      });
       return error(res, '权限不足，无法添加费用记录', 403);
     }
+    console.log('✅ 后端 - 权限验证通过');
 
     // 验证必填字段
     if (!item || !amount || !expense_date) {
+      console.log('❌ 后端 - 必填字段验证失败:', { item, amount, expense_date });
       return error(res, '费用事项、金额和日期不能为空', 400);
     }
+    console.log('✅ 后端 - 必填字段验证通过');
 
     // 创建费用记录
+    console.log('💾 后端 - 开始创建费用记录');
     const expense = await ActivityExpense.create({
       activity_id: activityId,
       item: item.trim(),

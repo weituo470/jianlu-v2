@@ -642,6 +642,8 @@ class ActivityDetailPage {
 
     // 提交费用记录表单
     async submitExpenseForm() {
+        console.log('💰 开始提交费用记录表单');
+
         const item = document.getElementById('expenseItem').value;
         const amount = document.getElementById('expenseAmount').value;
         const expenseDate = document.getElementById('expenseDate').value;
@@ -650,13 +652,29 @@ class ActivityDetailPage {
         // 图片上传功能需要额外处理，这里简化处理
         const image = document.getElementById('expenseImage').files[0];
 
+        console.log('📋 表单数据:', {
+            item,
+            amount,
+            expenseDate,
+            payer,
+            description,
+            hasImage: !!image,
+            activityId: this.activityId
+        });
+
         // 简单验证
         if (!item || !amount || !expenseDate) {
+            console.log('❌ 表单验证失败: 缺少必填字段');
             Utils.toast.error('请填写必填字段');
             return;
         }
 
         try {
+            // 验证活动ID
+            if (!this.activityId) {
+                throw new Error('活动ID不能为空');
+            }
+
             const expenseData = {
                 item,
                 amount: parseFloat(amount),
@@ -669,15 +687,20 @@ class ActivityDetailPage {
             if (image) {
                 // 在实际实现中，这里需要上传图片并获取图片路径
                 expenseData.image_path = 'path/to/image'; // 占位符
+                console.log('📷 图片上传功能暂未实现，使用占位符');
             }
 
+            console.log('📡 发送创建费用记录请求:', expenseData);
             const response = await API.activities.createExpense(this.activityId, expenseData);
+            console.log('📡 API响应:', response);
 
             if (response.success) {
+                console.log('✅ 费用记录创建成功:', response.data);
                 Utils.toast.success('费用记录添加成功');
                 // 重置表单
                 document.getElementById('expenseForm').reset();
                 // 重新加载费用数据，而不是整个页面
+                console.log('🔄 重新加载费用数据');
                 await this.loadExpenses();
                 await this.loadExpenseSummary();
                 // 重新渲染费用标签页内容
@@ -685,10 +708,11 @@ class ActivityDetailPage {
                 // 激活费用标签页
                 this.activateExpensesTab();
             } else {
+                console.error('❌ 创建失败，服务器响应:', response);
                 Utils.toast.error('添加费用记录失败: ' + response.message);
             }
         } catch (error) {
-            console.error('添加费用记录失败:', error);
+            console.error('❌ 添加费用记录失败:', error);
             Utils.toast.error('添加费用记录失败: ' + error.message);
         }
     }
@@ -1057,42 +1081,6 @@ class ActivityDetailPage {
             console.log('📝 显示空状态');
             cardBody.innerHTML = this.createEmptyStateHTML();
         }
-    }
-
-    // 创建费用记录表格HTML
-    createExpensesTableHTML() {
-        return `
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>事项</th>
-                            <th>金额</th>
-                            <th>日期</th>
-                            <th>付款人</th>
-                            <th>记录人</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="expenses-table-body">
-                        ${this.renderExpensesTableBody()}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    // 创建空状态HTML
-    createEmptyStateHTML() {
-        return `
-            <div class="empty-state">
-                <div class="empty-icon">
-                    <i class="fas fa-receipt"></i>
-                </div>
-                <p class="mb-0">暂无费用记录</p>
-                <p class="text-muted small">添加第一条费用记录开始记账</p>
-            </div>
-        `;
     }
 
     // 激活费用标签页
