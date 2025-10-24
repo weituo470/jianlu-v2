@@ -178,6 +178,42 @@ class ActivityDetailPage {
         }
     }
 
+    // 创建费用记录表格HTML
+    createExpensesTableHTML() {
+        return `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>事项</th>
+                            <th>金额</th>
+                            <th>日期</th>
+                            <th>付款人</th>
+                            <th>记录人</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-table-body">
+                        ${this.renderExpensesTableBody()}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // 创建空状态HTML
+    createEmptyStateHTML() {
+        return `
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <p class="mb-0">暂无费用记录</p>
+                <p class="text-muted small">添加第一条费用记录开始记账</p>
+            </div>
+        `;
+    }
+
     // 渲染页面
     renderPage() {
         const container = document.getElementById('activity-detail-container');
@@ -533,34 +569,8 @@ class ActivityDetailPage {
                                         <span class="badge bg-primary">${this.expenseSummary.totalCount}条记录</span>
                                     </div>
                                 </div>
-                                <div class="card-body">
-                                    ${this.expensesData.length > 0 ? `
-                                    <div class="table-responsive">
-                                        <table class="table table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>事项</th>
-                                                    <th>金额</th>
-                                                    <th>日期</th>
-                                                    <th>付款人</th>
-                                                    <th>记录人</th>
-                                                    <th>操作</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="expenses-table-body">
-                                                ${this.renderExpensesTableBody()}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    ` : `
-                                    <div class="empty-state">
-                                        <div class="empty-icon">
-                                            <i class="fas fa-receipt"></i>
-                                        </div>
-                                        <p class="mb-0">暂无费用记录</p>
-                                        <p class="text-muted small">添加第一条费用记录开始记账</p>
-                                    </div>
-                                    `}
+                                <div class="card-body" id="expenses-card-body">
+                                    ${this.expensesData.length > 0 ? this.createExpensesTableHTML() : this.createEmptyStateHTML()}
                                 </div>
                             </div>
                         </div>
@@ -997,58 +1007,80 @@ class ActivityDetailPage {
 
     // 渲染费用标签页内容
     renderExpensesTab() {
+        console.log('🔄 renderExpensesTab: 开始渲染费用标签页');
+        console.log('📊 当前费用数据:', this.expensesData);
+
         // 更新费用统计信息
         const totalAmountElement = document.querySelector('#expenses .card-header .badge.bg-success');
         if (totalAmountElement) {
             totalAmountElement.textContent = `总费用: ¥${this.expenseSummary.totalAmount.toFixed(2)}`;
         }
-        
+
         const totalCountElement = document.querySelector('#expenses .card-header .badge.bg-primary');
         if (totalCountElement) {
             totalCountElement.textContent = `${this.expenseSummary.totalCount}条记录`;
         }
 
-        // 更新费用记录列表
-        const tableBody = document.querySelector('#expenses-table-body');
-        if (tableBody) {
-            tableBody.innerHTML = this.renderExpensesTableBody();
-        } else {
-            // 如果表格体不存在，重新渲染整个费用标签页内容
-            const cardBody = document.querySelector('#expenses .card-body');
-            if (cardBody) {
-                if (this.expensesData.length > 0) {
-                    cardBody.innerHTML = `
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>事项</th>
-                                        <th>金额</th>
-                                        <th>日期</th>
-                                        <th>付款人</th>
-                                        <th>记录人</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="expenses-table-body">
-                                    ${this.renderExpensesTableBody()}
-                                </tbody>
-                            </table>
-                        </div>
-                    `;
-                } else {
-                    cardBody.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-icon">
-                                <i class="fas fa-receipt"></i>
-                            </div>
-                            <p class="mb-0">暂无费用记录</p>
-                            <p class="text-muted small">添加第一条费用记录开始记账</p>
-                        </div>
-                    `;
-                }
-            }
+        // 获取或创建表格结构
+        const cardBody = document.querySelector('#expenses .card-body');
+        if (!cardBody) {
+            console.error('❌ 未找到费用标签页的card-body元素');
+            return;
         }
+
+        if (this.expensesData.length > 0) {
+            // 有费用记录，确保表格结构存在并更新内容
+            const tableBody = document.querySelector('#expenses-table-body');
+            if (tableBody) {
+                // 表格体存在，直接更新内容
+                console.log('✅ 表格体存在，更新内容');
+                tableBody.innerHTML = this.renderExpensesTableBody();
+            } else {
+                // 表格体不存在，创建完整的表格结构
+                console.log('📝 创建费用记录表格结构');
+                cardBody.innerHTML = this.createExpensesTableHTML();
+            }
+        } else {
+            // 没有费用记录，显示空状态
+            console.log('📝 显示空状态');
+            cardBody.innerHTML = this.createEmptyStateHTML();
+        }
+    }
+
+    // 创建费用记录表格HTML
+    createExpensesTableHTML() {
+        return `
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>事项</th>
+                            <th>金额</th>
+                            <th>日期</th>
+                            <th>付款人</th>
+                            <th>记录人</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-table-body">
+                        ${this.renderExpensesTableBody()}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // 创建空状态HTML
+    createEmptyStateHTML() {
+        return `
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <p class="mb-0">暂无费用记录</p>
+                <p class="text-muted small">添加第一条费用记录开始记账</p>
+            </div>
+        `;
     }
 
     // 激活费用标签页
