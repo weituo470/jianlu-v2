@@ -9,6 +9,40 @@ const logger = require('../utils/logger');
 const Joi = require('joi');
 const { v4: uuidv4 } = require('uuid');
 
+// 检查活动标题是否重复
+router.get('/check-title-duplicate', authenticateToken, async (req, res) => {
+  try {
+    const { Activity } = require('../models');
+    const { search, exclude_id } = req.query;
+
+    if (!search || search.trim() === '') {
+      return success(res, { exists: false }, '标题为空，无需检查');
+    }
+
+    // 构建查询条件
+    const where = { title: search.trim() };
+
+    // 如果提供了排除ID，则排除该活动
+    if (exclude_id) {
+      where.id = { [Op.ne]: exclude_id };
+    }
+
+    // 查询是否存在重复标题
+    const existingActivity = await Activity.findOne({ where });
+
+    logger.info(`用户 ${req.user.username} 检查活动标题重复: "${search.trim()}" - ${existingActivity ? '存在重复' : '无重复'}`);
+
+    return success(res, {
+      exists: !!existingActivity,
+      activityId: existingActivity?.id || null
+    }, existingActivity ? '发现重复标题' : '标题可用');
+
+  } catch (err) {
+    logger.error('检查活动标题重复失败:', err);
+    return error(res, '检查标题重复失败', 500);
+  }
+});
+
 // 获取活动列表
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -297,6 +331,15 @@ router.post('/', authenticateToken, requirePermission('activity:create'), valida
   try {
     const { title, description, type, team_id, start_time, end_time, location, max_participants, min_participants, require_approval } = req.body;
     const { Activity, Team } = require('../models');
+
+    // 检查活动标题是否重复
+    const existingActivity = await Activity.findOne({
+      where: { title: title.trim() }
+    });
+
+    if (existingActivity) {
+      return error(res, '活动标题已存在，请使用不同的标题', 400);
+    }
 
     // 处理活动类型和团队的特殊值
     let finalType = type || 'other';
@@ -613,6 +656,20 @@ router.put('/:id', authenticateToken, requirePermission('activity:update'), vali
     // 检查权限：只有创建者或管理员可以编辑
     if (activity.creator_id !== req.user.id && !req.user.permissions.includes('activity:update')) {
       return error(res, '权限不足，无法编辑此活动', 403);
+    }
+
+    // 检查活动标题是否重复（排除当前活动）
+    if (title && title.trim() !== activity.title) {
+      const existingActivity = await Activity.findOne({
+        where: {
+          title: title.trim(),
+          id: { [Op.ne]: id } // 排除当前活动
+        }
+      });
+
+      if (existingActivity) {
+        return error(res, '活动标题已存在，请使用不同的标题', 400);
+      }
     }
 
     // 验证团队是否存在

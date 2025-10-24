@@ -22,6 +22,9 @@ class ActivitiesManager {
             team: ''
         };
         this.isLoading = false;
+
+        // 防抖的标题重复检查
+        this.titleCheckDebounce = null;
     }
 
     // 初始化
@@ -603,46 +606,43 @@ class ActivitiesManager {
                 </div>
                 
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group mb-3">
+                    <div class="col-12">
+                        <div class="activity-switches-row">
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="enableParticipantLimit" 
+                                <input class="form-check-input" type="checkbox" id="enableParticipantLimit"
                                        name="enable_participant_limit" checked onchange="activitiesManager.toggleParticipantLimit()">
                                 <label class="form-check-label" for="enableParticipantLimit">
                                     开启人数限制
                                 </label>
                             </div>
-                            <small class="text-muted">开启后需要设置最低和最高参与人数</small>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="needApproval"
+                                       name="need_approval">
+                                <label class="form-check-label" for="needApproval">
+                                    是否需要审核
+                                </label>
+                            </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="row" id="participantFieldsRow">
                     <div class="col-md-6">
                         <div class="form-group mb-3">
                             <label for="activityMaxParticipants" class="form-label">最大参与人数</label>
-                            <input type="number" class="form-control" id="activityMaxParticipants" name="max_participants" 
+                            <input type="number" class="form-control" id="activityMaxParticipants" name="max_participants"
                                    min="1" value="30" placeholder="不限制请留空">
                         </div>
                     </div>
-                </div>
-                
-                <div class="row" id="participantLimitRow">
                     <div class="col-md-6">
                         <div class="form-group mb-3">
                             <label for="activityMinParticipants" class="form-label">最低参与人数</label>
-                            <input type="number" class="form-control" id="activityMinParticipants" name="min_participants" 
+                            <input type="number" class="form-control" id="activityMinParticipants" name="min_participants"
                                    min="1" value="3" placeholder="默认3人">
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-group mb-3">
-                            <label for="needApproval" class="form-label">是否需要审核</label>
-                            <select class="form-control" id="needApproval" name="need_approval">
-                                <option value="false">无需审核</option>
-                                <option value="true">需要审核</option>
-                            </select>
-                        </div>
-                    </div>
                 </div>
-                
+                  
                 <div class="form-group mb-3">
                     <label for="activityDescription" class="form-label">活动描述</label>
                     <textarea class="form-control" id="activityDescription" name="description" rows="3"
@@ -696,10 +696,23 @@ class ActivitiesManager {
                 const value = e.target.value.trim();
                 this.clearFieldError('activityTitle');
 
+                // 清除之前的防抖检查
+                if (this.titleCheckDebounce) {
+                    clearTimeout(this.titleCheckDebounce);
+                }
+
                 if (value.length > 0 && value.length < 2) {
                     this.showFieldError('activityTitle', '活动标题至少需要2个字符');
                 } else if (value.length > 200) {
                     this.showFieldError('activityTitle', '活动标题不能超过200个字符');
+                } else if (value.length >= 2 && value.length <= 200) {
+                    // 防抖检查标题重复（500ms延迟）
+                    this.titleCheckDebounce = setTimeout(async () => {
+                        const isDuplicate = await this.checkTitleDuplicate(value);
+                        if (isDuplicate) {
+                            this.showFieldError('activityTitle', '活动标题已存在，请使用不同的标题');
+                        }
+                    }, 500);
                 }
             });
 
@@ -789,6 +802,32 @@ class ActivitiesManager {
 
             minParticipantsInput.addEventListener('input', validateParticipants);
             maxParticipantsInput.addEventListener('input', validateParticipants);
+        }
+    }
+
+    // 检查活动标题是否重复
+    async checkTitleDuplicate(title, excludeId = null) {
+        try {
+            // 构建查询参数
+            const params = new URLSearchParams({ search: title });
+            if (excludeId) {
+                params.append('exclude_id', excludeId);
+            }
+
+            // 调用API检查标题重复
+            const response = await fetch(`/api/activities/check-title-duplicate?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+            return result.success && result.data.exists;
+        } catch (error) {
+            console.error('检查标题重复失败:', error);
+            return false; // 发生错误时默认不重复
         }
     }
 
@@ -2360,16 +2399,16 @@ class ActivitiesManager {
     // 切换人数限制开关
     toggleParticipantLimit() {
         const enableLimit = document.getElementById('enableParticipantLimit').checked;
-        const limitRow = document.getElementById('participantLimitRow');
+        const fieldsRow = document.getElementById('participantFieldsRow');
         const minInput = document.getElementById('activityMinParticipants');
         const maxInput = document.getElementById('activityMaxParticipants');
-        
+
         if (enableLimit) {
-            limitRow.style.display = 'flex';
+            fieldsRow.style.display = 'flex';
             minInput.value = minInput.value || 3;
             maxInput.value = maxInput.value || 30;
         } else {
-            limitRow.style.display = 'none';
+            fieldsRow.style.display = 'none';
             minInput.value = '';
             maxInput.value = '';
         }
@@ -2392,7 +2431,7 @@ class ActivitiesManager {
             enable_participant_limit: formData.get('enable_participant_limit') === 'on',
             min_participants: formData.get('min_participants') ? parseInt(formData.get('min_participants')) : 3,
             max_participants: formData.get('max_participants') ? parseInt(formData.get('max_participants')) : 30,
-            require_approval: formData.get('need_approval') === 'true',
+            require_approval: formData.get('need_approval') === 'on',
             activity_status: 'published'
         };
 

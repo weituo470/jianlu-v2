@@ -1249,6 +1249,154 @@
     gap: 1rem;
 }
 
+/* 表单Checkbox水平对齐样式 */
+.form-check-horizontal {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.form-check-horizontal .form-check {
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.form-check-horizontal .form-check-label {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.form-check-horizontal .text-muted {
+    margin-bottom: 0;
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Bootstrap表单开关样式优化 */
+.form-switch .form-check-input {
+    width: 40px;
+    height: 20px;
+    background-color: #6c757d;
+    border: none;
+    cursor: pointer;
+}
+
+.form-switch .form-check-input:checked {
+    background-color: var(--primary-color);
+}
+
+.form-switch .form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+/* 活动表单特殊样式 */
+.activity-form-options {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 1rem;
+}
+
+.activity-form-options .form-check {
+    margin-bottom: 0;
+}
+
+.activity-form-options .form-label {
+    margin-bottom: 0;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.activity-form-options .text-muted {
+    margin-bottom: 0;
+    font-size: 0.875rem;
+}
+
+/* 双checkbox水平布局样式 */
+.activity-switches-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 12px 16px;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px;
+}
+
+.activity-switches-row .form-check {
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.activity-switches-row .form-check-label {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-left: 8px;
+    user-select: none;
+    cursor: pointer;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .activity-switches-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .activity-switches-row .form-check {
+        width: 100%;
+    }
+}
+
+/* 表单验证错误提示样式 */
+.invalid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #dc3545;
+    background: rgba(220, 53, 69, 0.05);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    border-radius: 0.375rem;
+    position: relative;
+    z-index: 10;
+    box-shadow: none !important;
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+    background-image: none;
+    padding-right: 0.75rem;
+    background-position: right 0.75rem center;
+}
+
+.form-control.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* 确保错误提示不被其他元素遮挡 */
+.form-group {
+    position: relative;
+}
+
+.form-group .invalid-feedback {
+    position: relative;
+    z-index: 100;
+    margin-top: 0.5rem;
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    color: #c53030;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-weight: 500;
+}
+
 .application-item {
     display: flex;
     justify-content: space-between;

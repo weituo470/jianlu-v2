@@ -307,14 +307,6 @@
 
 			// 快速报名
 			async quickRegister(activity) {
-				const confirmed = await showConfirm(
-					activity.require_approval
-						? `确定要申请加入"${activity.title}"吗？\n提交后需要等待管理员审核`
-						: `确定要报名"${activity.title}"吗？`
-				)
-
-				if (!confirmed) return
-
 				try {
 					const response = await activityApi.register(activity.id, {
 						notes: activity.require_approval ? '通过列表快速申请' : '',
