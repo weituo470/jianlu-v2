@@ -1993,17 +1993,28 @@ router.delete('/:id/expenses/:expenseId', authenticateToken, async (req, res) =>
     const { Activity, ActivityExpense } = require('../models');
     const { id: activityId, expenseId } = req.params;
 
+    console.log('🗑️ 后端 - 收到删除费用记录请求:', {
+      activityId,
+      expenseId,
+      userId: req.user.id,
+      username: req.user.username
+    });
+
     // 验证活动
     const activity = await Activity.findByPk(activityId);
     if (!activity) {
+      console.log('❌ 后端 - 活动不存在:', activityId);
       return error(res, '活动不存在', 404);
     }
+    console.log('✅ 后端 - 活动存在:', activity.title);
 
     // 查找费用记录
     const expense = await ActivityExpense.findByPk(expenseId);
     if (!expense) {
+      console.log('❌ 后端 - 费用记录不存在:', expenseId);
       return error(res, '费用记录不存在', 404);
     }
+    console.log('✅ 后端 - 费用记录存在:', expense.item);
 
     // 验证费用记录是否属于该活动
     if (expense.activity_id !== activityId) {

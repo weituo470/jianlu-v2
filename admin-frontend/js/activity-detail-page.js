@@ -705,8 +705,19 @@ class ActivityDetailPage {
             return;
         }
 
+        console.log('🗑️ 开始删除费用记录');
+        console.log('📋 活动ID:', this.activityId);
+        console.log('📋 费用记录ID:', expenseId);
+
         try {
+            // 验证参数
+            if (!this.activityId || !expenseId) {
+                throw new Error('活动ID或费用记录ID不能为空');
+            }
+
+            console.log('📡 发送删除请求到API');
             const response = await API.activities.deleteExpense(this.activityId, expenseId);
+            console.log('📡 API响应:', response);
 
             if (response.success) {
                 Utils.toast.success('费用记录删除成功');
@@ -718,10 +729,11 @@ class ActivityDetailPage {
                 // 激活费用标签页
                 this.activateExpensesTab();
             } else {
+                console.error('❌ 删除失败，服务器响应:', response);
                 Utils.toast.error('删除费用记录失败: ' + response.message);
             }
         } catch (error) {
-            console.error('删除费用记录失败:', error);
+            console.error('❌ 删除费用记录失败:', error);
             Utils.toast.error('删除费用记录失败: ' + error.message);
         }
     }

@@ -457,6 +457,8 @@ window.API = {
 
         // 删除活动费用记录
         deleteExpense(activityId, expenseId) {
+            console.log('🗑️ API.js - 删除费用记录:', { activityId, expenseId });
+            console.log('📡 API.js - 请求URL:', `/activities/${activityId}/expenses/${expenseId}`);
             return API.delete(`/activities/${activityId}/expenses/${expenseId}`);
         },
 
