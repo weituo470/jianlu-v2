@@ -127,3 +127,16 @@ $RECYCLE.BIN/
 project.private.config.json
 .dev/
 !database/MIGRATIONS.md
+
+# 项目回收站系统
+# 保留回收站配置文件，但忽略文件内容
+.jianlu-trash/files/
+.jianlu-trash/metadata/
+.jianlu-trash/trash.log
+.jianlu-trash/node_modules/
+
+# 回收站配置文件和脚本允许提交
+!.jianlu-trash/
+!.jianlu-trash/README.md
+!.jianlu-trash/scripts/
+!.jianlu-trash/trash-cli.js

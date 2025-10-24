@@ -55,7 +55,7 @@ app.use(cors({
 // 通用请求限制
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15分钟
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // 限制每个IP 1000个请求
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100000, // 限制每个IP 100000个请求 (放宽100倍)
   message: {
     success: false,
     message: '请求过于频繁，请稍后再试'
@@ -65,7 +65,7 @@ const limiter = rateLimit({
 // 认证路由的宽松限制
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分钟
-  max: 1000, // 认证路由允许更多请求
+  max: 100000, // 认证路由允许更多请求 (放宽100倍)
   message: {
     success: false,
     message: '认证请求过于频繁，请稍后再试'
@@ -93,12 +93,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-if (INSPECTOR_ENABLED) {
-  app.get(['/', '/*.html'], (req, res, next) => {
-    const target = req.path === '/' ? 'index.html' : req.path.replace(/^\/+/, '');
-    return sendHtml(res, target);
-  });
-}
 
 // 静态文件服务 - 提供管理端前端文件
 app.use(express.static(path.join(__dirname, '../../admin-frontend')));
@@ -140,7 +134,15 @@ app.get('*', (req, res) => {
       message: '接口不存在'
     });
   }
-  
+
+  // 检查是否是静态资源文件（CSS、JS、图片等），应该由静态文件中间件处理
+  if (req.path.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i)) {
+    return res.status(404).json({
+      success: false,
+      message: '静态文件未找到'
+    });
+  }
+
   // 检查是否是直接访问HTML文件
   if (req.path.endsWith('.html')) {
     const relative = req.path.replace(/^\/+/, '');

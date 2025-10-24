@@ -208,12 +208,12 @@ class ActivityDetailPage {
                     <h1 class="h3 mb-0">活动管理</h1>
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="#" onclick="goToList()">活动列表</a></li>
+                            <li class="breadcrumb-item"><a href="#" id="breadcrumb-link">活动列表</a></li>
                             <li class="breadcrumb-item active">活动详情</li>
                         </ol>
                     </nav>
                 </div>
-                <button class="btn btn-outline-secondary" onclick="goToList()">
+                <button class="btn btn-outline-secondary" id="back-to-list-btn">
                     <i class="fas fa-arrow-left me-2"></i>返回列表
                 </button>
             </div>
@@ -578,6 +578,51 @@ class ActivityDetailPage {
 
         // 绑定表单提交事件
         this.bindExpenseFormEvents();
+
+        // 绑定返回按钮事件
+        this.bindNavigationEvents();
+    }
+
+    // 绑定导航事件
+    bindNavigationEvents() {
+        // 面包屑链接
+        const breadcrumbLink = document.getElementById('breadcrumb-link');
+        if (breadcrumbLink) {
+            breadcrumbLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.goBackToList();
+            });
+        }
+
+        // 返回按钮
+        const backBtn = document.getElementById('back-to-list-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.goBackToList();
+            });
+        }
+    }
+
+    // 返回列表页面
+    goBackToList() {
+        console.log('返回活动列表页面');
+
+        try {
+            // 优先使用Router导航
+            if (typeof Router !== 'undefined' && Router && Router.navigate) {
+                console.log('使用Router导航到活动列表');
+                Router.navigate('/activities/list');
+            } else {
+                console.log('Router不可用，使用window.location导航');
+                // 降级方案：直接使用window.location
+                window.location.href = '/activities/list';
+            }
+        } catch (error) {
+            console.error('导航失败:', error);
+            // 最后的降级方案
+            window.location.href = '/activities/list';
+        }
     }
 
     // 绑定费用记录表单事件
@@ -1274,11 +1319,24 @@ document.addEventListener('DOMContentLoaded', async function() {
     await activityDetailPage.init();
 });
 
-// 返回列表页面
+// 返回列表页面（全局函数，保持向后兼容）
 function goToList() {
-    if (typeof Router !== 'undefined' && Router.navigate) {
-        Router.navigate('/activities/list');
+    console.log('全局goToList函数被调用');
+
+    // 如果页面实例已存在，使用实例方法
+    if (typeof window.activityDetailPage !== 'undefined' && window.activityDetailPage) {
+        window.activityDetailPage.goBackToList();
     } else {
-        window.location.href = '/activities/list';
+        // 降级方案
+        try {
+            if (typeof Router !== 'undefined' && Router && Router.navigate) {
+                Router.navigate('/activities/list');
+            } else {
+                window.location.href = '/activities/list';
+            }
+        } catch (error) {
+            console.error('导航失败:', error);
+            window.location.href = '/activities/list';
+        }
     }
 }
