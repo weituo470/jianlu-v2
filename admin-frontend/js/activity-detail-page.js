@@ -161,20 +161,29 @@ class ActivityDetailPage {
     // 加载AA费用分摊数据
     async loadAACosts() {
         try {
-            console.log('开始计算AA费用分摊，活动ID:', this.activityId);
+            console.log('🔄 开始计算AA费用分摊，活动ID:', this.activityId);
             const response = await API.activities.calculateAACosts(this.activityId);
-            console.log('AA费用分摊数据响应:', response);
-            
+            console.log('📡 AA费用分摊数据响应:', response);
+
             if (response.success) {
                 this.aaCostsData = response.data.aaCosts || null;
-                console.log('AA费用分摊数据:', this.aaCostsData);
+                console.log('✅ AA费用分摊数据加载成功:', this.aaCostsData);
+
+                // 自动渲染AA分摊标签页
+                if (this.aaCostsData) {
+                    this.renderAACostsTab();
+                    console.log('🎨 AA分摊标签页已渲染');
+                }
             } else {
                 throw new Error(response.message || '计算AA费用分摊失败');
             }
         } catch (error) {
-            console.error('计算AA费用分摊失败:', error);
+            console.error('❌ 计算AA费用分摊失败:', error);
             // 不抛出错误，因为AA分摊功能可能是新功能
             this.aaCostsData = null;
+
+            // 渲染空状态
+            this.renderAACostsTab();
         }
     }
 
