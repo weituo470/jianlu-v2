@@ -1153,6 +1153,7 @@ class ActivityDetailPage {
     // 更新参与者分摊系数
     async updateParticipantRatio(userId, ratio) {
         try {
+            console.log('🔄 更新参与者分摊系数:', { userId, ratio });
             const response = await API.activities.updateParticipantRatio(this.activityId, userId, ratio);
 
             if (response.success) {
@@ -1170,10 +1171,151 @@ class ActivityDetailPage {
         }
     }
 
+    // 更新AA分摊总金额
+    async updateAATotalCost() {
+        const input = document.getElementById('aa-total-cost-input');
+        if (!input) {
+            Utils.toast.error('未找到总金额输入框');
+            return;
+        }
+
+        const totalCost = parseFloat(input.value);
+        if (isNaN(totalCost) || totalCost < 0) {
+            Utils.toast.error('请输入有效的金额');
+            return;
+        }
+
+        try {
+            console.log('💰 更新AA分摊总金额:', totalCost);
+            Utils.showLoading('正在更新分摊...');
+
+            const response = await API.activities.setAATotalCost(this.activityId, totalCost);
+
+            if (response.success) {
+                Utils.toast.success('分摊总金额更新成功');
+                // 更新AA分摊数据
+                this.aaCostsData = response.data.aaCosts;
+                // 重新渲染页面
+                this.renderAACostsTab();
+            } else {
+                Utils.toast.error('更新分摊总金额失败: ' + response.message);
+            }
+        } catch (error) {
+            console.error('更新分摊总金额失败:', error);
+            Utils.toast.error('更新分摊总金额失败: ' + error.message);
+        } finally {
+            Utils.hideLoading();
+        }
+    }
+
+    // 重置AA分摊总金额（使用费用记账总额）
+    async resetAATotalCost() {
+        try {
+            console.log('🔄 重置AA分摊总金额');
+            Utils.showLoading('正在重置分摊...');
+
+            const response = await API.activities.resetAATotalCost(this.activityId);
+
+            if (response.success) {
+                Utils.toast.success('已重置为费用记账总额');
+                // 更新AA分摊数据
+                this.aaCostsData = response.data.aaCosts;
+                // 重新渲染页面
+                this.renderAACostsTab();
+            } else {
+                Utils.toast.error('重置分摊总金额失败: ' + response.message);
+            }
+        } catch (error) {
+            console.error('重置分摊总金额失败:', error);
+            Utils.toast.error('重置分摊总金额失败: ' + error.message);
+        } finally {
+            Utils.hideLoading();
+        }
+    }
+
+    // 设置单个参与者系数为1
+    async setRatioToOne(userId) {
+        await this.updateParticipantRatio(userId, 1);
+    }
+
+    // 平均分摊（所有参与者系数设为1）
+    async setAllRatiosToAverage() {
+        if (!this.aaCostsData || !this.aaCostsData.participants) {
+            Utils.toast.error('暂无参与者数据');
+            return;
+        }
+
+        try {
+            Utils.showLoading('正在设置平均分摊...');
+
+            // 批量更新所有参与者的系数为1
+            const updatePromises = this.aaCostsData.participants.map(participant =>
+                this.updateParticipantRatio(participant.user_id, 1)
+            );
+
+            await Promise.all(updatePromises);
+
+            Utils.toast.success('已设置为平均分摊');
+        } catch (error) {
+            console.error('设置平均分摊失败:', error);
+            Utils.toast.error('设置平均分摊失败: ' + error.message);
+        } finally {
+            Utils.hideLoading();
+        }
+    }
+
+    // 重置所有分摊系数
+    async resetAllRatios() {
+        if (!this.aaCostsData || !this.aaCostsData.participants) {
+            Utils.toast.error('暂无参与者数据');
+            return;
+        }
+
+        if (!confirm('确定要重置所有参与者的分摊系数吗？')) {
+            return;
+        }
+
+        try {
+            Utils.showLoading('正在重置分摊系数...');
+
+            // 批量更新所有参与者的系数为0（将使用默认值1）
+            const updatePromises = this.aaCostsData.participants.map(participant =>
+                this.updateParticipantRatio(participant.user_id, 0)
+            );
+
+            await Promise.all(updatePromises);
+
+            Utils.toast.success('已重置所有分摊系数');
+        } catch (error) {
+            console.error('重置分摊系数失败:', error);
+            Utils.toast.error('重置分摊系数失败: ' + error.message);
+        } finally {
+            Utils.hideLoading();
+        }
+    }
+
     // 渲染AA费用分摊标签页
     renderAACostsTab() {
+        console.log('🔄 renderAACostsTab: 开始渲染AA分摊页面');
+        console.log('📊 AA分摊数据:', this.aaCostsData);
+
         const aaCostsTab = document.getElementById('aa-costs-content');
-        if (!aaCostsTab || !this.aaCostsData) return;
+        if (!aaCostsTab) {
+            console.error('❌ 未找到AA分摊容器 #aa-costs-content');
+            return;
+        }
+
+        if (!this.aaCostsData) {
+            aaCostsTab.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-2">正在计算AA分摊...</p>
+                </div>
+            `;
+            return;
+        }
 
         if (this.aaCostsData.participantCount === 0) {
             aaCostsTab.innerHTML = `
@@ -1182,44 +1324,91 @@ class ActivityDetailPage {
                         <i class="fas fa-users"></i>
                     </div>
                     <p class="mb-0">暂无参与者</p>
-                    <p class="text-muted small">活动需要有参与者才能进行费用分摊</p>
+                    <p class="text-muted small">活动需要有已批准的参与者才能进行费用分摊</p>
                 </div>
             `;
             return;
         }
 
         // 计算总系数
-        const totalRatio = this.aaCostsData.participants.reduce((sum, p) => sum + parseFloat(p.cost_sharing_ratio), 0);
+        const totalRatio = this.aaCostsData.participants.reduce((sum, p) => sum + parseFloat(p.cost_sharing_ratio || 0), 0);
 
         aaCostsTab.innerHTML = `
-            <div class="card">
-                <div class="card-header">
+            <!-- 总金额设置区域 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-calculator me-2"></i>AA费用分摊计算
+                        <i class="fas fa-coins me-2"></i>分摊总金额设置
                     </h5>
+                    <div class="btn-group btn-group-sm">
+                        ${this.aaCostsData.useCustomTotalCost ?
+                            `<button class="btn btn-outline-warning" onclick="activityDetailPage.resetAATotalCost()">
+                                <i class="fas fa-undo me-1"></i>使用记账总额
+                            </button>` :
+                            `<button class="btn btn-outline-success" disabled>
+                                <i class="fas fa-check me-1"></i>使用记账总额
+                            </button>`
+                        }
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="row mb-4">
-                        <div class="col-md-4">
-                            <div class="stat-card">
-                                <div class="stat-label">活动总费用</div>
-                                <div class="stat-value">¥${this.aaCostsData.totalCost}</div>
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <strong>分摊总金额</strong>
+                                    ${this.aaCostsData.useCustomTotalCost ?
+                                        '<span class="badge bg-warning ms-2">自定义</span>' :
+                                        '<span class="badge bg-success ms-2">记账总额</span>'
+                                    }
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="number"
+                                           class="form-control form-control-lg"
+                                           id="aa-total-cost-input"
+                                           value="${this.aaCostsData.totalCost}"
+                                           step="0.01"
+                                           min="0"
+                                           placeholder="输入分摊总金额">
+                                    <button class="btn btn-primary" onclick="activityDetailPage.updateAATotalCost()">
+                                        <i class="fas fa-sync-alt me-1"></i>更新分摊
+                                    </button>
+                                </div>
+                                <div class="form-text">
+                                    ${this.aaCostsData.expenseTotalCost > 0 ?
+                                        `费用记账总额: ¥${this.aaCostsData.expenseTotalCost}` :
+                                        '暂无费用记账记录'
+                                    }
+                                    ${this.aaCostsData.baseTotalCost !== this.aaCostsData.expenseTotalCost ?
+                                        ` | 活动原始费用: ¥${this.aaCostsData.baseTotalCost}` : ''
+                                    }
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="stat-card">
+                            <div class="stat-card stat-card-lg">
                                 <div class="stat-label">参与人数</div>
                                 <div class="stat-value">${this.aaCostsData.participantCount}</div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="stat-card">
-                                <div class="stat-label">平均费用</div>
-                                <div class="stat-value">¥${this.aaCostsData.averageCost}</div>
+                                <div class="stat-text">人</div>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
+            <!-- 分摊结果区域 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calculator me-2"></i>AA费用分摊结果
+                    </h5>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-info me-2">总系数: ${totalRatio.toFixed(2)}</span>
+                        <span class="badge bg-primary">平均: ¥${this.aaCostsData.averageCost}</span>
+                    </div>
+                </div>
+                <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -1227,6 +1416,7 @@ class ActivityDetailPage {
                                     <th>参与者</th>
                                     <th>分摊系数</th>
                                     <th>应付金额</th>
+                                    <th>占比</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -1252,16 +1442,17 @@ class ActivityDetailPage {
                                         </td>
                                         <td>
                                             <div class="input-group" style="max-width: 120px;">
-                                                <input type="number" 
-                                                       class="form-control form-control-sm ratio-input" 
-                                                       value="${participant.cost_sharing_ratio}" 
-                                                       min="0" 
-                                                       max="10" 
+                                                <input type="number"
+                                                       class="form-control form-control-sm ratio-input"
+                                                       value="${participant.cost_sharing_ratio}"
+                                                       min="0"
+                                                       max="10"
                                                        step="0.1"
                                                        data-user-id="${participant.user_id}">
-                                                <button class="btn btn-outline-primary btn-sm ratio-update" 
+                                                <button class="btn btn-outline-primary btn-sm ratio-update"
                                                         type="button"
-                                                        data-user-id="${participant.user_id}">
+                                                        data-user-id="${participant.user_id}"
+                                                        title="更新分摊系数">
                                                     <i class="fas fa-sync"></i>
                                                 </button>
                                             </div>
@@ -1270,9 +1461,16 @@ class ActivityDetailPage {
                                             <span class="fw-bold text-success">¥${participant.amount}</span>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info">
-                                                ${((parseFloat(participant.amount) / parseFloat(this.aaCostsData.averageCost)) * 100).toFixed(0)}%
+                                            <span class="badge bg-info" title="占总费用的比例">
+                                                ${totalRatio > 0 ? ((parseFloat(participant.cost_sharing_ratio || 0) / totalRatio) * 100).toFixed(1) : 0}%
                                             </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    title="设置分摊系数为1"
+                                                    onclick="activityDetailPage.setRatioToOne('${participant.user_id}')">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -1280,25 +1478,47 @@ class ActivityDetailPage {
                                     <td><strong>合计</strong></td>
                                     <td><strong>${totalRatio.toFixed(2)}</strong></td>
                                     <td><strong>¥${this.aaCostsData.totalCost}</strong></td>
+                                    <td><strong>100%</strong></td>
                                     <td></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
-                    <div class="alert alert-info mt-3">
-                        <h6 class="alert-heading">
-                            <i class="fas fa-info-circle me-2"></i>分摊说明
-                        </h6>
-                        <p class="mb-1">
-                            <strong>计算公式：</strong>个人应付金额 = 活动总费用 × (个人系数 / 所有参与者系数总和)
-                        </p>
-                        <p class="mb-1">
-                            <strong>系数说明：</strong>默认系数为1，系数越大分摊比例越高，系数为0表示不参与分摊
-                        </p>
-                        <p class="mb-0">
-                            <strong>当前总系数：</strong>${totalRatio.toFixed(2)}
-                        </p>
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">
+                                    <i class="fas fa-info-circle me-2"></i>分摊说明
+                                </h6>
+                                <p class="mb-1">
+                                    <strong>计算公式：</strong>个人应付金额 = 分摊总金额 × (个人系数 / 总系数)
+                                </p>
+                                <p class="mb-1">
+                                    <strong>系数说明：</strong>默认系数为1，系数越大分摊比例越高，系数为0表示不参与分摊
+                                </p>
+                                <p class="mb-0">
+                                    <strong>当前总系数：</strong>${totalRatio.toFixed(2)}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-chart-pie me-2"></i>快速操作
+                                    </h6>
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-outline-primary btn-sm" onclick="activityDetailPage.setAllRatiosToAverage()">
+                                            <i class="fas fa-balance-scale me-1"></i>平均分摊
+                                        </button>
+                                        <button class="btn btn-outline-warning btn-sm" onclick="activityDetailPage.resetAllRatios()">
+                                            <i class="fas fa-redo me-1"></i>重置所有系数
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -438,6 +438,18 @@ window.API = {
             return API.put(`/activities/${activityId}/participants/${userId}/ratio`, { ratio });
         },
 
+        // 设置AA分摊总金额
+        setAATotalCost(activityId, totalCost) {
+            console.log('💰 API.js - 设置AA分摊总金额:', { activityId, totalCost });
+            return API.put(`/activities/${activityId}/aa-total-cost`, { totalCost });
+        },
+
+        // 重置AA分摊总金额
+        resetAATotalCost(activityId) {
+            console.log('🔄 API.js - 重置AA分摊总金额:', { activityId });
+            return API.put(`/activities/${activityId}/aa-total-cost/reset`);
+        },
+
         // ==================== 活动记账相关接口 ====================
         
         // 创建活动费用记录

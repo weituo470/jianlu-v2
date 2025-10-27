@@ -372,48 +372,82 @@ Activity.createDinnerParty = async function(activityData) {
 };
 
 // 实例方法：计算AA费用分摊
-Activity.prototype.calculateAACosts = async function() {
+Activity.prototype.calculateAACosts = async function(options = {}) {
   const { sequelize } = require('../config/database');
-  
-  // 获取活动总费用
-  const totalCost = parseFloat(this.total_cost) || 0;
-  
-  // 获取所有参与者及其分摊系数
+  const { useCustomTotalCost = false, customTotalCost = 0 } = options;
+
+  // 获取费用记账合计金额
+  let expenseTotalCost = 0;
+  try {
+    const expenses = await sequelize.models.ActivityExpense.findAll({
+      where: { activity_id: this.id },
+      attributes: [[sequelize.fn('SUM', sequelize.col('amount')), 'total']]
+    });
+    expenseTotalCost = parseFloat(expenses[0]?.dataValues?.total) || 0;
+  } catch (error) {
+    console.error('获取费用记账总额失败:', error);
+  }
+
+  // 使用费用记账总额作为分摊基数，如果没有费用记录则使用活动总费用
+  const baseTotalCost = expenseTotalCost > 0 ? expenseTotalCost : (parseFloat(this.total_cost) || 0);
+  const totalCost = useCustomTotalCost ? customTotalCost : baseTotalCost;
+
+  // 获取已批准参与者及其分摊系数
   const participants = await sequelize.models.ActivityParticipant.findAll({
-    where: { activity_id: this.id },
+    where: {
+      activity_id: this.id,
+      status: 'approved' // 只包含已批准的参与者
+    },
     attributes: ['user_id', 'cost_sharing_ratio']
   });
-  
+
+  console.log(`📊 AA分摊计算 - 活动${this.id}:`, {
+    expenseTotalCost,
+    baseTotalCost,
+    useCustomTotalCost,
+    customTotalCost,
+    totalCost,
+    participantCount: participants.length
+  });
+
   if (participants.length === 0) {
     return {
       totalCost: totalCost.toFixed(2),
+      baseTotalCost: baseTotalCost.toFixed(2),
+      expenseTotalCost: expenseTotalCost.toFixed(2),
+      useCustomTotalCost,
       participantCount: 0,
       averageCost: 0,
+      totalRatio: 0,
       participants: []
     };
   }
-  
+
   // 计算总系数
-  const totalRatio = participants.reduce((sum, p) => sum + parseFloat(p.cost_sharing_ratio), 0);
-  
+  const totalRatio = participants.reduce((sum, p) => sum + parseFloat(p.cost_sharing_ratio || 0), 0);
+
   // 如果总系数为0，使用默认AA分摊
   if (totalRatio === 0) {
     const averageCost = totalCost / participants.length;
     return {
       totalCost: totalCost.toFixed(2),
+      baseTotalCost: baseTotalCost.toFixed(2),
+      expenseTotalCost: expenseTotalCost.toFixed(2),
+      useCustomTotalCost,
       participantCount: participants.length,
       averageCost: averageCost.toFixed(2),
+      totalRatio: participants.length.toFixed(2), // 每人系数为1
       participants: participants.map(p => ({
         user_id: p.user_id,
-        cost_sharing_ratio: parseFloat(p.cost_sharing_ratio),
+        cost_sharing_ratio: 1,
         amount: averageCost.toFixed(2)
       }))
     };
   }
-  
+
   // 按系数分摊费用
   const participantCosts = participants.map(p => {
-    const ratio = parseFloat(p.cost_sharing_ratio);
+    const ratio = parseFloat(p.cost_sharing_ratio || 0);
     const amount = totalCost * (ratio / totalRatio);
     return {
       user_id: p.user_id,
@@ -421,11 +455,14 @@ Activity.prototype.calculateAACosts = async function() {
       amount: amount.toFixed(2)
     };
   });
-  
+
   const averageCost = totalCost / participants.length;
-  
+
   return {
     totalCost: totalCost.toFixed(2),
+    baseTotalCost: baseTotalCost.toFixed(2),
+    expenseTotalCost: expenseTotalCost.toFixed(2),
+    useCustomTotalCost,
     participantCount: participants.length,
     averageCost: averageCost.toFixed(2),
     totalRatio: totalRatio.toFixed(2),

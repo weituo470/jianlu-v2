@@ -2195,5 +2195,159 @@ router.put('/:id/participants/:userId/ratio', authenticateToken, async (req, res
   }
 });
 
+// ==================== AA分摊总金额管理接口 ====================
+
+// 设置AA分摊总金额
+router.put('/:id/aa-total-cost', authenticateToken, async (req, res) => {
+  try {
+    const { Activity } = require('../models');
+    const { id: activityId } = req.params;
+    const { totalCost } = req.body;
+
+    console.log('💰 设置AA分摊总金额:', {
+      activityId,
+      totalCost,
+      userId: req.user.id,
+      username: req.user.username
+    });
+
+    // 验证活动是否存在
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      console.log('❌ 后端 - 活动不存在:', activityId);
+      return error(res, '活动不存在', 404);
+    }
+    console.log('✅ 后端 - 活动存在:', activity.title);
+
+    // 检查权限：只有活动创建者或管理员可以设置AA分摊总金额
+    if (activity.creator_id !== req.user.id && !req.user.permissions.includes('activity:update')) {
+      console.log('❌ 后端 - 权限不足:', {
+        activityCreatorId: activity.creator_id,
+        userId: req.user.id,
+        userPermissions: req.user.permissions
+      });
+      return error(res, '权限不足，无法设置AA分摊总金额', 403);
+    }
+    console.log('✅ 后端 - 权限验证通过');
+
+    // 验证总金额
+    if (typeof totalCost !== 'number' || totalCost < 0) {
+      console.log('❌ 后端 - 总金额验证失败:', totalCost);
+      return error(res, '总金额必须是非负数', 400);
+    }
+    console.log('✅ 后端 - 总金额验证通过:', totalCost);
+
+    // 计算AA费用分摊（使用自定义总金额）
+    const aaCosts = await activity.calculateAACosts({
+      useCustomTotalCost: true,
+      customTotalCost: totalCost
+    });
+
+    // 获取参与者详细信息
+    if (aaCosts.participants.length > 0) {
+      const { User } = require('../models');
+      const userIds = aaCosts.participants.map(p => p.user_id);
+      const users = await User.findAll({
+        where: { id: userIds },
+        attributes: ['id', 'username', 'email', 'profile']
+      });
+
+      const userMap = {};
+      users.forEach(user => {
+        userMap[user.id] = user;
+      });
+
+      aaCosts.participants = aaCosts.participants.map(p => ({
+        ...p,
+        user: userMap[p.user_id] || null
+      }));
+    }
+
+    console.log('✅ AA分摊总金额设置成功:', {
+      totalCost: aaCosts.totalCost,
+      participantCount: aaCosts.participantCount
+    });
+
+    return success(res, {
+      aaCosts
+    }, 'AA分摊总金额设置成功');
+
+  } catch (err) {
+    logger.error('设置AA分摊总金额失败:', err);
+    return error(res, '设置AA分摊总金额失败: ' + err.message, 500);
+  }
+});
+
+// 重置AA分摊总金额（使用费用记账总额）
+router.put('/:id/aa-total-cost/reset', authenticateToken, async (req, res) => {
+  try {
+    const { Activity } = require('../models');
+    const { id: activityId } = req.params;
+
+    console.log('🔄 重置AA分摊总金额:', {
+      activityId,
+      userId: req.user.id,
+      username: req.user.username
+    });
+
+    // 验证活动是否存在
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      console.log('❌ 后端 - 活动不存在:', activityId);
+      return error(res, '活动不存在', 404);
+    }
+    console.log('✅ 后端 - 活动存在:', activity.title);
+
+    // 检查权限：只有活动创建者或管理员可以重置AA分摊总金额
+    if (activity.creator_id !== req.user.id && !req.user.permissions.includes('activity:update')) {
+      console.log('❌ 后端 - 权限不足:', {
+        activityCreatorId: activity.creator_id,
+        userId: req.user.id,
+        userPermissions: req.user.permissions
+      });
+      return error(res, '权限不足，无法重置AA分摊总金额', 403);
+    }
+    console.log('✅ 后端 - 权限验证通过');
+
+    // 计算AA费用分摊（使用默认总额）
+    const aaCosts = await activity.calculateAACosts();
+
+    // 获取参与者详细信息
+    if (aaCosts.participants.length > 0) {
+      const { User } = require('../models');
+      const userIds = aaCosts.participants.map(p => p.user_id);
+      const users = await User.findAll({
+        where: { id: userIds },
+        attributes: ['id', 'username', 'email', 'profile']
+      });
+
+      const userMap = {};
+      users.forEach(user => {
+        userMap[user.id] = user;
+      });
+
+      aaCosts.participants = aaCosts.participants.map(p => ({
+        ...p,
+        user: userMap[p.user_id] || null
+      }));
+    }
+
+    console.log('✅ AA分摊总金额重置成功:', {
+      totalCost: aaCosts.totalCost,
+      baseTotalCost: aaCosts.baseTotalCost,
+      expenseTotalCost: aaCosts.expenseTotalCost,
+      useCustomTotalCost: aaCosts.useCustomTotalCost
+    });
+
+    return success(res, {
+      aaCosts
+    }, 'AA分摊总金额重置成功');
+
+  } catch (err) {
+    logger.error('重置AA分摊总金额失败:', err);
+    return error(res, '重置AA分摊总金额失败: ' + err.message, 500);
+  }
+});
+
 // 导出router
 module.exports = router;
