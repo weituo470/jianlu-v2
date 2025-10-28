@@ -407,7 +407,11 @@ Activity.prototype.calculateAACosts = async function(options = {}) {
     useCustomTotalCost,
     customTotalCost,
     totalCost,
-    participantCount: participants.length
+    participantCount: participants.length,
+    participants: participants.map(p => ({
+      user_id: p.user_id,
+      cost_sharing_ratio: p.cost_sharing_ratio
+    }))
   });
 
   if (participants.length === 0) {
@@ -448,7 +452,17 @@ Activity.prototype.calculateAACosts = async function(options = {}) {
   // 按系数分摊费用
   const participantCosts = participants.map(p => {
     const ratio = parseFloat(p.cost_sharing_ratio || 0);
-    const amount = totalCost * (ratio / totalRatio);
+    let amount = 0;
+
+    if (totalRatio > 0 && ratio > 0) {
+      amount = totalCost * (ratio / totalRatio);
+    } else if (totalRatio === 0) {
+      // 如果总系数为0，使用平均分摊
+      amount = totalCost / participants.length;
+    }
+
+    console.log(`👤 参与者 ${p.user_id}: ratio=${ratio}, amount=${amount.toFixed(2)}`);
+
     return {
       user_id: p.user_id,
       cost_sharing_ratio: ratio,

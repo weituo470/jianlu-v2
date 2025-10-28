@@ -169,6 +169,9 @@ class ActivityDetailPage {
                 this.aaCostsData = response.data.aaCosts || null;
                 console.log('✅ AA费用分摊数据加载成功:', this.aaCostsData);
 
+                // 检查是否有已保存的账单数据
+                await this.loadSavedAABill();
+
                 // 自动渲染AA分摊标签页
                 if (this.aaCostsData) {
                     this.renderAACostsTab();
@@ -182,8 +185,53 @@ class ActivityDetailPage {
             // 不抛出错误，因为AA分摊功能可能是新功能
             this.aaCostsData = null;
 
+            // 即使AA费用计算失败，也尝试加载已保存的账单
+            await this.loadSavedAABill();
+
             // 渲染空状态
             this.renderAACostsTab();
+        }
+    }
+
+    // 加载已保存的AA账单数据
+    async loadSavedAABill() {
+        try {
+            console.log('💾 检查已保存的AA账单，活动ID:', this.activityId);
+
+            // 检查localStorage中是否有该活动的账单列表
+            const activityBills = Utils.storage.get(`aa_bills_activity_${this.activityId}`, []);
+
+            if (activityBills && activityBills.length > 0) {
+                // 获取最新的账单（按保存时间排序）
+                const latestBill = activityBills.sort((a, b) =>
+                    new Date(b.saved_at) - new Date(a.saved_at)
+                )[0];
+
+                console.log('📋 找到已保存的账单:', latestBill);
+
+                // 从localStorage加载最新账单的完整数据
+                const billData = Utils.storage.get(latestBill.key);
+
+                if (billData) {
+                    console.log('✅ 成功加载账单数据:', billData);
+
+                    // 设置当前账单数据
+                    this.currentAABill = billData;
+
+                    console.log('🎯 已设置当前账单:', {
+                        creator: this.currentAABill.creator?.username,
+                        created_at: this.currentAABill.created_at,
+                        totalCost: this.currentAABill.totalCost,
+                        participantCount: this.currentAABill.participantCount
+                    });
+                } else {
+                    console.warn('⚠️ 账单数据不存在或已损坏:', latestBill.key);
+                }
+            } else {
+                console.log('📝 没有找到已保存的账单数据');
+            }
+        } catch (error) {
+            console.error('❌ 加载已保存账单失败:', error);
         }
     }
 
@@ -1308,13 +1356,17 @@ class ActivityDetailPage {
         console.log('🔄 renderAACostsTab: 开始渲染AA分摊页面');
         console.log('📊 AA分摊数据:', this.aaCostsData);
 
-        const aaCostsTab = document.getElementById('aa-costs-content');
-        if (!aaCostsTab) {
-            console.error('❌ 未找到AA分摊容器 #aa-costs-content');
-            return;
-        }
+        // 等待DOM加载完成，使用setTimeout确保页面完全渲染
+        setTimeout(() => {
+            const aaCostsTab = document.getElementById('aa-costs-content');
+            if (!aaCostsTab) {
+                console.error('❌ 未找到AA分摊容器 #aa-costs-content');
+                console.log('🔍 当前DOM中的AA分摊标签页:', document.querySelector('#aa-costs'));
+                console.log('🔍 当前页面所有标签页容器:', document.querySelectorAll('.tab-pane'));
+                return;
+            }
 
-        if (!this.aaCostsData) {
+            if (!this.aaCostsData) {
             aaCostsTab.innerHTML = `
                 <div class="text-center py-5">
                     <div class="spinner-border text-primary" role="status">
@@ -1423,9 +1475,8 @@ class ActivityDetailPage {
                             <thead>
                                 <tr>
                                     <th>参与者</th>
-                                    <th>分摊系数</th>
+                                    <th>分摊系数 & 占比</th>
                                     <th>应付金额</th>
-                                    <th>占比</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -1450,28 +1501,27 @@ class ActivityDetailPage {
                                             </div>
                                         </td>
                                         <td>
-                                            <div class="input-group" style="max-width: 120px;">
+                                            <div class="d-flex align-items-center gap-2">
                                                 <input type="number"
                                                        class="form-control form-control-sm ratio-input"
-                                                       value="${participant.cost_sharing_ratio}"
-                                                       min="0"
-                                                       max="10"
-                                                       step="0.1"
-                                                       data-user-id="${participant.user_id}">
-                                                <button class="btn btn-outline-primary btn-sm ratio-update"
-                                                        type="button"
-                                                        data-user-id="${participant.user_id}"
-                                                        title="更新分摊系数">
-                                                    <i class="fas fa-sync"></i>
-                                                </button>
+                                                       value="${participant.cost_sharing_ratio || 1}"
+                                                       min="1"
+                                                       max="100"
+                                                       step="1"
+                                                       data-user-id="${participant.user_id}"
+                                                       style="max-width: 80px;"
+                                                       title="分摊系数（正整数）">
+                                                <span class="badge bg-info" title="占总费用的比例">
+                                                    ${totalRatio > 0 ? ((parseFloat(participant.cost_sharing_ratio || 1) / totalRatio) * 100).toFixed(1) : 0}%
+                                                </span>
                                             </div>
                                         </td>
                                         <td>
                                             <span class="fw-bold text-success">¥${participant.amount}</span>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info" title="占总费用的比例">
-                                                ${totalRatio > 0 ? ((parseFloat(participant.cost_sharing_ratio || 0) / totalRatio) * 100).toFixed(1) : 0}%
+                                            <span class="text-muted small">
+                                                占比: ${totalRatio > 0 ? ((parseFloat(participant.cost_sharing_ratio || 1) / totalRatio) * 100).toFixed(1) : 0}%
                                             </span>
                                         </td>
                                         <td>
@@ -1485,9 +1535,8 @@ class ActivityDetailPage {
                                 `).join('')}
                                 <tr class="table-info">
                                     <td><strong>合计</strong></td>
-                                    <td><strong>${totalRatio.toFixed(2)}</strong></td>
+                                    <td><strong>${totalRatio.toFixed(2)} (100%)</strong></td>
                                     <td><strong>¥${this.aaCostsData.totalCost}</strong></td>
-                                    <td><strong>100%</strong></td>
                                     <td></td>
                                 </tr>
                             </tbody>
@@ -1512,12 +1561,15 @@ class ActivityDetailPage {
                             </div>
                         </div>
                         <div class="col-md-6">
+                            <!-- 账单操作和显示区域 -->
                             <div class="card bg-light">
                                 <div class="card-body">
                                     <h6 class="card-title">
-                                        <i class="fas fa-chart-pie me-2"></i>快速操作
+                                        <i class="fas fa-file-invoice-dollar me-2"></i>账单操作
                                     </h6>
-                                    <div class="d-grid gap-2">
+
+                                    <!-- 账单操作按钮 -->
+                                    <div class="d-grid gap-2 mb-3">
                                         <button class="btn btn-outline-primary btn-sm" onclick="activityDetailPage.setAllRatiosToAverage()">
                                             <i class="fas fa-balance-scale me-1"></i>平均分摊
                                         </button>
@@ -1525,42 +1577,248 @@ class ActivityDetailPage {
                                             <i class="fas fa-redo me-1"></i>重置所有系数
                                         </button>
                                     </div>
+
+                                    <!-- 保存账单按钮 -->
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-success btn-sm" onclick="activityDetailPage.saveAABill()">
+                                            <i class="fas fa-save me-1"></i>保存账单
+                                        </button>
+                                        <button class="btn btn-info btn-sm" onclick="activityDetailPage.pushAABill()" disabled>
+                                            <i class="fas fa-paper-plane me-1"></i>推送账单
+                                            <small class="text-muted">(待实现)</small>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+
+                            <!-- 账单信息显示区域 -->
+                            ${this.currentAABill ? this.renderAABillCard() : ''}
                         </div>
                     </div>
                 </div>
             </div>
         `;
 
-        // 绑定系数更新事件
-        this.bindRatioUpdateEvents();
+            // 绑定系数更新事件
+            this.bindRatioUpdateEvents();
+        }, 100); // 给DOM 100ms时间完成渲染
     }
 
     // 绑定系数更新事件
     bindRatioUpdateEvents() {
-        // 输入框回车事件
+        // 输入框值变化事件 - 输入后立即生效
         const ratioInputs = document.querySelectorAll('.ratio-input');
         ratioInputs.forEach(input => {
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const userId = input.dataset.userId;
-                    const ratio = parseFloat(input.value) || 1;
-                    this.updateParticipantRatio(userId, ratio);
-                }
-            });
-        });
+            input.addEventListener('change', (e) => {
+                const userId = input.dataset.userId;
+                // 确保是正整数，最小值为1
+                let ratio = parseInt(input.value) || 1;
+                ratio = Math.max(1, Math.min(100, ratio)); // 限制在1-100之间
 
-        // 更新按钮点击事件
-        const updateButtons = document.querySelectorAll('.ratio-update');
-        updateButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const userId = button.dataset.userId;
-                const input = document.querySelector(`.ratio-input[data-user-id="${userId}"]`);
-                const ratio = parseFloat(input.value) || 1;
+                // 更新输入框值为有效的正整数
+                input.value = ratio;
+
+                this.updateParticipantRatio(userId, ratio);
+            });
+
+            // 输入框失焦事件也触发更新
+            input.addEventListener('blur', (e) => {
+                const userId = input.dataset.userId;
+                let ratio = parseInt(input.value) || 1;
+                ratio = Math.max(1, Math.min(100, ratio));
+
+                input.value = ratio;
+
                 this.updateParticipantRatio(userId, ratio);
             });
         });
+    }
+
+    // 保存AA分摊账单
+    async saveAABill() {
+        if (!this.aaCostsData || !this.aaCostsData.participants || this.aaCostsData.participants.length === 0) {
+            Utils.toast.error('没有可保存的AA分摊数据');
+            return;
+        }
+
+        try {
+            Utils.showLoading('正在保存账单...');
+
+            console.log('💾 发送AA账单保存请求:', {
+                activityId: this.activityId,
+                totalCost: this.aaCostsData.totalCost,
+                participantCount: this.aaCostsData.participantCount
+            });
+
+            // 调用后端API保存账单
+            const response = await API.activities.saveAABill(this.activityId);
+
+            if (response.success) {
+                Utils.hideLoading();
+
+                const storage = response.data.storage || 'localStorage';
+                const message = storage === 'database' ?
+                    '账单已保存到数据库！' :
+                    '账单已保存到本地存储！';
+
+                Utils.toast.success(message);
+
+                // 设置当前账单数据并增强账单信息
+                const currentUser = Auth.getCurrentUser();
+                this.currentAABill = {
+                    ...response.data.bill,
+                    creator: {
+                        username: currentUser?.username || '管理员',
+                        id: currentUser?.id
+                    },
+                    created_at: response.data.bill.created_at || new Date().toISOString(),
+                    bill_details: this.aaCostsData.participants.map(p => ({
+                        username: p.user?.username || '未知用户',
+                        user_id: p.user_id,
+                        cost_sharing_ratio: p.cost_sharing_ratio,
+                        amount: p.amount
+                    }))
+                };
+
+                console.log('✅ AA账单保存成功:', {
+                    billId: response.data.bill?.id,
+                    storage,
+                    activityId: this.activityId,
+                    totalCost: this.aaCostsData.totalCost,
+                    participantCount: this.aaCostsData.participantCount
+                });
+
+                // 重新渲染AA分摊页面以显示账单信息
+                setTimeout(() => {
+                    this.renderAACostsTab();
+                }, 100);
+
+                // 如果保存到localStorage，同时保存前端缓存
+                if (storage === 'localStorage') {
+                    const billKey = `aa_bill_${this.activityId}_${Date.now()}`;
+                    Utils.storage.set(billKey, this.currentAABill);
+
+                    // 保存到活动账单列表
+                    const activityBills = Utils.storage.get(`aa_bills_activity_${this.activityId}`, []);
+                    activityBills.push({
+                        key: billKey,
+                        saved_at: new Date().toISOString(),
+                        total_cost: this.aaCostsData.totalCost,
+                        participant_count: this.aaCostsData.participantCount
+                    });
+                    Utils.storage.set(`aa_bills_activity_${this.activityId}`, activityBills);
+                }
+
+            } else {
+                throw new Error(response.message || '保存账单失败');
+            }
+
+        } catch (error) {
+            console.error('❌ 保存AA账单失败:', error);
+            Utils.hideLoading();
+            Utils.toast.error('保存账单失败: ' + error.message);
+        }
+    }
+
+    // 渲染紧凑的AA账单卡片（用于侧边栏显示）
+    renderAABillCard() {
+        if (!this.currentAABill) return '';
+
+        const bill = this.currentAABill;
+        const createdTime = new Date(bill.created_at).toLocaleString('zh-CN', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        return `
+            <div class="card border-success mt-3">
+                <div class="card-header bg-success text-white py-2">
+                    <h6 class="mb-0 d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="fas fa-file-invoice-dollar me-1"></i>AA分摊账单
+                        </span>
+                        <span class="badge bg-light text-success">已保存</span>
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <div class="small mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">活动名称:</span>
+                            <strong>${this.activityData?.title || '未知活动'}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">生成时间:</span>
+                            <span>${createdTime}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">记录人员:</span>
+                            <span>${bill.creator?.username || '管理员'}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">分摊总额:</span>
+                            <span class="fw-bold text-success">¥${bill.total_cost || '0.00'}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">参与人数:</span>
+                            <span>${bill.participant_count || 0} 人</span>
+                        </div>
+                    </div>
+
+                    <div class="border-top pt-2">
+                        <div class="small text-muted mb-2">参与者分摊明细:</div>
+                        ${bill.bill_details?.map(detail => `
+                            <div class="d-flex justify-content-between align-items-center mb-1 small">
+                                <span>${detail.username || '未知用户'}</span>
+                                <div class="text-end">
+                                    <span class="badge bg-secondary me-1">${detail.cost_sharing_ratio || 1}</span>
+                                    <span class="fw-bold text-primary">¥${detail.amount || '0.00'}</span>
+                                </div>
+                            </div>
+                        `).join('') || '<div class="text-center text-muted small">暂无参与者数据</div>'}
+                    </div>
+
+                    <div class="d-grid gap-1 mt-3">
+                        <button class="btn btn-outline-success btn-sm" onclick="activityDetailPage.printAABill()">
+                            <i class="fas fa-print me-1"></i>打印账单
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="activityDetailPage.exportAABill()">
+                            <i class="fas fa-download me-1"></i>导出账单
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 打印AA账单
+    printAABill() {
+        window.print();
+        Utils.toast.info('正在准备打印账单...');
+    }
+
+    // 导出AA账单
+    exportAABill() {
+        Utils.toast.info('导出功能开发中...');
+    }
+
+    // 推送AA分摊账单（占位功能）
+    async pushAABill() {
+        Utils.toast.warning('推送账单功能待实现，需要消息机制支持');
+
+        // 占位：未来的推送逻辑
+        console.log('📤 推送AA账单（占位）:', {
+            activityId: this.activityId,
+            participants: this.aaCostsData?.participants?.length || 0,
+            totalCost: this.aaCostsData?.totalCost || 0
+        });
+
+        // 未来实现：
+        // 1. 调用后端API生成账单通知
+        // 2. 为每个参与者发送账单消息
+        // 3. 消息包含：活动名称、个人应付金额、支付方式等
+        // 4. 记录推送状态和时间
     }
 }
 

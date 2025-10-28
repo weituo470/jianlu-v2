@@ -575,5 +575,74 @@ window.Utils = {
                 this.overlay.parentNode.removeChild(this.overlay);
             }
         }
+    },
+
+    // Loading utilities
+    showLoading(message = '加载中...') {
+        // 创建loading遮罩
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'utils-loading-overlay';
+        loadingOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        // 创建loading内容
+        const loadingContent = document.createElement('div');
+        loadingContent.style.cssText = `
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            min-width: 200px;
+        `;
+
+        loadingContent.innerHTML = `
+            <div style="
+                width: 40px;
+                height: 40px;
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #007bff;
+                border-radius: 50%;
+                animation: utils-spin 1s linear infinite;
+                margin: 0 auto 15px;
+            "></div>
+            <div style="color: #333; font-size: 14px; margin: 0;">${message}</div>
+        `;
+
+        // 添加CSS动画
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes utils-spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        loadingOverlay.appendChild(loadingContent);
+        document.body.appendChild(loadingOverlay);
+
+        // 防止页面滚动
+        document.body.style.overflow = 'hidden';
+    },
+
+    hideLoading() {
+        const loadingOverlay = document.getElementById('utils-loading-overlay');
+        if (loadingOverlay && loadingOverlay.parentNode) {
+            loadingOverlay.parentNode.removeChild(loadingOverlay);
+        }
+        // 恢复页面滚动
+        document.body.style.overflow = '';
     }
 };

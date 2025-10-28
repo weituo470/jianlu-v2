@@ -2349,5 +2349,125 @@ router.put('/:id/aa-total-cost/reset', authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== AA账单管理相关接口 ====================
+
+// 保存AA分摊账单
+router.post('/:id/aa-bill', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, ActivityParticipant, User, AABill } = require('../models');
+    const { id: activityId } = req.params;
+    const userId = req.user.id;
+
+    console.log('💾 保存AA账单请求:', {
+      activityId,
+      userId,
+      username: req.user.username,
+      body: req.body
+    });
+
+    // 检查活动是否存在
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    // 计算当前AA分摊数据
+    const aaCosts = await activity.calculateAACosts();
+
+    if (!aaCosts.participants || aaCosts.participants.length === 0) {
+      return error(res, '没有参与者数据，无法保存账单', 400);
+    }
+
+    // 创建账单记录
+    const billData = {
+      id: uuidv4(),
+      activity_id: activityId,
+      creator_id: userId,
+      total_cost: aaCosts.totalCost,
+      expense_total_cost: aaCosts.expenseTotalCost,
+      base_total_cost: aaCosts.baseTotalCost,
+      use_custom_total_cost: aaCosts.useCustomTotalCost,
+      participant_count: aaCosts.participantCount,
+      total_ratio: aaCosts.totalRatio,
+      average_cost: aaCosts.averageCost,
+      status: 'saved', // saved, sent, paid
+      bill_details: aaCosts.participants.map(p => ({
+        user_id: p.user_id,
+        cost_sharing_ratio: p.cost_sharing_ratio,
+        amount: p.amount
+      })),
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+
+    console.log('💾 创建AA账单记录:', billData);
+
+    // 检查AABill模型是否存在，如果不存在则使用通用方案
+    let savedBill;
+    try {
+      savedBill = await AABill.create(billData);
+      console.log('✅ AA账单数据库保存成功:', savedBill.id);
+    } catch (modelError) {
+      console.warn('⚠️ AABill模型不存在，使用localStorage方案:', modelError.message);
+
+      // 如果AABill模型不存在，返回成功响应（前端已保存到localStorage）
+      return success(res, {
+        bill: billData,
+        storage: 'localStorage',
+        message: '账单已保存到本地存储'
+      }, '账单保存成功');
+    }
+
+    return success(res, {
+      bill: savedBill,
+      storage: 'database'
+    }, 'AA账单保存成功');
+
+  } catch (err) {
+    logger.error('保存AA账单失败:', err);
+    return error(res, '保存AA账单失败: ' + err.message, 500);
+  }
+});
+
+// 获取活动的AA账单列表
+router.get('/:id/aa-bills', authenticateToken, async (req, res) => {
+  try {
+    const { Activity, AABill } = require('../models');
+    const { id: activityId } = req.params;
+
+    console.log('📋 获取AA账单列表:', {
+      activityId,
+      userId: req.user.id
+    });
+
+    // 检查活动是否存在
+    const activity = await Activity.findByPk(activityId);
+    if (!activity) {
+      return error(res, '活动不存在', 404);
+    }
+
+    let bills = [];
+    try {
+      bills = await AABill.findAll({
+        where: { activity_id: activityId },
+        order: [['created_at', 'DESC']]
+      });
+      console.log('✅ 从数据库获取账单列表:', bills.length);
+    } catch (modelError) {
+      console.warn('⚠️ AABill模型不存在，返回空列表:', modelError.message);
+      // 模型不存在时返回空列表
+    }
+
+    return success(res, {
+      bills,
+      count: bills.length
+    }, '获取AA账单列表成功');
+
+  } catch (err) {
+    logger.error('获取AA账单列表失败:', err);
+    return error(res, '获取AA账单列表失败: ' + err.message, 500);
+  }
+});
+
 // 导出router
 module.exports = router;

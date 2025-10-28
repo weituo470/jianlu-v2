@@ -479,6 +479,19 @@ window.API = {
         // 获取活动费用统计
         getExpenseSummary(activityId) {
             return API.get(`/activities/${activityId}/expense-summary`);
+        },
+
+        // ==================== AA账单管理相关接口 ====================
+
+        // 保存AA分摊账单
+        saveAABill(activityId) {
+            console.log('💾 API.js - 保存AA账单:', { activityId });
+            return API.post(`/activities/${activityId}/aa-bill`);
+        },
+
+        // 获取活动的AA账单列表
+        getAABills(activityId) {
+            return API.get(`/activities/${activityId}/aa-bills`);
         }
     },
 
