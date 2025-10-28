@@ -35,7 +35,8 @@ window.AppConfig = {
             'team:read', 'team:create', 'team:update', 'team:delete',
             'activity:read', 'activity:create', 'activity:update', 'activity:delete',
             'content:read', 'content:create', 'content:update', 'content:delete',
-            'system:read', 'system:update', 'system:delete'
+            'system:read', 'system:update', 'system:delete',
+            'message:read', 'message:create', 'message:update', 'message:delete', 'message:send'
         ],
         // 系统管理员
         system_admin: [
@@ -44,7 +45,8 @@ window.AppConfig = {
             'team:read', 'team:create', 'team:update', 'team:delete',
             'activity:read', 'activity:create', 'activity:update', 'activity:delete',
             'content:read', 'content:create', 'content:update', 'content:delete',
-            'system:read', 'system:update'
+            'system:read', 'system:update',
+            'message:read', 'message:create', 'message:update', 'message:delete', 'message:send'
         ],
         // 运营管理员
         operation_admin: [
@@ -52,14 +54,16 @@ window.AppConfig = {
             'user:read', 'user:update',
             'team:read', 'team:create', 'team:update',
             'activity:read', 'activity:create', 'activity:update', 'activity:delete',
-            'content:read', 'content:update', 'content:delete'
+            'content:read', 'content:update', 'content:delete',
+            'message:read', 'message:send'
         ],
         // 团队管理员
         team_admin: [
             'dashboard:read',
             'user:read',
             'team:read', 'team:create', 'team:update',
-            'activity:read', 'activity:create', 'activity:update'
+            'activity:read', 'activity:create', 'activity:update',
+            'message:read', 'message:send'
         ],
         // 管理员（兼容旧配置）
         admin: [
@@ -68,13 +72,15 @@ window.AppConfig = {
             'team:read', 'team:create', 'team:update', 'team:delete',
             'activity:read', 'activity:create', 'activity:update', 'activity:delete',
             'content:read', 'content:create', 'content:update', 'content:delete',
-            'system:read', 'system:update'
+            'system:read', 'system:update',
+            'message:read', 'message:create', 'message:update', 'message:delete', 'message:send'
         ],
         // 普通用户：可以访问仪表板、管理自己的信息、创建和管理自己的团队和活动
         user: [
             'dashboard:read', 'profile:read', 'profile:update',
             'team:read', 'team:create', 'team:update',
-            'activity:read', 'activity:create', 'activity:update'
+            'activity:read', 'activity:create', 'activity:update',
+            'message:read', 'message:send'
         ]
     },
     
@@ -101,6 +107,27 @@ window.AppConfig = {
             icon: 'fas fa-user',
             path: '/profile',
             permissions: ['profile:read']
+        },
+        {
+            id: 'messages',
+            title: '消息管理',
+            icon: 'fas fa-envelope',
+            path: '/messages',
+            permissions: ['message:read'],
+            children: [
+                {
+                    id: 'messages-inbox',
+                    title: '收件箱',
+                    path: '/messages/inbox',
+                    permissions: ['message:read']
+                },
+                {
+                    id: 'messages-sent',
+                    title: '已发送',
+                    path: '/messages/sent',
+                    permissions: ['message:read']
+                }
+            ]
         },
         {
             id: 'teams',

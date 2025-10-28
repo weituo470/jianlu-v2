@@ -17,6 +17,7 @@ require('./models/index');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const teamRoutes = require('./routes/teams');
+const messageRoutes = require('./routes/messages');
 
 const app = express();
 const PORT = process.env.PORT || 3460;
@@ -119,6 +120,7 @@ app.use('/api/organizations', require('./routes/organizationRoles')); // 机构�
 app.use('/api/activities', require('./routes/activities')); // 活动管理API路由
 app.use('/api/activity-roles', require('./routes/activityRoles')); // 活动角色管理API路由
 app.use('/api/user-activities', require('./routes/userActivities'));
+app.use('/api/messages', messageRoutes); // 消息系统API路由
 app.use('/api/migrate', require('./routes/migrate')); // 数据库迁移API路由
 app.use('/api/banners', require('./routes/banners')); // 轮播图API路由
 app.use('/api/miniapp', require('./routes/miniapp')); // 小程序API路由

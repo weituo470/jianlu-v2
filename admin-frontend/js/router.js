@@ -555,12 +555,7 @@ window.Router = {
                 </div>
             `;
 
-            // 初始化仪表板管理器
-            if (typeof DashboardManager !== 'undefined') {
-                DashboardManager.init();
-            } else {
-                console.warn('DashboardManager 未定义，跳过初始化');
-            }
+            // 仪表板功能已集成到其他模块，跳过单独初始化
 
             // 添加查看用户函数到全局
             window.viewUser = (id) => {

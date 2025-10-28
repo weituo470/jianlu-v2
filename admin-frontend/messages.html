@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消息管理 - 简庐管理后台</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- 自定义样式 -->
+    <link href="css/main.css" rel="stylesheet">
+    <link href="css/responsive.css" rel="stylesheet">
+
+    <style>
+        .message-item.unread .card {
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+
+        .message-item.unread h6 {
+            font-weight: 600;
+        }
+
+        .message-type-filter, .message-priority-filter, .message-status-filter {
+            min-width: 120px;
+        }
+
+        .border-left-primary {
+            border-left: 4px solid #007bff !important;
+        }
+
+        .message-list-container {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .message-actions {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message-item:hover .message-actions {
+            opacity: 1;
+        }
+
+        .unread-count-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            font-size: 12px;
+            line-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-home me-2"></i>简庐管理后台
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto" id="main-menu">
+                    <!-- 菜单项将由JavaScript动态生成 -->
+                </ul>
+
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-envelope"></i>
+                            消息
+                            <span class="badge bg-danger unread-count-badge d-none">0</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/messages/inbox">
+                                <i class="fas fa-inbox me-2"></i>收件箱
+                                <span class="badge bg-primary float-end unread-count">0</span>
+                            </a></li>
+                            <li><a class="dropdown-item" href="/messages/sent">
+                                <i class="fas fa-paper-plane me-2"></i>已发送
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="mark-all-read-nav">
+                                <i class="fas fa-check-double me-2"></i>全部标记已读
+                            </a></li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle"></i>
+                            <span id="current-username">管理员</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/profile">
+                                <i class="fas fa-user me-2"></i>个人资料
+                            </a></li>
+                            <li><a class="dropdown-item" href="/settings">
+                                <i class="fas fa-cog me-2"></i>系统设置
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="logout-btn">
+                                <i class="fas fa-sign-out-alt me-2"></i>退出登录
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <div class="container-fluid" style="margin-top: 80px;">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column" id="sidebar-menu">
+                        <!-- 侧边栏菜单将由JavaScript动态生成 -->
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">消息管理</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-messages-btn">
+                                <i class="fas fa-sync-alt"></i> 刷新
+                            </button>
+                            <button type="button" class="btn btn-sm btn-primary" id="send-message-btn">
+                                <i class="fas fa-paper-plane"></i> 发送消息
+                            </button>
+                            <button type="button" class="btn btn-sm btn-success" id="mark-all-read-btn">
+                                <i class="fas fa-check-double"></i> 全部已读
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 搜索和筛选区域 -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" class="form-control" id="message-search" placeholder="搜索消息标题或内容...">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select message-type-filter" id="message-type-filter">
+                            <option value="">所有类型</option>
+                            <option value="system">系统消息</option>
+                            <option value="personal">个人消息</option>
+                            <option value="activity">活动消息</option>
+                            <option value="team">团队消息</option>
+                            <option value="announcement">系统公告</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select message-priority-filter" id="message-priority-filter">
+                            <option value="">所有优先级</option>
+                            <option value="low">低</option>
+                            <option value="normal">普通</option>
+                            <option value="high">高</option>
+                            <option value="urgent">紧急</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select message-status-filter" id="message-status-filter">
+                            <option value="">所有状态</option>
+                            <option value="false">未读</option>
+                            <option value="true">已读</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-outline-secondary" id="clear-filters-btn">
+                            <i class="fas fa-times"></i> 清除筛选
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 消息列表区域 -->
+                <div class="message-list-container">
+                    <div id="message-loading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        <p class="mt-2">正在加载消息...</p>
+                    </div>
+
+                    <div id="message-list" class="d-none">
+                        <!-- 消息列表将由JavaScript动态生成 -->
+                    </div>
+                </div>
+
+                <!-- 分页区域 -->
+                <div class="d-flex justify-content-center mt-4">
+                    <nav id="message-pagination">
+                        <!-- 分页将由JavaScript动态生成 -->
+                    </nav>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 消息详情模态框 -->
+    <div class="modal fade" id="message-detail-modal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detail-title">消息详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="me-2">类型:</span>
+                                <span id="detail-type"></span>
+                            </div>
+                            <div>
+                                <span class="me-2">优先级:</span>
+                                <span id="detail-priority"></span>
+                            </div>
+                            <div>
+                                <span class="me-2">状态:</span>
+                                <span id="detail-read-status"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>发送人:</strong> <span id="detail-sender"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>发送时间:</strong> <span id="detail-time"></span>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <div id="detail-content" style="line-height: 1.6;">
+                            <!-- 消息内容 -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" id="mark-read-btn">
+                        <i class="fas fa-check"></i> 标记已读
+                    </button>
+                    <button type="button" class="btn btn-warning" id="mark-unread-btn">
+                        <i class="fas fa-envelope"></i> 标记未读
+                    </button>
+                    <button type="button" class="btn btn-danger" id="delete-message-btn">
+                        <i class="fas fa-trash"></i> 删除
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发送消息模态框 -->
+    <div class="modal fade" id="send-message-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">发送消息</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="message-form">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="recipient-select" class="form-label">接收人</label>
+                            <select class="form-select" id="recipient-select" name="recipient_id" required>
+                                <option value="">请选择接收人</option>
+                                <!-- 用户列表将由JavaScript动态加载 -->
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="message-title" class="form-label">标题</label>
+                            <input type="text" class="form-control" id="message-title" name="title" required maxlength="200">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="message-content" class="form-label">内容</label>
+                            <textarea class="form-control" id="message-content" name="content" rows="5" required maxlength="5000"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="message-type" class="form-label">消息类型</label>
+                            <select class="form-select" id="message-type" name="type">
+                                <option value="personal">个人消息</option>
+                                <option value="activity">活动消息</option>
+                                <option value="team">团队消息</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="message-priority" class="form-label">优先级</label>
+                            <select class="form-select" id="message-priority" name="priority">
+                                <option value="normal">普通</option>
+                                <option value="low">低</option>
+                                <option value="high">高</option>
+                                <option value="urgent">紧急</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> 发送
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 自定义脚本 -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/message-manager.js"></script>
+
+    <script>
+        // 页面加载完成后执行
+        $(document).ready(function() {
+            // 初始化应用
+            window.App.init();
+
+            // 加载用户列表到发送消息模态框
+            loadUsersForMessage();
+
+            // 绑定清除筛选按钮
+            $('#clear-filters-btn').on('click', function() {
+                $('#message-search').val('');
+                $('#message-type-filter').val('');
+                $('#message-priority-filter').val('');
+                $('#message-status-filter').val('');
+                window.MessageManager.loadMessages(1, {});
+            });
+
+            // 绑定导航栏中的全部标记已读
+            $('#mark-all-read-nav').on('click', function(e) {
+                e.preventDefault();
+                window.MessageManager.markAllAsRead();
+            });
+        });
+
+        // 加载用户列表
+        async function loadUsersForMessage() {
+            try {
+                const response = await fetch(`${window.AppConfig.API_BASE_URL}/users?limit=1000`, {
+                    headers: {
+                        'Authorization': `Bearer ${window.Auth.getToken()}`
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    const users = result.data.users;
+
+                    const select = $('#recipient-select');
+                    select.empty().append('<option value="">请选择接收人</option>');
+
+                    users.forEach(user => {
+                        select.append(`<option value="${user.id}">${user.username} (${user.email})</option>`);
+                    });
+                }
+            } catch (error) {
+                console.error('加载用户列表失败:', error);
+            }
+        }
+    </script>
+</body>
+</html>
