@@ -259,9 +259,6 @@ window.MessageManager = (function() {
                         </div>
                         <div class="message-actions-col">
                             <div class="message-actions">
-                                <button class="btn btn-sm btn-outline-primary view-message-btn" onclick="MessageManager.viewMessage('${message.id}')">
-                                    <i class="fas fa-eye"></i> 查看
-                                </button>
                                 ${!isRead ? `
                                     <button class="btn btn-sm btn-outline-success mark-read-btn" data-message-id="${message.id}">
                                         <i class="fas fa-check"></i> 已读
@@ -708,6 +705,66 @@ window.MessageManager = (function() {
         return div.innerHTML;
     }
 
+    /**
+     * 标记所有消息为已读
+     */
+    async function markAllAsRead() {
+        console.log('📚 MessageManager Debug - 开始标记所有消息为已读');
+
+        try {
+            const token = window.Auth?.getToken();
+            if (!token) {
+                Utils.toast.error('认证失败，请重新登录');
+                return;
+            }
+
+            const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages/read-all`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('  ✅ 全部标记已读成功:', result);
+
+                // 更新本地消息状态
+                messages.forEach(message => {
+                    if (message.user_message_state) {
+                        message.user_message_state.is_read = true;
+                    }
+                    message.is_read = true;
+                });
+
+                // 重新渲染界面
+                renderMessages();
+                updateStatistics();
+
+                const markedCount = result.data?.marked_count || 0;
+                Utils.toast.success(`已成功标记 ${markedCount} 条消息为已读`);
+            } else {
+                const errorText = await response.text();
+                console.error('  ❌ 标记所有消息已读失败:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: errorText
+                });
+
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    Utils.toast.error(`标记失败: ${errorJson.message || errorText}`);
+                } catch (e) {
+                    Utils.toast.error(`标记失败: ${response.status} ${response.statusText}`);
+                }
+            }
+        } catch (error) {
+            console.error('  ❌ 标记所有消息已读异常:', error);
+            Utils.toast.error('网络错误，请稍后重试');
+        }
+    }
+
     // 公共API
     return {
         init: init,
@@ -715,6 +772,7 @@ window.MessageManager = (function() {
         viewMessage: viewMessage,
         markAsRead: markAsRead,
         markAsReadAndClose: markAsReadAndClose,
+        markAllAsRead: markAllAsRead,
         refresh: loadMessages,
         refreshMessages: loadMessages  // 添加别名以兼容现有调用
     };
