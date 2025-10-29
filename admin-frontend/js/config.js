@@ -2,7 +2,7 @@
 
 window.AppConfig = {
     // API配置
-    API_BASE_URL: 'http://localhost:3462/api',
+    API_BASE_URL: 'http://localhost:3460/api',
     
     // 应用信息
     APP_NAME: '简庐管理后台',

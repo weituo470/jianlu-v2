@@ -64,6 +64,12 @@ window.App = {
             // 渲染菜单
             Components.renderMenu();
 
+            // 初始化消息导航栏
+            if (window.MessageNavbar) {
+                window.MessageNavbar.init();
+                console.log('消息导航栏初始化完成');
+            }
+
             console.log('主应用界面初始化完成');
         } catch (error) {
             console.error('主应用界面初始化失败:', error);

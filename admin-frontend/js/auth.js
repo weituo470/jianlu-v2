@@ -94,7 +94,12 @@ window.Auth = {
         Utils.storage.remove(AppConfig.TOKEN_EXPIRES_KEY);
         this.currentUser = null;
     },
-    
+
+    // 获取认证Token
+    getToken() {
+        return Utils.storage.get(AppConfig.TOKEN_KEY);
+    },
+
     // 获取当前用户
     getCurrentUser() {
         if (!this.currentUser) {

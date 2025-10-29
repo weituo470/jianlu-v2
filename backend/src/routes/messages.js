@@ -61,8 +61,8 @@ router.delete('/:id', [
   param('id').isUUID().withMessage('无效的消息ID')
 ], validateRequest, messageController.deleteMessage);
 
-// 管理员权限路由
-router.use(requireRole(['admin', 'super_admin']));
+// 管理员权限路由 - 只对管理员功能设置权限要求
+// 普通用户仍可访问消息查看和管理功能
 
 // 系统公告
 router.post('/announcement', [

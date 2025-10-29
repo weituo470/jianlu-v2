@@ -11,6 +11,7 @@ const requestContext = require('./middleware/requestContext');
 const requestLogger = require('./middleware/requestLogger');
 const { connectDatabase } = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
+const { authenticateToken } = require('./middleware/auth');
 
 // 初始化所有模型和关联
 require('./models/index');
@@ -18,6 +19,7 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const teamRoutes = require('./routes/teams');
 const messageRoutes = require('./routes/messages');
+const billRoutes = require('./routes/bills');
 
 const app = express();
 const PORT = process.env.PORT || 3460;
@@ -121,6 +123,21 @@ app.use('/api/activities', require('./routes/activities')); // 活动管理API�
 app.use('/api/activity-roles', require('./routes/activityRoles')); // 活动角色管理API路由
 app.use('/api/user-activities', require('./routes/userActivities'));
 app.use('/api/messages', messageRoutes); // 消息系统API路由
+
+// 临时兼容性路由 - 支持旧的前端API路径
+app.get('/unread-count', authenticateToken, (req, res) => {
+  // 重定向到新的API路径
+  req.url = '/api/messages/unread-count';
+  return messageRoutes(req, res);
+});
+
+app.get('/messages', authenticateToken, (req, res) => {
+  // 重定向到新的API路径
+  req.url = '/api/messages';
+  return messageRoutes(req, res);
+});
+
+app.use('/api/bills', billRoutes); // 账单管理API路由
 app.use('/api/migrate', require('./routes/migrate')); // 数据库迁移API路由
 app.use('/api/banners', require('./routes/banners')); // 轮播图API路由
 app.use('/api/miniapp', require('./routes/miniapp')); // 小程序API路由

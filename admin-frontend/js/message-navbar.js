@@ -31,10 +31,11 @@ window.MessageNavbar = (function() {
         document.getElementById('close-message-dropdown')?.addEventListener('click', hideMessageDropdown);
 
         // 标记全部已读
-        document.getElementById('mark-all-read')?.addEventListener('click', markAllAsRead);
+        document.querySelector('.mark-all-read-btn')?.addEventListener('click', markAllAsRead);
 
         // 查看全部消息
-        document.getElementById('view-all-messages')?.addEventListener('click', () => {
+        document.querySelector('.view-all-messages-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
             window.location.href = '/messages/inbox';
         });
 
@@ -235,7 +236,7 @@ window.MessageNavbar = (function() {
         e.stopPropagation();
         const dropdown = document.getElementById('message-dropdown');
 
-        if (dropdown.style.display === 'block') {
+        if (dropdown.classList.contains('show')) {
             hideMessageDropdown();
         } else {
             showMessageDropdown();
@@ -248,7 +249,7 @@ window.MessageNavbar = (function() {
     function showMessageDropdown() {
         const dropdown = document.getElementById('message-dropdown');
         if (dropdown) {
-            dropdown.style.display = 'block';
+            dropdown.classList.add('show');
             loadRecentMessages(); // 刷新消息
         }
     }
@@ -259,7 +260,7 @@ window.MessageNavbar = (function() {
     function hideMessageDropdown() {
         const dropdown = document.getElementById('message-dropdown');
         if (dropdown) {
-            dropdown.style.display = 'none';
+            dropdown.classList.remove('show');
         }
     }
 
