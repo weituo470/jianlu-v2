@@ -905,6 +905,22 @@ async function addGlobalMessageIds(messages, userId) {
             userId
         });
 
+        // 获取用户信息用于生成唯一编号
+        const user = await require('../models/User').findByPk(userId);
+        if (!user) {
+            logger.error('❌ 用户不存在:', userId);
+            return messages.map((message, index) => ({
+                ...message,
+                global_message_id: `MSG-UNKNOWN-${index + 1}`,
+                global_index: 0,
+                page_index: index + 1
+            }));
+        }
+
+        // 生成用户标识符（使用用户名的大写形式）
+        const userIdentifier = user.username.toUpperCase();
+        logger.info('👤 用户标识符:', userIdentifier, '(用户名:', user.username, ')');
+
         // 获取用户的所有消息，按创建时间排序
         const allUserMessages = await UserMessageState.findAll({
             where: {
@@ -931,7 +947,8 @@ async function addGlobalMessageIds(messages, userId) {
             const globalIndex = messageIndexMap.get(message.id) || 0;
             const createdDate = new Date(message.created_at);
             const dateStr = createdDate.toISOString().slice(0, 10).replace(/-/g, '');
-            const globalId = `MSG-${dateStr}-${String(globalIndex).padStart(4, '0')}`;
+            // 新格式：MSG-用户名-日期-序号
+            const globalId = `MSG-${userIdentifier}-${dateStr}-${String(globalIndex).padStart(4, '0')}`;
 
             return {
                 ...message,
@@ -942,7 +959,9 @@ async function addGlobalMessageIds(messages, userId) {
         });
 
         logger.info('✅ 全局编号生成完成', {
-            processedMessages: messagesWithIds.length
+            processedMessages: messagesWithIds.length,
+            userId: userIdentifier,
+            format: `MSG-${userIdentifier}-YYYYMMDD-NNNN`
         });
 
         return messagesWithIds;
@@ -951,7 +970,7 @@ async function addGlobalMessageIds(messages, userId) {
         // 如果生成失败，返回原始消息但添加基础信息
         return messages.map((message, index) => ({
             ...message,
-            global_message_id: `MSG-UNKNOWN-${index + 1}`,
+            global_message_id: `MSG-ERROR-${index + 1}`,
             global_index: 0,
             page_index: index + 1
         }));
