@@ -11,6 +11,7 @@ window.MessageManager = (function() {
     let currentType = '';
     let currentPriority = '';
     let currentSearch = '';
+    let pageType = 'all'; // 'all', 'inbox', 'sent'
     let messages = [];
     let totalCount = 0;
     let isLoading = false;
@@ -18,8 +19,10 @@ window.MessageManager = (function() {
     /**
      * 初始化消息管理页面
      */
-    function init() {
-        console.log('🎨 初始化消息管理页面...');
+    function init(type = 'all') {
+        pageType = type;
+        currentPage = 1; // 重置页码
+        console.log(`🎨 初始化消息管理页面 (${type})...`);
         bindEvents();
         loadMessages();
     }
@@ -100,11 +103,10 @@ window.MessageManager = (function() {
                 params.append('search', currentSearch);
             }
 
-            // 根据当前页面设置参数
-            const currentPath = window.location.pathname;
-            if (currentPath.includes('/inbox')) {
+            // 根据页面类型设置参数
+            if (pageType === 'inbox') {
                 params.append('filter', 'received');
-            } else if (currentPath.includes('/sent')) {
+            } else if (pageType === 'sent') {
                 params.append('filter', 'sent');
             } else {
                 // 主页面使用过滤器
@@ -591,7 +593,8 @@ window.MessageManager = (function() {
         viewMessage: viewMessage,
         markAsRead: markAsRead,
         markAsReadAndClose: markAsReadAndClose,
-        refresh: loadMessages
+        refresh: loadMessages,
+        refreshMessages: loadMessages  // 添加别名以兼容现有调用
     };
 })();
 
