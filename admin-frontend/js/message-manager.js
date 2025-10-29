@@ -228,6 +228,15 @@ window.MessageManager = (function() {
                 '<span class="badge bg-secondary">已读</span>' :
                 '<span class="badge bg-primary">未读</span>';
 
+            console.log('🎨 MessageManager Debug - 渲染消息状态:', {
+                id: message.id,
+                globalId: message.global_message_id,
+                isRead: isRead,
+                unreadClass: unreadClass,
+                statusBadge: isRead ? '已读' : '未读',
+                user_message_state: message.user_message_state
+            });
+
             return `
                 <div class="message-item ${unreadClass}" data-id="${message.id}">
                     <div class="message-row">
@@ -731,7 +740,11 @@ window.MessageManager = (function() {
                 console.log('  ✅ 全部标记已读成功:', result);
 
                 // 更新本地消息状态
-                messages.forEach(message => {
+                console.log('  🔄 更新本地消息状态...');
+                messages.forEach((message, index) => {
+                    const wasRead = message.user_message_state ? message.user_message_state.is_read : message.is_read;
+                    console.log(`    消息 ${index + 1}: ${message.global_message_id} - 之前: ${wasRead ? '已读' : '未读'} -> 之后: 已读`);
+
                     if (message.user_message_state) {
                         message.user_message_state.is_read = true;
                     }
@@ -739,6 +752,7 @@ window.MessageManager = (function() {
                 });
 
                 // 重新渲染界面
+                console.log('  🎨 重新渲染界面...');
                 renderMessages();
                 updateStatistics();
 
