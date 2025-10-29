@@ -1,5 +1,6 @@
 const { DataTypes, Op } = require('sequelize');
 const { sequelize } = require('../config/database');
+const logger = require('../utils/logger');
 
 const Message = sequelize.define('Message', {
   id: {
@@ -22,7 +23,7 @@ const Message = sequelize.define('Message', {
     }
   },
   type: {
-    type: DataTypes.ENUM('system', 'personal', 'activity', 'team', 'announcement'),
+    type: DataTypes.ENUM('system', 'personal', 'activity', 'team', 'announcement', 'bill'),
     allowNull: false,
     defaultValue: 'system'
   },
@@ -399,6 +400,191 @@ Message.sendScheduledMessages = async function() {
   }
 
   return messages.length;
+};
+
+// 账单相关方法
+Message.findByBillType = function(options = {}) {
+  const { userId, activityId, paymentStatus, page = 1, limit = 20 } = options;
+
+  const whereClause = {
+    type: 'bill',
+    status: 'sent'
+  };
+
+  if (userId) {
+    whereClause.recipient_id = userId;
+  }
+
+  if (activityId) {
+    whereClause['$metadata.activity_id$'] = activityId;
+  }
+
+  if (paymentStatus) {
+    whereClause['$metadata.payment_status$'] = paymentStatus;
+  }
+
+  return Message.findAndCountAll({
+    where: whereClause,
+    include: [
+      {
+        model: require('./User'),
+        as: 'sender',
+        attributes: ['id', 'username', 'nickname']
+      },
+      {
+        model: require('./User'),
+        as: 'recipient',
+        attributes: ['id', 'username', 'nickname']
+      }
+    ],
+    order: [['created_at', 'DESC']],
+    limit: parseInt(limit),
+    offset: (parseInt(page) - 1) * parseInt(limit)
+  });
+};
+
+Message.createBillMessages = async function(activityId, costSharingResults, options = {}) {
+  const { senderId, customMessage, priority = 'normal' } = options;
+  const { Activity, User } = require('../models');
+
+  // 获取活动信息
+  const activity = await Activity.findByPk(activityId);
+  if (!activity) {
+    throw new Error('活动不存在');
+  }
+
+  const results = [];
+  const errors = [];
+
+  for (const costItem of costSharingResults) {
+    try {
+      // 获取用户信息
+      const user = await User.findByPk(costItem.user_id);
+      if (!user) {
+        errors.push(`用户 ${costItem.user_id} 不存在`);
+        continue;
+      }
+
+      // 生成账单消息内容
+      const title = `【账单通知】${activity.title}`;
+      const content = generateBillContent(activity, costItem, user, customMessage);
+
+      const messageData = {
+        title,
+        content,
+        type: 'bill',
+        priority: parseFloat(costItem.amount) > 100 ? 'high' : priority,
+        recipient_id: costItem.user_id,
+        sender_id: senderId || null,
+        status: 'sent',
+        metadata: {
+          type: 'bill',
+          activity_id: activity.id,
+          activity_title: activity.title,
+          amount: costItem.amount,
+          cost_sharing_ratio: costItem.cost_sharing_ratio,
+          bill_date: new Date().toISOString(),
+          payment_deadline: activity.payment_deadline,
+          cost_sharing_id: costItem.id,
+          payment_status: 'unpaid'
+        }
+      };
+
+      const message = await Message.create(messageData);
+      results.push({
+        user_id: costItem.user_id,
+        username: user.username,
+        amount: costItem.amount,
+        message_id: message.id,
+        status: 'success'
+      });
+
+    } catch (error) {
+      logger.error(`创建账单消息失败，用户 ${costItem.user_id}:`, error);
+      errors.push(`用户 ${costItem.user_id}: ${error.message}`);
+    }
+  }
+
+  return {
+    success_count: results.length,
+    error_count: errors.length,
+    results,
+    errors
+  };
+};
+
+Message.updateBillPaymentStatus = async function(messageId, paymentData) {
+  const { paymentStatus, paymentMethod, paymentNote, paymentTime } = paymentData;
+
+  const message = await Message.findByPk(messageId);
+  if (!message) {
+    throw new Error('消息不存在');
+  }
+
+  if (message.type !== 'bill') {
+    throw new Error('不是账单类型消息');
+  }
+
+  // 更新metadata中的支付状态
+  const updatedMetadata = {
+    ...message.metadata,
+    payment_status: paymentStatus,
+    payment_method: paymentMethod,
+    payment_note: paymentNote,
+    payment_time: paymentTime || new Date().toISOString()
+  };
+
+  await message.update({ metadata: updatedMetadata });
+
+  return message;
+};
+
+// 生成账单内容的辅助函数
+function generateBillContent(activity, costItem, user, customMessage) {
+  const amount = parseFloat(costItem.amount).toFixed(2);
+  const paymentDeadline = activity.payment_deadline
+    ? new Date(activity.payment_deadline).toLocaleDateString('zh-CN')
+    : '未设置截止日期';
+
+  let content = `【活动账单通知】
+
+尊敬的 ${user.nickname || user.username}：
+
+您参与的"${activity.title}"活动账单已生成：
+
+💰 应付金额：¥${amount}
+👥 分摊系数：${costItem.cost_sharing_ratio}
+📅 账单日期：${new Date().toLocaleDateString('zh-CN')}
+⏰ 支付截止：${paymentDeadline}`;
+
+  if (customMessage) {
+    content += `\n\n💬 管理员备注：${customMessage}`;
+  }
+
+  content += `\n\n请及时查看并完成支付，感谢您的参与！`;
+
+  return content;
+}
+
+// 定义模型关联
+Message.associate = function(models) {
+  // 消息发送者关联
+  Message.belongsTo(models.User, {
+    foreignKey: 'sender_id',
+    as: 'sender'
+  });
+
+  // 消息接收者关联
+  Message.belongsTo(models.User, {
+    foreignKey: 'recipient_id',
+    as: 'recipient'
+  });
+
+  // 用户消息状态关联
+  Message.hasMany(models.UserMessageState, {
+    foreignKey: 'message_id',
+    as: 'userStates'
+  });
 };
 
 module.exports = Message;

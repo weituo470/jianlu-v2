@@ -18,7 +18,8 @@ window.MessageManager = (function() {
         'personal': { text: '个人消息', class: 'badge-primary' },
         'activity': { text: '活动消息', class: 'badge-success' },
         'team': { text: '团队消息', class: 'badge-warning' },
-        'announcement': { text: '系统公告', class: 'badge-danger' }
+        'announcement': { text: '系统公告', class: 'badge-danger' },
+        'bill': { text: '账单消息', class: 'bg-purple text-white' }
     };
 
     // 优先级映射
@@ -112,6 +113,8 @@ window.MessageManager = (function() {
             const params = new URLSearchParams({
                 page: page,
                 limit: pageSize,
+                sort: 'created_at',
+                order: 'desc',
                 ...filter
             });
 
@@ -166,7 +169,8 @@ window.MessageManager = (function() {
     function createMessageElement(message) {
         const typeInfo = messageTypes[message.type] || { text: '未知类型', class: 'badge-secondary' };
         const priorityInfo = priorities[message.priority] || { text: '普通', class: 'text-primary' };
-        const isUnread = !message.is_read;
+        // 使用新的用户消息状态来判断是否未读
+        const isUnread = message.user_message_state ? !message.user_message_state.is_read : !message.is_read;
 
         return `
             <div class="message-item ${isUnread ? 'unread' : ''}" data-id="${message.id}">
@@ -182,7 +186,7 @@ window.MessageManager = (function() {
                                     <span class="badge ${priorityInfo.class}">${priorityInfo.text}</span>
                                     ${isUnread ? '<span class="badge badge-primary">未读</span>' : ''}
                                 </div>
-                                <p class="mb-1 text-truncate">${message.content}</p>
+                                <p class="mb-1" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">${message.content}</p>
                                 <small class="text-muted">
                                     <i class="far fa-clock"></i> ${formatDateTime(message.created_at)}
                                     ${message.sender ? `| 发送人: ${message.sender.username}` : ''}
@@ -404,18 +408,99 @@ window.MessageManager = (function() {
     function renderMessageDetail(message) {
         const typeInfo = messageTypes[message.type] || { text: '未知类型', class: 'badge-secondary' };
         const priorityInfo = priorities[message.priority] || { text: '普通', class: 'text-primary' };
+        // 使用新的用户消息状态来判断是否已读
+        const isRead = message.user_message_state ? message.user_message_state.is_read : message.is_read;
 
         $('#detail-title').text(message.title);
-        $('#detail-content').html(message.content.replace(/\n/g, '<br>'));
         $('#detail-type').html(`<span class="badge ${typeInfo.class}">${typeInfo.text}</span>`);
         $('#detail-priority').html(`<span class="${priorityInfo.class}">${priorityInfo.text}</span>`);
         $('#detail-sender').text(message.sender ? message.sender.username : '系统');
         $('#detail-time').text(formatDateTime(message.created_at));
-        $('#detail-read-status').text(message.is_read ? '已读' : '未读');
+        $('#detail-read-status').text(isRead ? '已读' : '未读');
+
+        // 特殊处理账单消息
+        if (message.type === 'bill') {
+            renderBillMessageDetail(message);
+        } else {
+            // 普通消息内容
+            $('#detail-content').html(message.content.replace(/\n/g, '<br>'));
+        }
 
         // 根据消息状态显示/隐藏按钮
-        $('#mark-read-btn').toggle(!message.is_read);
-        $('#mark-unread-btn').toggle(message.is_read);
+        $('#mark-read-btn').toggle(!isRead);
+        $('#mark-unread-btn').toggle(isRead);
+    }
+
+    /**
+     * 渲染账单消息详情
+     */
+    function renderBillMessageDetail(message) {
+        let contentHtml = '';
+
+        try {
+            // 解析账单元数据
+            const billMetadata = message.metadata ? JSON.parse(message.metadata) : {};
+
+            if (billMetadata.activityTitle) {
+                contentHtml += `<div class="mb-3">
+                    <strong>活动名称：</strong> ${billMetadata.activityTitle}
+                </div>`;
+            }
+
+            if (billMetadata.totalAmount) {
+                contentHtml += `<div class="mb-3">
+                    <strong>账单金额：</strong> <span class="text-success fw-bold">¥${billMetadata.totalAmount}</span>
+                </div>`;
+            }
+
+            if (billMetadata.participantCount) {
+                contentHtml += `<div class="mb-3">
+                    <strong>参与人数：</strong> ${billMetadata.participantCount} 人
+                </div>`;
+            }
+
+            if (billMetadata.billDetails && Array.isArray(billMetadata.billDetails)) {
+                contentHtml += `<div class="mb-3">
+                    <strong>分摊明细：</strong>
+                    <div class="mt-2 border rounded p-2 bg-light">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>参与者</th>
+                                    <th>系数</th>
+                                    <th>应付金额</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+
+                billMetadata.billDetails.forEach(detail => {
+                    contentHtml += `<tr>
+                        <td>${detail.username || '未知用户'}</td>
+                        <td><span class="badge bg-secondary">${detail.ratio || 1}</span></td>
+                        <td class="text-primary fw-bold">¥${detail.amount || '0.00'}</td>
+                    </tr>`;
+                });
+
+                contentHtml += `</tbody>
+                        </table>
+                    </div>
+                </div>`;
+            }
+
+            // 添加原始消息内容
+            if (message.content) {
+                contentHtml += `<div class="mt-3 pt-3 border-top">
+                    <strong>消息内容：</strong><br>
+                    ${message.content.replace(/\n/g, '<br>')}
+                </div>`;
+            }
+
+        } catch (error) {
+            console.error('解析账单消息失败:', error);
+            contentHtml = message.content.replace(/\n/g, '<br>');
+        }
+
+        $('#detail-content').html(contentHtml);
     }
 
     /**

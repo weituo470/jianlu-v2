@@ -298,4 +298,25 @@ User.restoreFromAudit = async function (auditId, operatorId) {
   }
 };
 
+// 定义模型关联
+User.associate = function(models) {
+  // 用户消息状态关联
+  User.hasMany(models.UserMessageState, {
+    foreignKey: 'user_id',
+    as: 'messageStates'
+  });
+
+  // 发送的消息
+  User.hasMany(models.Message, {
+    foreignKey: 'sender_id',
+    as: 'sentMessages'
+  });
+
+  // 接收的消息
+  User.hasMany(models.Message, {
+    foreignKey: 'recipient_id',
+    as: 'receivedMessages'
+  });
+};
+
 module.exports = User;

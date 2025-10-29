@@ -233,7 +233,9 @@ window.MessageNavbar = (function() {
     function createMessageHtml(message) {
         const typeClass = `message-type ${message.type}`;
         const priorityClass = `message-priority ${message.priority}`;
-        const unreadClass = message.is_read ? '' : 'unread';
+        // 使用新的用户消息状态来判断是否未读
+        const isRead = message.user_message_state ? message.user_message_state.is_read : message.is_read;
+        const unreadClass = isRead ? '' : 'unread';
         const timeAgo = formatTimeAgo(message.created_at);
 
         return `

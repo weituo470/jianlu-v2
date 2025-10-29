@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const messageController = require('../controllers/messageController');
+const messageController = require('../controllers/messageControllerV2');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { body, param, query, validationResult } = require('express-validator');
 
@@ -24,7 +24,7 @@ router.use(authenticateToken);
 router.get('/', [
   query('page').optional().isInt({ min: 1 }).withMessage('页码必须是正整数'),
   query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('每页数量必须在1-100之间'),
-  query('type').optional().isIn(['system', 'personal', 'activity', 'team', 'announcement']).withMessage('无效的消息类型'),
+  query('type').optional().isIn(['system', 'personal', 'activity', 'team', 'announcement', 'bill']).withMessage('无效的消息类型'),
   query('is_read').optional().isBoolean().withMessage('is_read必须是布尔值'),
   query('priority').optional().isIn(['low', 'normal', 'high', 'urgent']).withMessage('无效的优先级'),
   query('unread_only').optional().isBoolean().withMessage('unread_only必须是布尔值')
@@ -115,5 +115,24 @@ router.post('/templates/send', [
 // 定时任务路由（仅超级管理员）
 router.post('/tasks/send-scheduled', requireRole(['super_admin']), messageController.sendScheduledMessages);
 router.post('/tasks/cleanup-expired', requireRole(['super_admin']), messageController.cleanupExpiredMessages);
+
+// 新的用户个性化消息管理路由
+router.delete('/:id', [
+  param('id').isUUID().withMessage('无效的消息ID')
+], validateRequest, messageController.deleteMessage);
+
+router.post('/:id/hide', [
+  param('id').isUUID().withMessage('无效的消息ID')
+], validateRequest, messageController.hideMessage);
+
+router.post('/:id/restore', [
+  param('id').isUUID().withMessage('无效的消息ID')
+], validateRequest, messageController.restoreMessage);
+
+// 批量操作路由
+router.post('/batch', [
+  body('operation').isIn(['mark_read', 'mark_unread', 'delete', 'hide', 'restore']).withMessage('无效的操作类型'),
+  body('message_ids').isArray({ min: 1 }).withMessage('消息ID列表不能为空')
+], validateRequest, messageController.batchOperation);
 
 module.exports = router;
