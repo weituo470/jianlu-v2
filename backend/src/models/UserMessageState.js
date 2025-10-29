@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
+const logger = require('../utils/logger');
 
 const UserMessageState = sequelize.define('UserMessageState', {
     id: {
@@ -273,6 +274,24 @@ UserMessageState.markAllAsReadForUser = async function(userId) {
     );
 
     return result[0]; // 返回更新的记录数
+};
+
+// 获取用户消息总数（包括已读和未读，但排除已删除和隐藏的）
+UserMessageState.getTotalMessageCount = async function(userId) {
+  try {
+    const count = await this.count({
+      where: {
+        user_id: userId,
+        is_deleted: false,
+        is_hidden: false
+      }
+    });
+
+    return count;
+  } catch (error) {
+    logger.error('获取用户消息总数失败:', error);
+    return 0;
+  }
 };
 
 // 定义模型关联

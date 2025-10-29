@@ -148,10 +148,19 @@ window.MessageManager = (function() {
                 console.log('🔍 MessageManager Debug - Result:', result);
                 console.log('🔍 MessageManager Debug - Messages from API:', result.data?.messages);
                 console.log('🔍 MessageManager Debug - Messages count:', result.data?.messages?.length);
+                console.log('🔍 MessageManager Debug - Statistics from API:', result.data?.statistics);
 
                 messages = result.data.messages || [];
                 totalCount = result.data.pagination?.total_count || 0;
 
+                // 保存新的统计信息
+                window.messageStatistics = result.data?.statistics || {
+                    total_messages: 0,
+                    filtered_messages: 0,
+                    current_page_count: 0
+                };
+
+                console.log('🔍 MessageManager Debug - Message Statistics:', window.messageStatistics);
                 console.log('🔍 MessageManager Debug - After assignment - messages:', messages);
                 console.log('🔍 MessageManager Debug - After assignment - messages.length:', messages.length);
 
@@ -224,11 +233,16 @@ window.MessageManager = (function() {
                     <div class="message-row">
                         <div class="message-content-col">
                             <div class="message-header">
-                                <h6 class="message-title ${unreadClass}">${escapeHtml(message.title)}</h6>
-                                <div class="message-meta">
-                                    ${statusBadge}
-                                    <span class="message-type">${getTypeText(message.type)}</span>
-                                    <span class="message-priority">${getPriorityText(message.priority)}</span>
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge bg-light text-dark me-2">${message.global_message_id || `#${message.page_index || 'N/A'}`}</span>
+                                        <h6 class="message-title ${unreadClass} mb-0">${escapeHtml(message.title)}</h6>
+                                    </div>
+                                    <div class="message-meta">
+                                        ${statusBadge}
+                                        <span class="message-type">${getTypeText(message.type)}</span>
+                                        <span class="message-priority">${getPriorityText(message.priority)}</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="message-content">
@@ -348,12 +362,35 @@ window.MessageManager = (function() {
             return !isRead;
         }).length;
 
+        // 获取消息总数（使用新的统计数据）
+        const totalMessagesCount = window.messageStatistics?.total_messages || totalCount;
+
+        console.log('📊 MessageManager Debug - Updating statistics:', {
+            totalMessages: totalMessagesCount,
+            filteredMessages: totalCount,
+            currentPageMessages: messages.length,
+            unreadMessages: unreadCount,
+            statistics: window.messageStatistics
+        });
+
         // 更新统计卡片
         const totalCountEl = document.getElementById('total-messages');
         const unreadCountEl = document.getElementById('unread-messages');
 
-        if (totalCountEl) totalCountEl.textContent = totalCount;
+        if (totalCountEl) totalCountEl.textContent = totalMessagesCount;
         if (unreadCountEl) unreadCountEl.textContent = unreadCount;
+
+        // 更新收件箱标题显示总数
+        const inboxTitleEl = document.getElementById('inbox-title');
+        if (inboxTitleEl) {
+            inboxTitleEl.textContent = `收件箱 (共${totalMessagesCount}条消息)`;
+        }
+
+        // 更新页面标题
+        const pageTitleEl = document.getElementById('page-title');
+        if (pageTitleEl) {
+            pageTitleEl.textContent = `消息管理 (共${totalMessagesCount}条消息)`;
+        }
     }
 
     /**

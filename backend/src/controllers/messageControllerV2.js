@@ -116,10 +116,33 @@ class MessageControllerV2 {
                 unread_only: unread_only === 'true'
             };
 
+            logger.info('📨 MessageController Debug - 获取用户消息列表', {
+                userId,
+                options
+            });
+
             const result = await UserMessageState.getVisibleMessagesForUser(userId, options);
 
+            // 获取用户消息总数（不受分页限制）
+            const totalCount = await UserMessageState.getTotalMessageCount(userId);
+
+            // 为每条消息生成全局唯一编号
+            const messagesWithGlobalIds = await addGlobalMessageIds(result.rows, userId);
+
+            logger.info('📊 MessageController Debug - 消息列表统计', {
+                userId,
+                totalCount,
+                currentPageCount: result.rows.length,
+                filteredCount: result.count
+            });
+
             return success(res, {
-                messages: result.rows,
+                messages: messagesWithGlobalIds,
+                statistics: {
+                    total_messages: totalCount,
+                    filtered_messages: result.count,
+                    current_page_count: result.rows.length
+                },
                 pagination: {
                     current_page: parseInt(page),
                     total_pages: Math.ceil(result.count / parseInt(limit)),
@@ -871,6 +894,67 @@ class MessageControllerV2 {
             logger.error('清理过期消息失败:', err);
             return error(res, '清理过期消息失败');
         }
+    }
+}
+
+// 独立的全局消息编号生成函数
+async function addGlobalMessageIds(messages, userId) {
+    try {
+        logger.info('🏷️ 开始为消息生成全局唯一编号', {
+            messageCount: messages.length,
+            userId
+        });
+
+        // 获取用户的所有消息，按创建时间排序
+        const allUserMessages = await UserMessageState.findAll({
+            where: {
+                user_id: userId,
+                is_deleted: false,
+                is_hidden: false
+            },
+            include: [{
+                model: require('../models/Message'),
+                as: 'message',
+                order: [['created_at', 'ASC']]
+            }],
+            order: [['created_at', 'ASC']]
+        });
+
+        // 为每条消息生成全局编号
+        const messageIndexMap = new Map();
+        allUserMessages.forEach((userMessage, index) => {
+            messageIndexMap.set(userMessage.message_id, index + 1);
+        });
+
+        // 为当前页面的消息添加全局编号
+        const messagesWithIds = messages.map((message, index) => {
+            const globalIndex = messageIndexMap.get(message.id) || 0;
+            const createdDate = new Date(message.created_at);
+            const dateStr = createdDate.toISOString().slice(0, 10).replace(/-/g, '');
+            const globalId = `MSG-${dateStr}-${String(globalIndex).padStart(4, '0')}`;
+
+            return {
+                ...message,
+                global_message_id: globalId,
+                global_index: globalIndex,
+                page_index: index + 1
+            };
+        });
+
+        logger.info('✅ 全局编号生成完成', {
+            processedMessages: messagesWithIds.length
+        });
+
+        return messagesWithIds;
+    } catch (error) {
+        logger.error('生成全局消息编号失败:', error);
+        // 如果生成失败，返回原始消息但添加基础信息
+        return messages.map((message, index) => ({
+            ...message,
+            global_message_id: `MSG-UNKNOWN-${index + 1}`,
+            global_index: 0,
+            page_index: index + 1
+        }));
     }
 }
 
