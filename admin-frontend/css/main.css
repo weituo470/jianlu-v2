@@ -907,10 +907,109 @@ body {
     color: var(--text-secondary);
     line-height: 1.4;
     margin: 8px 0 0 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    word-wrap: break-word;
+}
+
+.message-content-full {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin: 8px 0 0 0;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
+}
+
+.message-full-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 10px 0;
+}
+
+.message-full-content pre {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* 消息下拉框样式重置 */
+#message-dropdown .message-item {
+    border-bottom: 1px solid var(--border-color);
+    padding: 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#message-dropdown .message-item:hover {
+    background-color: var(--bg-secondary);
+}
+
+#message-dropdown .message-item.unread {
+    background-color: #f0f8ff;
+    border-left: 3px solid var(--primary-color);
+}
+
+#message-dropdown .message-title {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+#message-dropdown .message-title.unread {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+#message-dropdown .message-meta {
+    margin-bottom: 8px;
+    font-size: 11px;
+}
+
+#message-dropdown .message-type,
+#message-dropdown .message-priority {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    margin-right: 5px;
+}
+
+#message-dropdown .message-type {
+    background: var(--primary-color);
+    color: white;
+}
+
+#message-dropdown .message-priority {
+    background: var(--warning-color);
+    color: white;
+}
+
+#message-dropdown .message-time {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 8px;
+}
+
+.no-messages {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-tertiary);
+}
+
+.no-messages i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
 }
 
 .message-dropdown-footer {

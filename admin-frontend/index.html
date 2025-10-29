@@ -9,9 +9,9 @@
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/responsive.css">
     <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" onerror="this.onerror=null;this.href='/css/fa-local.min.css';">
+    <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" onerror="this.onerror=null;this.href='/css/fa-local.min.css';">
     <!-- Swiper CSS for banner showcase -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/swiper@11/swiper-bundle.min.css">
 </head>
 
 <body>
@@ -145,7 +145,7 @@
 
                 <div class="user-menu">
                     <div class="user-info" id="user-info">
-                        <img src="https://via.placeholder.com/32x32?text=U" alt="用户头像" class="user-avatar">
+                        <img src="/images/default-user-avatar.svg" alt="用户头像" class="user-avatar">
                         </span>
                         <span class="user-role" id="user-role">角色</span>
                         <i class="fas fa-chevron-down"></i>
@@ -279,7 +279,7 @@ function showErrorPage(message){
 
     <!-- JavaScript模块 -->
     <!-- 加载外部依赖 -->
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <script src="https://unpkg.com/swiper@11/swiper-bundle.min.js"></script>
     
     <script>
         // 动态加载脚本
@@ -316,6 +316,7 @@ function showErrorPage(message){
                 await loadScript('/js/banners-manager.js');
                 await loadScript('/js/banner-showcase.js');
                 await loadScript('/js/router.js');
+                await loadScript('/js/placeholder-generator.js');
                 await loadScript('/js/app.js');
                 // 暂时注释掉message-manager.js和message-notifier.js，避免jQuery依赖问题
                 // await loadScript('/js/message-manager.js');

@@ -186,7 +186,7 @@ window.MessageManager = (function() {
                                     <span class="badge ${priorityInfo.class}">${priorityInfo.text}</span>
                                     ${isUnread ? '<span class="badge badge-primary">未读</span>' : ''}
                                 </div>
-                                <p class="mb-1" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">${message.content}</p>
+                                <p class="mb-1 message-content-full" style="white-space: pre-wrap; word-wrap: break-word;">${message.content}</p>
                                 <small class="text-muted">
                                     <i class="far fa-clock"></i> ${formatDateTime(message.created_at)}
                                     ${message.sender ? `| 发送人: ${message.sender.username}` : ''}
