@@ -177,8 +177,18 @@ window.MessageManager = (function() {
      * 渲染消息列表
      */
     function renderMessages() {
-        const container = document.getElementById('messages-list');
+        // 根据页面类型选择不同的容器ID
+        let containerId = 'messages-list';
+        if (pageType === 'inbox') {
+            containerId = 'inbox-messages-list';
+        } else if (pageType === 'sent') {
+            containerId = 'sent-messages-list';
+        }
+
+        const container = document.getElementById(containerId);
         console.log('🔍 MessageManager Debug - renderMessages called');
+        console.log('🔍 MessageManager Debug - pageType:', pageType);
+        console.log('🔍 MessageManager Debug - containerId:', containerId);
         console.log('🔍 MessageManager Debug - container exists:', !!container);
         console.log('🔍 MessageManager Debug - container:', container);
         console.log('🔍 MessageManager Debug - container.innerHTML:', container ? container.innerHTML.substring(0, 200) : 'N/A');
@@ -186,7 +196,7 @@ window.MessageManager = (function() {
         console.log('🔍 MessageManager Debug - messages content:', messages);
 
         if (!container) {
-            console.error('🔍 MessageManager Debug - ERROR: messages-list container not found!');
+            console.error('🔍 MessageManager Debug - ERROR: container not found for ID:', containerId);
             return;
         }
 
