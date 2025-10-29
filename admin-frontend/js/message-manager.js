@@ -104,7 +104,7 @@ window.MessageManager = (function() {
             }
 
             // 根据页面类型设置参数
-            if (pageType === 'inbox') {
+            if (pageType === 'inbox' || pageType === 'messages') {
                 params.append('filter', 'received');
             } else if (pageType === 'sent') {
                 params.append('filter', 'sent');
@@ -131,21 +131,13 @@ window.MessageManager = (function() {
 
             if (response.ok) {
                 const result = await response.json();
-                console.log('🔍 MessageManager调试 - API响应:', result);
-                console.log('🔍 MessageManager调试 - result.data:', result.data);
-                console.log('🔍 MessageManager调试 - messages数组:', result.data?.messages);
-
                 messages = result.data.messages || [];
                 totalCount = result.data.pagination?.total_count || 0;
-
-                console.log('🔍 MessageManager调试 - 设置后的messages:', messages);
-                console.log('🔍 MessageManager调试 - messages.length:', messages.length);
 
                 renderMessages();
                 updatePagination();
                 updateStatistics();
             } else {
-                console.error('🔍 MessageManager调试 - API响应失败:', response.status, response.statusText);
                 Utils.toast.error('加载消息失败');
             }
         } catch (error) {
@@ -162,14 +154,9 @@ window.MessageManager = (function() {
      */
     function renderMessages() {
         const container = document.getElementById('message-list');
-        console.log('🔍 renderMessages调试 - container存在:', !!container);
-        console.log('🔍 renderMessages调试 - messages.length:', messages.length);
-        console.log('🔍 renderMessages调试 - messages内容:', messages);
-
         if (!container) return;
 
         if (messages.length === 0) {
-            console.log('🔍 renderMessages调试 - 显示"暂无消息"');
             container.innerHTML = `
                 <div class="text-center py-5">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
