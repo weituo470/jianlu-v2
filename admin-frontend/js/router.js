@@ -2807,6 +2807,11 @@ window.Router = {
     updateBreadcrumb(route, path) {
         const breadcrumbItems = ['首页'];
 
+        // 安全检查：确保path存在
+        if (!path || typeof path !== 'string') {
+            path = '/messages';
+        }
+
         // 根据路径生成面包屑
         const pathParts = path.split('/').filter(part => part);
         pathParts.forEach((part, index) => {
