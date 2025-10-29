@@ -86,16 +86,37 @@ class NotificationService {
 
   // 显示本地通知
   showLocalNotification(notification) {
-    // 使用 uni.showToast 显示简单提示
+    // 根据通知类型和优先级显示不同的提示
+    let icon = 'none';
+    let duration = 2000;
+
+    if (notification.type === 'bill') {
+      if (notification.priority === 'urgent') {
+        icon = 'error';
+        duration = 3000;
+      } else if (notification.priority === 'high') {
+        icon = 'warning';
+        duration = 2500;
+      } else {
+        icon = 'success';
+      }
+    }
+
+    // 显示Toast提示
     uni.showToast({
       title: notification.title,
-      icon: 'none',
-      duration: 2000
-    })
+      icon: icon,
+      duration: duration
+    });
+
+    // 对于账单类型，额外显示震动
+    if (notification.type === 'bill' && notification.priority !== 'normal') {
+      uni.vibrateShort();
+    }
 
     // 如果支持订阅消息，可以在这里添加订阅消息逻辑
     // uni.requestSubscribeMessage({
-    //   tmplIds: ['your-template-id'],
+    //   tmplIds: ['your-bill-template-id'],
     //   success: (res) => {
     //     // 发送订阅消息
     //   }
@@ -151,6 +172,129 @@ class NotificationService {
       content: `用户「${userName}」申请加入团队「${teamName}」，请及时处理`,
       data: { action: 'new_application' }
     })
+  }
+
+  // 账单相关通知方法
+  notifyBillReceived(activityTitle, amount, paymentDeadline, billId) {
+    return this.addNotification({
+      type: 'bill',
+      title: '【账单通知】',
+      content: `您参与的"${activityTitle}"活动账单已生成，应付金额：¥${amount}`,
+      data: {
+        action: 'bill_received',
+        bill_id: billId,
+        activity_title: activityTitle,
+        amount: amount,
+        payment_deadline: paymentDeadline,
+        payment_status: 'unpaid'
+      }
+    })
+  }
+
+  notifyBillUpdated(activityTitle, amount, paymentDeadline, billId) {
+    return this.addNotification({
+      type: 'bill',
+      title: '【账单更新】',
+      content: `"${activityTitle}"活动账单已更新，应付金额：¥${amount}`,
+      data: {
+        action: 'bill_updated',
+        bill_id: billId,
+        activity_title: activityTitle,
+        amount: amount,
+        payment_deadline: paymentDeadline,
+        payment_status: 'unpaid'
+      }
+    })
+  }
+
+  notifyBillPaymentReminder(activityTitle, amount, paymentDeadline, billId) {
+    const deadline = paymentDeadline
+      ? new Date(paymentDeadline).toLocaleDateString('zh-CN')
+      : '未设置截止日期';
+
+    return this.addNotification({
+      type: 'bill',
+      title: '【支付提醒】',
+      content: `"${activityTitle}"活动账单即将到期，应付金额：¥${amount}，截止日期：${deadline}`,
+      priority: 'high',
+      data: {
+        action: 'bill_payment_reminder',
+        bill_id: billId,
+        activity_title: activityTitle,
+        amount: amount,
+        payment_deadline: paymentDeadline,
+        payment_status: 'unpaid'
+      }
+    })
+  }
+
+  notifyBillOverdue(activityTitle, amount, billId) {
+    return this.addNotification({
+      type: 'bill',
+      title: '【账单逾期】',
+      content: `"${activityTitle}"活动账单已逾期，请尽快支付应付金额：¥${amount}`,
+      priority: 'urgent',
+      data: {
+        action: 'bill_overdue',
+        bill_id: billId,
+        activity_title: activityTitle,
+        amount: amount,
+        payment_status: 'overdue'
+      }
+    })
+  }
+
+  // 从服务器消息同步账单通知
+  syncBillFromServer(serverMessage) {
+    const metadata = serverMessage.metadata || {};
+
+    return this.addNotification({
+      type: 'bill',
+      title: serverMessage.title || '【账单通知】',
+      content: serverMessage.content,
+      priority: serverMessage.priority || 'normal',
+      is_read: serverMessage.is_read || false,
+      created_at: serverMessage.created_at,
+      data: {
+        action: 'bill_received',
+        bill_id: serverMessage.id,
+        activity_id: metadata.activity_id,
+        activity_title: metadata.activity_title,
+        amount: metadata.amount,
+        payment_deadline: metadata.payment_deadline,
+        payment_status: metadata.payment_status || 'unpaid',
+        cost_sharing_ratio: metadata.cost_sharing_ratio,
+        message_id: serverMessage.id
+      }
+    })
+  }
+
+  // 获取账单类型通知
+  getBillNotifications() {
+    const notifications = this.getNotifications();
+    return notifications.filter(n => n.type === 'bill');
+  }
+
+  // 获取未支付账单
+  getUnpaidBills() {
+    const billNotifications = this.getBillNotifications();
+    return billNotifications.filter(n =>
+      n.data.payment_status === 'unpaid' || n.data.payment_status === 'overdue'
+    );
+  }
+
+  // 标记账单为已支付
+  markBillAsPaid(billId) {
+    const notifications = this.getNotifications();
+    const billNotification = notifications.find(n =>
+      n.type === 'bill' && n.data.bill_id === billId
+    );
+
+    if (billNotification) {
+      billNotification.data.payment_status = 'paid';
+      billNotification.content = billNotification.content.replace('应付', '已支付');
+      this.saveNotifications(notifications);
+    }
   }
 }
 

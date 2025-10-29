@@ -2371,8 +2371,20 @@ router.post('/:id/aa-bill', authenticateToken, async (req, res) => {
       return error(res, '活动不存在', 404);
     }
 
-    // 计算当前AA分摊数据
-    const aaCosts = await activity.calculateAACosts();
+    // 获取前端传递的自定义总金额参数
+    const { useCustomTotalCost = false, customTotalCost = 0 } = req.body;
+
+    console.log('📊 使用自定义总金额参数:', {
+      useCustomTotalCost,
+      customTotalCost,
+      originalBody: req.body
+    });
+
+    // 计算当前AA分摊数据，使用自定义总金额
+    const aaCosts = await activity.calculateAACosts({
+      useCustomTotalCost: useCustomTotalCost,
+      customTotalCost: customTotalCost
+    });
 
     if (!aaCosts.participants || aaCosts.participants.length === 0) {
       return error(res, '没有参与者数据，无法保存账单', 400);

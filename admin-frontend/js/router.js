@@ -91,6 +91,24 @@ window.Router = {
             requireAuth: true,
             permissions: ['content:read']
         },
+        '/messages': {
+            title: '消息管理',
+            component: 'MessagesPage',
+            requireAuth: true,
+            permissions: ['message:read']
+        },
+        '/messages/inbox': {
+            title: '收件箱',
+            component: 'MessagesInboxPage',
+            requireAuth: true,
+            permissions: ['message:read']
+        },
+        '/messages/sent': {
+            title: '已发送',
+            component: 'MessagesSentPage',
+            requireAuth: true,
+            permissions: ['message:read']
+        },
         '/settings': {
             title: '系统设置',
             component: 'SettingsPage',
@@ -298,6 +316,15 @@ window.Router = {
                     break;
                 case 'BannersPage':
                     await this.renderBanners();
+                    break;
+                case 'MessagesPage':
+                    await this.renderMessages();
+                    break;
+                case 'MessagesInboxPage':
+                    await this.renderMessagesInbox();
+                    break;
+                case 'MessagesSentPage':
+                    await this.renderMessagesSent();
                     break;
                 case 'SettingsPage':
                     await this.renderSettings();
@@ -2436,7 +2463,10 @@ window.Router = {
             user.profile.avatar.trim() !== '') {
             return user.profile.avatar;
         }
-        return `https://via.placeholder.com/32x32?text=${encodeURIComponent(user.username?.charAt(0) || 'U')}`;
+        // 使用本地占位符生成器替代外部服务
+        return window.PlaceholderGenerator ?
+            window.PlaceholderGenerator.generateUserAvatar(user.username?.charAt(0) || 'U', 32) :
+            '/images/default-user-avatar.svg';
     },
 
     // 渲染用户权限
@@ -2948,5 +2978,259 @@ window.Router = {
                 </div>
             `;
         }
+    },
+
+    // 渲染消息管理页面
+    async renderMessages() {
+        const pageContent = document.getElementById('page-content');
+
+        pageContent.innerHTML = `
+            <div class="messages-page">
+                <!-- 页面头部 -->
+                <div class="page-header">
+                    <div class="page-header-content">
+                        <div class="page-title-section">
+                            <h1 class="page-title">
+                                <i class="fas fa-envelope"></i>
+                                消息管理
+                            </h1>
+                            <p class="page-description">管理系统中的所有消息通知</p>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn btn-outline-primary" onclick="MessageManager.refreshMessages()">
+                                <i class="fas fa-sync-alt"></i>
+                                刷新
+                            </button>
+                            <button class="btn btn-success" onclick="MessageManager.markAllAsRead()">
+                                <i class="fas fa-check-double"></i>
+                                全部标记已读
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 消息统计卡片 -->
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-inbox"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="total-messages">0</div>
+                            <div class="stat-label">总消息数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-envelope-open"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="unread-messages">0</div>
+                            <div class="stat-label">未读消息</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-paper-plane"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="sent-messages">0</div>
+                            <div class="stat-label">已发送</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 消息过滤器 -->
+                <div class="message-filters">
+                    <div class="filter-group">
+                        <div class="filter-item">
+                            <label for="message-type-filter">消息类型:</label>
+                            <select id="message-type-filter" class="form-select">
+                                <option value="">全部类型</option>
+                                <option value="system">系统消息</option>
+                                <option value="personal">个人消息</option>
+                                <option value="activity">活动消息</option>
+                                <option value="team">团队消息</option>
+                                <option value="announcement">系统公告</option>
+                                <option value="bill">账单消息</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label for="message-status-filter">消息状态:</label>
+                            <select id="message-status-filter" class="form-select">
+                                <option value="">全部状态</option>
+                                <option value="unread">未读</option>
+                                <option value="read">已读</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label for="message-priority-filter">优先级:</label>
+                            <select id="message-priority-filter" class="form-select">
+                                <option value="">全部优先级</option>
+                                <option value="low">低</option>
+                                <option value="normal">普通</option>
+                                <option value="high">高</option>
+                                <option value="urgent">紧急</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label for="message-search">搜索:</label>
+                            <div class="search-box">
+                                <input type="text" id="message-search" class="form-control" placeholder="搜索消息内容...">
+                                <button class="btn btn-primary" onclick="MessageManager.searchMessages()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 消息列表 -->
+                <div class="messages-container">
+                    <div class="messages-header">
+                        <div class="messages-actions">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="MessageManager.selectAll()">
+                                <i class="fas fa-check-square"></i>
+                                全选
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="MessageManager.markSelectedAsRead()">
+                                <i class="fas fa-check"></i>
+                                标记已读
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="MessageManager.deleteSelected()">
+                                <i class="fas fa-trash"></i>
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                    <div class="messages-list" id="messages-list">
+                        <div class="loading-state">
+                            <div class="loading-spinner">
+                                <div class="spinner"></div>
+                                <p>加载消息中...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="messages-footer">
+                        <div class="pagination-info" id="pagination-info">
+                            显示 0 条消息，共 0 条
+                        </div>
+                        <div class="pagination-controls" id="pagination-controls">
+                            <!-- 分页控件将动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 初始化消息管理器
+        if (window.MessageManager) {
+            window.MessageManager.init('messages');
+        } else {
+            console.error('MessageManager 未找到，请检查相关脚本是否加载');
+        }
+
+        // 更新面包屑
+        this.updateBreadcrumb(['消息管理']);
+    },
+
+    // 渲染收件箱页面
+    async renderMessagesInbox() {
+        const pageContent = document.getElementById('page-content');
+
+        pageContent.innerHTML = `
+            <div class="messages-page">
+                <!-- 页面头部 -->
+                <div class="page-header">
+                    <div class="page-header-content">
+                        <div class="page-title-section">
+                            <h1 class="page-title">
+                                <i class="fas fa-inbox"></i>
+                                收件箱
+                            </h1>
+                            <p class="page-description">查看接收到的所有消息</p>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn btn-outline-primary" onclick="MessageManager.refreshMessages()">
+                                <i class="fas fa-sync-alt"></i>
+                                刷新
+                            </button>
+                            <button class="btn btn-success" onclick="MessageManager.markAllAsRead()">
+                                <i class="fas fa-check-double"></i>
+                                全部标记已读
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 消息列表容器 -->
+                <div class="messages-container">
+                    <div class="messages-list" id="inbox-messages-list">
+                        <div class="loading-state">
+                            <div class="loading-spinner">
+                                <div class="spinner"></div>
+                                <p>加载收件箱消息中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 初始化收件箱消息管理器
+        if (window.MessageManager) {
+            window.MessageManager.init('inbox');
+        }
+
+        // 更新面包屑
+        this.updateBreadcrumb(['消息管理', '收件箱']);
+    },
+
+    // 渲染已发送页面
+    async renderMessagesSent() {
+        const pageContent = document.getElementById('page-content');
+
+        pageContent.innerHTML = `
+            <div class="messages-page">
+                <!-- 页面头部 -->
+                <div class="page-header">
+                    <div class="page-header-content">
+                        <div class="page-title-section">
+                            <h1 class="page-title">
+                                <i class="fas fa-paper-plane"></i>
+                                已发送
+                            </h1>
+                            <p class="page-description">查看发送的所有消息</p>
+                        </div>
+                        <div class="page-actions">
+                            <button class="btn btn-outline-primary" onclick="MessageManager.refreshMessages()">
+                                <i class="fas fa-sync-alt"></i>
+                                刷新
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 消息列表容器 -->
+                <div class="messages-container">
+                    <div class="messages-list" id="sent-messages-list">
+                        <div class="loading-state">
+                            <div class="loading-spinner">
+                                <div class="spinner"></div>
+                                <p>加载已发送消息中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 初始化已发送消息管理器
+        if (window.MessageManager) {
+            window.MessageManager.init('sent');
+        }
+
+        // 更新面包屑
+        this.updateBreadcrumb(['消息管理', '已发送']);
     }
 };

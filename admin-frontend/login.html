@@ -110,7 +110,7 @@
             <div class="nav-right">
                 <div class="user-menu">
                     <div class="user-info" id="user-info">
-                        <img src="https://via.placeholder.com/32x32?text=U" alt="用户头像" class="user-avatar">
+                        <img src="/images/default-user-avatar.svg" alt="用户头像" class="user-avatar">
                         </span>
                         <span class="user-role" id="user-role">角色</span>
                         <i class="fas fa-chevron-down"></i>
@@ -281,6 +281,7 @@ function showErrorPage(message){
                 await loadScript('/js/banners-manager.js');
                 await loadScript('/js/banner-showcase.js');
                 await loadScript('/js/router.js');
+                await loadScript('/js/placeholder-generator.js');
                 await loadScript('/js/app.js');
             } catch (error) {
                 console.error('鑴氭湰鍔犺浇澶辫触:', error);

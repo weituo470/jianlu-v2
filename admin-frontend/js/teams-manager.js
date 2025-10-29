@@ -602,7 +602,7 @@ class TeamsManager {
         const modalContent = `
             <div class="row">
                 <div class="col-md-4 text-center mb-3">
-                    <img src="${team.avatar_url || 'https://via.placeholder.com/120x120?text=团队'}" 
+                    <img src="${team.avatar_url || (window.PlaceholderGenerator ? window.PlaceholderGenerator.generateTeamAvatar(team.name || '团队', 120) : '/images/default-team-avatar.svg')}" 
                          alt="团队头像" class="rounded mb-3" width="120" height="120">
                     <h5>${team.name}</h5>
                     ${this.getStatusBadge(team.status)}

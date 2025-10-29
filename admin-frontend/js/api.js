@@ -484,14 +484,23 @@ window.API = {
         // ==================== AA账单管理相关接口 ====================
 
         // 保存AA分摊账单
-        saveAABill(activityId) {
-            console.log('💾 API.js - 保存AA账单:', { activityId });
-            return API.post(`/activities/${activityId}/aa-bill`);
+        saveAABill(activityId, data = {}) {
+            console.log('💾 API.js - 保存AA账单:', { activityId, data });
+            return API.post(`/activities/${activityId}/aa-bill`, data);
         },
 
         // 获取活动的AA账单列表
         getAABills(activityId) {
             return API.get(`/activities/${activityId}/aa-bills`);
+        }
+    },
+
+    // 账单管理API
+    bills: {
+        // 推送AA分摊账单给参与者
+        pushAABill(activityId, data = {}) {
+            console.log('📤 API.js - 推送AA账单:', { activityId, data });
+            return API.post(`/bills/activities/${activityId}/push-bills`, data);
         }
     },
 

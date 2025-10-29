@@ -1,141 +1,148 @@
 /**
- * 消息管理模块
- * 负责处理消息的收发、显示和管理功能
+ * 消息管理页面模块
+ * 处理消息列表、过滤、搜索、分页等功能
  */
 window.MessageManager = (function() {
     'use strict';
 
-    // 私有变量
     let currentPage = 1;
     let pageSize = 20;
-    let currentFilter = {};
-    let unreadCount = 0;
-    let refreshInterval = null;
-
-    // 消息类型映射
-    const messageTypes = {
-        'system': { text: '系统消息', class: 'badge-info' },
-        'personal': { text: '个人消息', class: 'badge-primary' },
-        'activity': { text: '活动消息', class: 'badge-success' },
-        'team': { text: '团队消息', class: 'badge-warning' },
-        'announcement': { text: '系统公告', class: 'badge-danger' },
-        'bill': { text: '账单消息', class: 'bg-purple text-white' }
-    };
-
-    // 优先级映射
-    const priorities = {
-        'low': { text: '低', class: 'text-secondary' },
-        'normal': { text: '普通', class: 'text-primary' },
-        'high': { text: '高', class: 'text-warning' },
-        'urgent': { text: '紧急', class: 'text-danger' }
-    };
+    let currentFilter = 'all';
+    let currentType = '';
+    let currentPriority = '';
+    let currentSearch = '';
+    let messages = [];
+    let totalCount = 0;
+    let isLoading = false;
 
     /**
-     * 初始化消息管理器
+     * 初始化消息管理页面
      */
     function init() {
-        console.log('初始化消息管理器...');
+        console.log('🎨 初始化消息管理页面...');
         bindEvents();
-        loadUnreadCount();
-        startAutoRefresh();
+        loadMessages();
     }
 
     /**
      * 绑定事件
      */
     function bindEvents() {
-        // 搜索事件
-        $('#message-search').on('input', debounce(handleSearch, 300));
+        // 搜索按钮
+        document.getElementById('search-messages-btn')?.addEventListener('click', performSearch);
 
-        // 筛选事件
-        $('#message-type-filter, #message-priority-filter, #message-status-filter').on('change', handleFilter);
-
-        // 分页事件
-        $('#message-pagination').on('click', '.page-link', handlePagination);
-
-        // 批量操作事件
-        $('#mark-all-read-btn').on('click', markAllAsRead);
-        $('#refresh-messages-btn').on('click', refreshMessages);
-
-        // 发送消息事件
-        $('#send-message-btn').on('click', showSendMessageModal);
-        $('#message-form').on('submit', handleSendMessage);
-
-        // 消息详情模态框事件
-        $('#message-detail-modal').on('show.bs.modal', loadMessageDetail);
-        $('#mark-read-btn').on('click', markAsRead);
-        $('#mark-unread-btn').on('click', markAsUnread);
-        $('#delete-message-btn').on('click', deleteMessage);
-    }
-
-    /**
-     * 加载未读消息数量
-     */
-    async function loadUnreadCount() {
-        try {
-            const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages/unread-count`, {
-                headers: {
-                    'Authorization': `Bearer ${window.Auth.getToken()}`
-                }
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                unreadCount = result.data.unread_count;
-                updateUnreadCountDisplay();
+        // 搜索框回车
+        document.getElementById('search-input')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
             }
-        } catch (error) {
-            console.error('加载未读消息数量失败:', error);
-        }
-    }
+        });
 
-    /**
-     * 更新未读消息数量显示
-     */
-    function updateUnreadCountDisplay() {
-        // 更新导航栏消息图标
-        $('#messages-menu-item .badge').text(unreadCount > 0 ? unreadCount : '');
-        $('#messages-menu-item .badge').toggleClass('d-none', unreadCount === 0);
+        // 过滤器
+        document.getElementById('message-filter')?.addEventListener('change', function() {
+            currentFilter = this.value;
+            currentPage = 1;
+            loadMessages();
+        });
 
-        // 更新页面标题
-        if (unreadCount > 0) {
-            document.title = `(${unreadCount}) ${window.AppConfig.APP_NAME}`;
-        }
+        document.getElementById('message-type-filter')?.addEventListener('change', function() {
+            currentType = this.value;
+            currentPage = 1;
+            loadMessages();
+        });
+
+        document.getElementById('message-priority-filter')?.addEventListener('change', function() {
+            currentPriority = this.value;
+            currentPage = 1;
+            loadMessages();
+        });
+
+        // 消息操作按钮
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('mark-read-btn')) {
+                const messageId = e.target.dataset.messageId;
+                markAsRead(messageId);
+            } else if (e.target.classList.contains('mark-unread-btn')) {
+                const messageId = e.target.dataset.messageId;
+                markAsUnread(messageId);
+            } else if (e.target.classList.contains('delete-message-btn')) {
+                const messageId = e.target.dataset.messageId;
+                deleteMessage(messageId);
+            } else if (e.target.classList.contains('refresh-messages-btn')) {
+                loadMessages();
+            }
+        });
     }
 
     /**
      * 加载消息列表
      */
-    async function loadMessages(page = 1, filter = {}) {
-        try {
-            showLoading();
+    async function loadMessages() {
+        if (isLoading) return;
 
+        isLoading = true;
+        showLoading();
+
+        try {
+            const token = window.Auth?.getToken();
+            if (!token) {
+                Utils.toast.error('请先登录');
+                return;
+            }
+
+            // 构建查询参数
             const params = new URLSearchParams({
-                page: page,
-                limit: pageSize,
-                sort: 'created_at',
-                order: 'desc',
-                ...filter
+                page: currentPage,
+                limit: pageSize
             });
+
+            if (currentSearch) {
+                params.append('search', currentSearch);
+            }
+
+            // 根据当前页面设置参数
+            const currentPath = window.location.pathname;
+            if (currentPath.includes('/inbox')) {
+                params.append('filter', 'received');
+            } else if (currentPath.includes('/sent')) {
+                params.append('filter', 'sent');
+            } else {
+                // 主页面使用过滤器
+                if (currentFilter !== 'all') {
+                    params.append('filter', currentFilter);
+                }
+            }
+
+            if (currentType) {
+                params.append('type', currentType);
+            }
+
+            if (currentPriority) {
+                params.append('priority', currentPriority);
+            }
 
             const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages?${params}`, {
                 headers: {
-                    'Authorization': `Bearer ${window.Auth.getToken()}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
 
             if (response.ok) {
                 const result = await response.json();
-                renderMessageList(result.data.messages);
-                renderPagination(result.data.pagination);
-                currentPage = page;
+                messages = result.data.messages || [];
+                totalCount = result.data.pagination?.total_count || 0;
+
+                renderMessages();
+                updatePagination();
+                updateStatistics();
             } else {
-                throw new Error('加载消息列表失败');
+                Utils.toast.error('加载消息失败');
             }
         } catch (error) {
-            console.error('加载消息列表失败:', error);
-            window.App.showAlert('加载消息列表失败', 'error');
+            console.error('加载消息失败:', error);
+            Utils.toast.error('网络错误，请稍后重试');
         } finally {
+            isLoading = false;
             hideLoading();
         }
     }
@@ -143,471 +150,360 @@ window.MessageManager = (function() {
     /**
      * 渲染消息列表
      */
-    function renderMessageList(messages) {
-        const container = $('#message-list');
-        container.empty();
+    function renderMessages() {
+        const container = document.getElementById('message-list');
+        if (!container) return;
 
         if (messages.length === 0) {
-            container.html(`
+            container.innerHTML = `
                 <div class="text-center py-5">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">暂无消息</p>
+                    <h5 class="text-muted">暂无消息</h5>
+                    <p class="text-muted">没有符合条件的消息</p>
                 </div>
-            `);
+            `;
             return;
         }
 
-        messages.forEach(message => {
-            const messageEl = createMessageElement(message);
-            container.append(messageEl);
-        });
-    }
+        const messagesHtml = messages.map(message => {
+            const isRead = message.user_message_state ? message.user_message_state.is_read : message.is_read;
+            const unreadClass = isRead ? '' : 'unread';
+            const statusBadge = isRead ?
+                '<span class="badge bg-secondary">已读</span>' :
+                '<span class="badge bg-primary">未读</span>';
 
-    /**
-     * 创建消息元素
-     */
-    function createMessageElement(message) {
-        const typeInfo = messageTypes[message.type] || { text: '未知类型', class: 'badge-secondary' };
-        const priorityInfo = priorities[message.priority] || { text: '普通', class: 'text-primary' };
-        // 使用新的用户消息状态来判断是否未读
-        const isUnread = message.user_message_state ? !message.user_message_state.is_read : !message.is_read;
-
-        return `
-            <div class="message-item ${isUnread ? 'unread' : ''}" data-id="${message.id}">
-                <div class="card mb-2 ${isUnread ? 'border-left-primary border-left-3' : ''}">
-                    <div class="card-body py-3">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <div class="d-flex align-items-center mb-2">
-                                    <h6 class="mb-0 me-2 ${isUnread ? 'font-weight-bold' : ''}">
-                                        ${message.title}
-                                    </h6>
-                                    <span class="badge ${typeInfo.class}">${typeInfo.text}</span>
-                                    <span class="badge ${priorityInfo.class}">${priorityInfo.text}</span>
-                                    ${isUnread ? '<span class="badge badge-primary">未读</span>' : ''}
+            return `
+                <div class="message-item ${unreadClass}" data-id="${message.id}">
+                    <div class="message-row">
+                        <div class="message-content-col">
+                            <div class="message-header">
+                                <h6 class="message-title ${unreadClass}">${escapeHtml(message.title)}</h6>
+                                <div class="message-meta">
+                                    ${statusBadge}
+                                    <span class="message-type">${getTypeText(message.type)}</span>
+                                    <span class="message-priority">${getPriorityText(message.priority)}</span>
                                 </div>
-                                <p class="mb-1 message-content-full" style="white-space: pre-wrap; word-wrap: break-word;">${message.content}</p>
-                                <small class="text-muted">
-                                    <i class="far fa-clock"></i> ${formatDateTime(message.created_at)}
-                                    ${message.sender ? `| 发送人: ${message.sender.username}` : ''}
-                                </small>
                             </div>
-                            <div class="col-md-4 text-end">
-                                <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-primary view-message-btn"
-                                            data-id="${message.id}" data-bs-toggle="modal"
-                                            data-bs-target="#message-detail-modal">
-                                        <i class="fas fa-eye"></i> 查看
-                                    </button>
-                                    ${isUnread ? `
-                                        <button class="btn btn-sm btn-outline-success mark-read-btn"
-                                                data-id="${message.id}">
-                                            <i class="fas fa-check"></i> 标记已读
-                                        </button>
-                                    ` : ''}
+                            <div class="message-content">
+                                <p class="message-content-text">${escapeHtml(truncateText(message.content, 150))}</p>
+                            </div>
+                            <div class="message-footer">
+                                <div class="message-time">
+                                    <i class="far fa-clock"></i> ${formatDateTime(message.created_at)}
                                 </div>
+                                <div class="message-sender">
+                                    ${message.sender ? `发送人: ${message.sender.username}` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="message-actions-col">
+                            <div class="message-actions">
+                                <button class="btn btn-sm btn-outline-primary view-message-btn" onclick="MessageManager.viewMessage('${message.id}')">
+                                    <i class="fas fa-eye"></i> 查看
+                                </button>
+                                ${!isRead ? `
+                                    <button class="btn btn-sm btn-outline-success mark-read-btn" data-message-id="${message.id}">
+                                        <i class="fas fa-check"></i> 已读
+                                    </button>
+                                ` : `
+                                    <button class="btn btn-sm btn-outline-warning mark-unread-btn" data-message-id="${message.id}">
+                                        <i class="fas fa-envelope"></i> 未读
+                                    </button>
+                                `}
+                                <button class="btn btn-sm btn-outline-danger delete-message-btn" data-message-id="${message.id}">
+                                    <i class="fas fa-trash"></i> 删除
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
+        }).join('');
+
+        container.innerHTML = messagesHtml;
     }
 
-    /**
-     * 渲染分页
+  /**
+     * 更新分页
      */
-    function renderPagination(pagination) {
-        const container = $('#message-pagination');
-        container.empty();
+    function updatePagination() {
+        const container = document.getElementById('message-pagination');
+        if (!container) return;
 
-        if (pagination.total_pages <= 1) {
+        const totalPages = Math.ceil(totalCount / pageSize);
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
             return;
         }
 
         let paginationHtml = '<nav><ul class="pagination justify-content-center">';
 
         // 上一页
-        if (pagination.current_page > 1) {
+        if (currentPage > 1) {
             paginationHtml += `
                 <li class="page-item">
-                    <a class="page-link" href="#" data-page="${pagination.current_page - 1}">上一页</a>
+                    <a class="page-link" href="#" onclick="MessageManager.goToPage(${currentPage - 1}); return false;">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
                 </li>
             `;
         }
 
         // 页码
-        const startPage = Math.max(1, pagination.current_page - 2);
-        const endPage = Math.min(pagination.total_pages, pagination.current_page + 2);
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+
+        if (startPage > 1) {
+            paginationHtml += '<li class="page-item"><a class="page-link" href="#" onclick="MessageManager.goToPage(1); return false;">1</a></li>';
+            if (startPage > 2) {
+                paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+            }
+        }
 
         for (let i = startPage; i <= endPage; i++) {
+            const activeClass = i === currentPage ? 'active' : '';
             paginationHtml += `
-                <li class="page-item ${i === pagination.current_page ? 'active' : ''}">
-                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                <li class="page-item ${activeClass}">
+                    <a class="page-link" href="#" onclick="MessageManager.goToPage(${i}); return false;">${i}</a>
                 </li>
             `;
         }
 
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+            }
+            paginationHtml += `<li class="page-item"><a class="page-link" href="#" onclick="MessageManager.goToPage(${totalPages}); return false;">${totalPages}</a></li>`;
+        }
+
         // 下一页
-        if (pagination.current_page < pagination.total_pages) {
+        if (currentPage < totalPages) {
             paginationHtml += `
                 <li class="page-item">
-                    <a class="page-link" href="#" data-page="${pagination.current_page + 1}">下一页</a>
+                    <a class="page-link" href="#" onclick="MessageManager.goToPage(${currentPage + 1}); return false;">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
                 </li>
             `;
         }
 
         paginationHtml += '</ul></nav>';
-        container.html(paginationHtml);
+        container.innerHTML = paginationHtml;
     }
 
     /**
-     * 搜索处理
+     * 更新统计信息
      */
-    function handleSearch(e) {
-        const searchTerm = e.target.value.trim();
-        currentFilter.search = searchTerm || undefined;
-        loadMessages(1, currentFilter);
+    function updateStatistics() {
+        const unreadCount = messages.filter(msg => {
+            const isRead = msg.user_message_state ? msg.user_message_state.is_read : msg.is_read;
+            return !isRead;
+        }).length;
+
+        // 更新统计卡片
+        const totalCountEl = document.getElementById('total-messages');
+        const unreadCountEl = document.getElementById('unread-messages');
+
+        if (totalCountEl) totalCountEl.textContent = totalCount;
+        if (unreadCountEl) unreadCountEl.textContent = unreadCount;
     }
 
     /**
-     * 筛选处理
+     * 搜索消息
      */
-    function handleFilter() {
-        currentFilter = {
-            ...currentFilter,
-            type: $('#message-type-filter').val() || undefined,
-            priority: $('#message-priority-filter').val() || undefined,
-            is_read: $('#message-status-filter').val() || undefined
-        };
-
-        // 移除空值
-        Object.keys(currentFilter).forEach(key => {
-            if (!currentFilter[key]) delete currentFilter[key];
-        });
-
-        loadMessages(1, currentFilter);
+    function performSearch() {
+        const searchInput = document.getElementById('search-input');
+        currentSearch = searchInput ? searchInput.value.trim() : '';
+        currentPage = 1;
+        loadMessages();
     }
 
     /**
-     * 分页处理
+     * 跳转到指定页面
      */
-    function handlePagination(e) {
-        e.preventDefault();
-        const page = parseInt(e.target.dataset.page);
-        if (page && page !== currentPage) {
-            loadMessages(page, currentFilter);
-        }
+    function goToPage(page) {
+        currentPage = page;
+        loadMessages();
+        // 滚动到顶部
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    /**
-     * 标记全部已读
+      /**
+     * 查看消息详情
      */
-    async function markAllAsRead() {
-        try {
-            const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages/read-all`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${window.Auth.getToken()}`
-                }
-            });
+    function viewMessage(messageId) {
+        const message = messages.find(m => m.id === messageId);
+        if (!message) return;
 
-            if (response.ok) {
-                window.App.showAlert('全部消息已标记为已读', 'success');
-                loadMessages(currentPage, currentFilter);
-                loadUnreadCount();
-            } else {
-                throw new Error('标记失败');
-            }
-        } catch (error) {
-            console.error('标记全部已读失败:', error);
-            window.App.showAlert('标记失败', 'error');
-        }
-    }
-
-    /**
-     * 刷新消息
-     */
-    function refreshMessages() {
-        loadMessages(currentPage, currentFilter);
-        loadUnreadCount();
-    }
-
-    /**
-     * 显示发送消息模态框
-     */
-    function showSendMessageModal() {
-        $('#send-message-modal').modal('show');
-    }
-
-    /**
-     * 处理发送消息
-     */
-    async function handleSendMessage(e) {
-        e.preventDefault();
-
-        const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData);
-
-        try {
-            const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages/personal`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${window.Auth.getToken()}`
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (response.ok) {
-                window.App.showAlert('消息发送成功', 'success');
-                $('#send-message-modal').modal('hide');
-                e.target.reset();
-                loadMessages(currentPage, currentFilter);
-            } else {
-                const error = await response.json();
-                throw new Error(error.message || '发送失败');
-            }
-        } catch (error) {
-            console.error('发送消息失败:', error);
-            window.App.showAlert(error.message || '发送失败', 'error');
-        }
-    }
-
-    /**
-     * 加载消息详情
-     */
-    async function loadMessageDetail(e) {
-        const button = e.relatedTarget;
-        const messageId = button.dataset.id;
-
-        try {
-            const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages/${messageId}`, {
-                headers: {
-                    'Authorization': `Bearer ${window.Auth.getToken()}`
-                }
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                renderMessageDetail(result.data.message);
-                $('#mark-read-btn, #mark-unread-btn, #delete-message-btn')
-                    .data('id', messageId);
-            } else {
-                throw new Error('加载消息详情失败');
-            }
-        } catch (error) {
-            console.error('加载消息详情失败:', error);
-            window.App.showAlert('加载消息详情失败', 'error');
-        }
-    }
-
-    /**
-     * 渲染消息详情
-     */
-    function renderMessageDetail(message) {
-        const typeInfo = messageTypes[message.type] || { text: '未知类型', class: 'badge-secondary' };
-        const priorityInfo = priorities[message.priority] || { text: '普通', class: 'text-primary' };
-        // 使用新的用户消息状态来判断是否已读
-        const isRead = message.user_message_state ? message.user_message_state.is_read : message.is_read;
-
-        $('#detail-title').text(message.title);
-        $('#detail-type').html(`<span class="badge ${typeInfo.class}">${typeInfo.text}</span>`);
-        $('#detail-priority').html(`<span class="${priorityInfo.class}">${priorityInfo.text}</span>`);
-        $('#detail-sender').text(message.sender ? message.sender.username : '系统');
-        $('#detail-time').text(formatDateTime(message.created_at));
-        $('#detail-read-status').text(isRead ? '已读' : '未读');
-
-        // 特殊处理账单消息
-        if (message.type === 'bill') {
-            renderBillMessageDetail(message);
-        } else {
-            // 普通消息内容
-            $('#detail-content').html(message.content.replace(/\n/g, '<br>'));
-        }
-
-        // 根据消息状态显示/隐藏按钮
-        $('#mark-read-btn').toggle(!isRead);
-        $('#mark-unread-btn').toggle(isRead);
-    }
-
-    /**
-     * 渲染账单消息详情
-     */
-    function renderBillMessageDetail(message) {
-        let contentHtml = '';
-
-        try {
-            // 解析账单元数据
-            const billMetadata = message.metadata ? JSON.parse(message.metadata) : {};
-
-            if (billMetadata.activityTitle) {
-                contentHtml += `<div class="mb-3">
-                    <strong>活动名称：</strong> ${billMetadata.activityTitle}
-                </div>`;
-            }
-
-            if (billMetadata.totalAmount) {
-                contentHtml += `<div class="mb-3">
-                    <strong>账单金额：</strong> <span class="text-success fw-bold">¥${billMetadata.totalAmount}</span>
-                </div>`;
-            }
-
-            if (billMetadata.participantCount) {
-                contentHtml += `<div class="mb-3">
-                    <strong>参与人数：</strong> ${billMetadata.participantCount} 人
-                </div>`;
-            }
-
-            if (billMetadata.billDetails && Array.isArray(billMetadata.billDetails)) {
-                contentHtml += `<div class="mb-3">
-                    <strong>分摊明细：</strong>
-                    <div class="mt-2 border rounded p-2 bg-light">
-                        <table class="table table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>参与者</th>
-                                    <th>系数</th>
-                                    <th>应付金额</th>
-                                </tr>
-                            </thead>
-                            <tbody>`;
-
-                billMetadata.billDetails.forEach(detail => {
-                    contentHtml += `<tr>
-                        <td>${detail.username || '未知用户'}</td>
-                        <td><span class="badge bg-secondary">${detail.ratio || 1}</span></td>
-                        <td class="text-primary fw-bold">¥${detail.amount || '0.00'}</td>
-                    </tr>`;
-                });
-
-                contentHtml += `</tbody>
-                        </table>
+        // 创建模态框显示消息详情
+        const modalHtml = `
+            <div class="modal fade" id="messageDetailModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${escapeHtml(message.title)}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <span class="badge bg-info me-2">${getTypeText(message.type)}</span>
+                                <span class="badge bg-warning me-2">${getPriorityText(message.priority)}</span>
+                                ${!message.is_read ? '<span class="badge bg-primary">未读</span>' : '<span class="badge bg-secondary">已读</span>'}
+                            </div>
+                            <div class="message-full-content">
+                                <pre style="white-space: pre-wrap; font-family: inherit; line-height: 1.6;">${escapeHtml(message.content)}</pre>
+                            </div>
+                            <div class="mt-3 text-muted small">
+                                <i class="far fa-clock"></i> ${formatDateTime(message.created_at)}
+                                ${message.sender ? `| 发送人: ${message.sender.username}` : ''}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                            ${!message.is_read ? '<button type="button" class="btn btn-primary" onclick="MessageManager.markAsReadAndClose(\'' + messageId + '\')">标记已读并关闭</button>' : ''}
+                        </div>
                     </div>
-                </div>`;
-            }
+                </div>
+            </div>
+        `;
 
-            // 添加原始消息内容
-            if (message.content) {
-                contentHtml += `<div class="mt-3 pt-3 border-top">
-                    <strong>消息内容：</strong><br>
-                    ${message.content.replace(/\n/g, '<br>')}
-                </div>`;
-            }
+        // 移除现有模态框
+        document.getElementById('messageDetailModal')?.remove();
 
-        } catch (error) {
-            console.error('解析账单消息失败:', error);
-            contentHtml = message.content.replace(/\n/g, '<br>');
+        // 添加新模态框
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // 显示模态框
+        const modal = document.getElementById('messageDetailModal');
+        if (window.bootstrap) {
+            const modalInstance = new window.bootstrap.Modal(modal);
+            modalInstance.show();
+        } else {
+            // 如果没有Bootstrap，简单显示
+            modal.style.display = 'block';
         }
-
-        $('#detail-content').html(contentHtml);
     }
 
     /**
      * 标记消息为已读
      */
-    async function markAsRead() {
-        const messageId = $('#mark-read-btn').data('id');
-
+    async function markAsRead(messageId) {
         try {
+            const token = window.Auth?.getToken();
+            if (!token) return;
+
             const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages/${messageId}/read`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${window.Auth.getToken()}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
 
             if (response.ok) {
-                window.App.showAlert('标记成功', 'success');
-                $('#message-detail-modal').modal('hide');
-                loadMessages(currentPage, currentFilter);
-                loadUnreadCount();
+                // 更新本地消息状态
+                const message = messages.find(m => m.id === messageId);
+                if (message) {
+                    message.is_read = true;
+                    if (message.user_message_state) {
+                        message.user_message_state.is_read = true;
+                    }
+                }
+
+                renderMessages();
+                updateStatistics();
+                Utils.toast.success('已标记为已读');
             } else {
-                throw new Error('标记失败');
+                Utils.toast.error('操作失败');
             }
         } catch (error) {
             console.error('标记已读失败:', error);
-            window.App.showAlert('标记失败', 'error');
+            Utils.toast.error('网络错误');
         }
     }
 
     /**
      * 标记消息为未读
      */
-    async function markAsUnread() {
-        const messageId = $('#mark-unread-btn').data('id');
-
+    async function markAsUnread(messageId) {
         try {
+            const token = window.Auth?.getToken();
+            if (!token) return;
+
             const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages/${messageId}/unread`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${window.Auth.getToken()}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
 
             if (response.ok) {
-                window.App.showAlert('标记成功', 'success');
-                $('#message-detail-modal').modal('hide');
-                loadMessages(currentPage, currentFilter);
-                loadUnreadCount();
+                // 更新本地消息状态
+                const message = messages.find(m => m.id === messageId);
+                if (message) {
+                    message.is_read = false;
+                    if (message.user_message_state) {
+                        message.user_message_state.is_read = false;
+                    }
+                }
+
+                renderMessages();
+                updateStatistics();
+                Utils.toast.success('已标记为未读');
             } else {
-                throw new Error('标记失败');
+                Utils.toast.error('操作失败');
             }
         } catch (error) {
             console.error('标记未读失败:', error);
-            window.App.showAlert('标记失败', 'error');
+            Utils.toast.error('网络错误');
         }
     }
 
     /**
      * 删除消息
      */
-    async function deleteMessage() {
-        const messageId = $('#delete-message-btn').data('id');
-
-        if (!confirm('确定要删除这条消息吗？')) {
+    async function deleteMessage(messageId) {
+        if (!confirm('确定要删除这条消息吗？此操作不可恢复。')) {
             return;
         }
 
         try {
+            const token = window.Auth?.getToken();
+            if (!token) return;
+
             const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages/${messageId}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${window.Auth.getToken()}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
 
             if (response.ok) {
-                window.App.showAlert('删除成功', 'success');
-                $('#message-detail-modal').modal('hide');
-                loadMessages(currentPage, currentFilter);
-                loadUnreadCount();
+                // 从本地列表中移除消息
+                messages = messages.filter(m => m.id !== messageId);
+                totalCount--;
+
+                renderMessages();
+                updatePagination();
+                updateStatistics();
+                Utils.toast.success('消息已删除');
             } else {
-                throw new Error('删除失败');
+                Utils.toast.error('删除失败');
             }
         } catch (error) {
             console.error('删除消息失败:', error);
-            window.App.showAlert('删除失败', 'error');
+            Utils.toast.error('网络错误');
         }
     }
 
     /**
-     * 开始自动刷新
+     * 标记已读并关闭模态框
      */
-    function startAutoRefresh() {
-        // 每5分钟刷新一次未读消息数量
-        refreshInterval = setInterval(() => {
-            loadUnreadCount();
-        }, 5 * 60 * 1000);
-    }
-
-    /**
-     * 停止自动刷新
-     */
-    function stopAutoRefresh() {
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
-            refreshInterval = null;
+    async function markAsReadAndClose(messageId) {
+        await markAsRead(messageId);
+        const modal = document.getElementById('messageDetailModal');
+        if (modal) {
+            modal.remove();
         }
     }
 
@@ -615,69 +511,92 @@ window.MessageManager = (function() {
      * 显示加载状态
      */
     function showLoading() {
-        $('#message-loading').removeClass('d-none');
-        $('#message-list').addClass('d-none');
+        const container = document.getElementById('message-list');
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-3 text-muted">正在加载消息...</p>
+                </div>
+            `;
+        }
     }
 
     /**
      * 隐藏加载状态
      */
     function hideLoading() {
-        $('#message-loading').addClass('d-none');
-        $('#message-list').removeClass('d-none');
+        // 由 renderMessages 处理
     }
 
+    
     /**
      * 格式化日期时间
      */
     function formatDateTime(dateString) {
         const date = new Date(dateString);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        if (diffMins < 1) {
-            return '刚刚';
-        } else if (diffMins < 60) {
-            return `${diffMins}分钟前`;
-        } else if (diffHours < 24) {
-            return `${diffHours}小时前`;
-        } else if (diffDays < 7) {
-            return `${diffDays}天前`;
-        } else {
-            return date.toLocaleDateString('zh-CN');
-        }
+        return date.toLocaleString('zh-CN');
     }
 
     /**
-     * 防抖函数
+     * 获取消息类型文本
      */
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
+    function getTypeText(type) {
+        const types = {
+            'system': '系统消息',
+            'personal': '个人消息',
+            'activity': '活动消息',
+            'team': '团队消息',
+            'announcement': '系统公告'
         };
+        return types[type] || '其他';
+    }
+
+    /**
+     * 获取优先级文本
+     */
+    function getPriorityText(priority) {
+        const priorities = {
+            'low': '低',
+            'normal': '普通',
+            'high': '高',
+            'urgent': '紧急'
+        };
+        return priorities[priority] || '普通';
+    }
+
+    /**
+     * 截断文本
+     */
+    function truncateText(text, maxLength) {
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
+    }
+
+    /**
+     * HTML转义
+     */
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     // 公共API
     return {
         init: init,
-        loadMessages: loadMessages,
-        refreshMessages: refreshMessages,
-        loadUnreadCount: loadUnreadCount,
-        stopAutoRefresh: stopAutoRefresh
+        goToPage: goToPage,
+        viewMessage: viewMessage,
+        markAsRead: markAsRead,
+        markAsReadAndClose: markAsReadAndClose,
+        refresh: loadMessages
     };
 })();
 
 // 页面加载完成后初始化
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
     if (window.location.pathname.includes('/messages')) {
         window.MessageManager.init();
     }

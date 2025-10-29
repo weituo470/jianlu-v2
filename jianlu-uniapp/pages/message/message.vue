@@ -15,32 +15,40 @@
 		
 		<!-- 消息分类 -->
 		<view class="message-tabs">
-			<view 
-				class="tab-item" 
+			<view
+				class="tab-item"
 				:class="{ active: activeTab === 'all' }"
 				@tap="switchTab('all')"
 			>
 				<text>全部</text>
 				<view class="badge" v-if="allCount > 0">{{ allCount }}</view>
 			</view>
-			<view 
-				class="tab-item" 
+			<view
+				class="tab-item"
+				:class="{ active: activeTab === 'bill' }"
+				@tap="switchTab('bill')"
+			>
+				<text>账单</text>
+				<view class="badge" v-if="billCount > 0">{{ billCount }}</view>
+			</view>
+			<view
+				class="tab-item"
 				:class="{ active: activeTab === 'team' }"
 				@tap="switchTab('team')"
 			>
 				<text>团队</text>
 				<view class="badge" v-if="teamCount > 0">{{ teamCount }}</view>
 			</view>
-			<view 
-				class="tab-item" 
+			<view
+				class="tab-item"
 				:class="{ active: activeTab === 'activity' }"
 				@tap="switchTab('activity')"
 			>
 				<text>活动</text>
 				<view class="badge" v-if="activityCount > 0">{{ activityCount }}</view>
 			</view>
-			<view 
-				class="tab-item" 
+			<view
+				class="tab-item"
 				:class="{ active: activeTab === 'system' }"
 				@tap="switchTab('system')"
 			>
@@ -75,8 +83,20 @@
 						<text class="message-time">{{ formatTime(message.created_at) }}</text>
 					</view>
 					<text class="message-preview">{{ message.content || message.preview }}</text>
-					<view class="message-meta" v-if="message.team_name">
-						<text class="team-tag">{{ message.team_name }}</text>
+					<view class="message-meta">
+						<!-- 账单信息 -->
+						<view class="bill-info" v-if="message.type === 'bill' && message.data">
+							<text class="amount">¥{{ message.data.amount || '0.00' }}</text>
+							<text class="payment-status" :class="getPaymentStatusClass(message.data.payment_status)">
+								{{ getPaymentStatusText(message.data.payment_status) }}
+							</text>
+						</view>
+						<!-- 团队信息 -->
+						<text class="team-tag" v-if="message.team_name">{{ message.team_name }}</text>
+						<!-- 活动信息 -->
+						<text class="activity-tag" v-if="message.data && message.data.activity_title">
+							{{ message.data.activity_title }}
+						</text>
 					</view>
 				</view>
 				
@@ -103,7 +123,9 @@
 
 <script>
 	import { formatDate, showSuccess, showError } from '../../utils/index.js'
-	
+	import notificationService from '../../utils/notification.js'
+	import billSyncService from '../../utils/billSync.js'
+
 	export default {
 		data() {
 			return {
@@ -116,37 +138,42 @@
 		computed: {
 			filteredMessages() {
 				let filtered = this.messages
-				
+
 				// 按类型筛选
 				if (this.activeTab !== 'all') {
 					filtered = filtered.filter(msg => msg.type === this.activeTab)
 				}
-				
+
 				// 按关键词搜索
 				if (this.searchKeyword) {
 					const keyword = this.searchKeyword.toLowerCase()
-					filtered = filtered.filter(msg => 
+					filtered = filtered.filter(msg =>
 						(msg.sender_name && msg.sender_name.toLowerCase().includes(keyword)) ||
 						(msg.title && msg.title.toLowerCase().includes(keyword)) ||
-						(msg.content && msg.content.toLowerCase().includes(keyword))
+						(msg.content && msg.content.toLowerCase().includes(keyword)) ||
+						(msg.data && msg.data.activity_title && msg.data.activity_title.toLowerCase().includes(keyword))
 					)
 				}
-				
+
 				return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 			},
-			
+
 			allCount() {
 				return this.messages.filter(msg => !msg.is_read).length
 			},
-			
+
+			billCount() {
+				return this.messages.filter(msg => msg.type === 'bill' && !msg.is_read).length
+			},
+
 			teamCount() {
 				return this.messages.filter(msg => msg.type === 'team' && !msg.is_read).length
 			},
-			
+
 			activityCount() {
 				return this.messages.filter(msg => msg.type === 'activity' && !msg.is_read).length
 			},
-			
+
 			systemCount() {
 				return this.messages.filter(msg => msg.type === 'system' && !msg.is_read).length
 			}
@@ -156,9 +183,19 @@
 		},
 		onShow() {
 			this.loadMessages()
+			// 检查是否有新账单
+			billSyncService.checkNewBills().then(hasNewBills => {
+				if (hasNewBills) {
+					showSuccess('有新的账单通知')
+					this.loadMessages()
+				}
+			})
 		},
 		onPullDownRefresh() {
-			this.loadMessages().finally(() => {
+			// 同步账单数据
+			billSyncService.forceSync().then(() => {
+				return this.loadMessages()
+			}).finally(() => {
 				uni.stopPullDownRefresh()
 			})
 		},
@@ -194,16 +231,63 @@
 			
 			// 查看消息详情
 			viewMessage(message) {
-				// 标记为已读
-				message.is_read = true
-				
-				// 显示消息详情
-				uni.showModal({
-					title: message.title || message.sender_name,
-					content: message.content,
-					showCancel: false,
-					confirmText: '知道了'
-				})
+				// 如果是账单消息，使用账单同步服务处理
+				if (message.type === 'bill') {
+					billSyncService.handleBillMessageClick(message)
+				} else {
+					// 标记为已读
+					message.is_read = true
+
+					// 显示普通消息详情
+					uni.showModal({
+						title: message.title || message.sender_name,
+						content: message.content,
+						showCancel: false,
+						confirmText: '知道了'
+					})
+				}
+			},
+
+			// 查看账单详情
+			viewBillDetails(billMessage) {
+				const content = billMessage.content
+				const amount = billMessage.data?.amount || '0.00'
+				const activityTitle = billMessage.data?.activity_title || ''
+				const paymentStatus = billMessage.data?.payment_status || 'unpaid'
+				const paymentDeadline = billMessage.data?.payment_deadline
+
+				let detailContent = content
+
+				if (paymentDeadline) {
+					const deadline = new Date(paymentDeadline).toLocaleDateString('zh-CN')
+					detailContent += `\n\n支付截止日期：${deadline}`
+				}
+
+				// 根据支付状态显示不同按钮
+				if (paymentStatus === 'unpaid' || paymentStatus === 'overdue') {
+					uni.showModal({
+						title: '账单详情',
+						content: detailContent,
+						confirmText: '查看详情',
+						cancelText: '关闭',
+						success: (res) => {
+							if (res.confirm) {
+								// 跳转到账单详情页面
+								uni.navigateTo({
+									url: `/pages/bill/bill-detail?id=${billMessage.data.bill_id || billMessage.id}`
+								})
+							}
+						}
+					})
+				} else {
+					// 已支付的账单
+					uni.showModal({
+						title: '账单详情',
+						content: detailContent,
+						showCancel: false,
+						confirmText: '知道了'
+					})
+				}
 			},
 			
 			// 格式化时间
@@ -228,6 +312,7 @@
 			// 获取消息图标
 			getMessageIcon(type) {
 				const icons = {
+					bill: '💰',
 					team: '👥',
 					activity: '📅',
 					system: '⚙️',
@@ -235,15 +320,38 @@
 				}
 				return icons[type] || icons.default
 			},
-			
+
 			// 获取消息类型文本
 			getMessageTypeText(type) {
 				const types = {
+					bill: '账单',
 					team: '团队',
 					activity: '活动',
 					system: '系统'
 				}
 				return types[type] || ''
+			},
+
+			// 获取支付状态文本
+			getPaymentStatusText(status) {
+				const statusMap = {
+					'unpaid': '未支付',
+					'paid': '已支付',
+					'overdue': '已逾期',
+					'cancelled': '已取消'
+				}
+				return statusMap[status] || '未知'
+			},
+
+			// 获取支付状态样式类
+			getPaymentStatusClass(status) {
+				const classMap = {
+					'unpaid': 'status-unpaid',
+					'paid': 'status-paid',
+					'overdue': 'status-overdue',
+					'cancelled': 'status-cancelled'
+				}
+				return classMap[status] || ''
 			}
 		}
 	}
@@ -393,10 +501,61 @@
 		align-items: center;
 	}
 	
+	.bill-info {
+		display: flex;
+		align-items: center;
+		gap: 12rpx;
+		margin-bottom: 8rpx;
+	}
+
+	.amount {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #ff3b30;
+	}
+
+	.payment-status {
+		font-size: 20rpx;
+		padding: 4rpx 12rpx;
+		border-radius: 12rpx;
+	}
+
+	.status-unpaid {
+		color: #ff9500;
+		background: rgba(255, 149, 0, 0.1);
+		border: 1rpx solid rgba(255, 149, 0, 0.3);
+	}
+
+	.status-paid {
+		color: #34c759;
+		background: rgba(52, 199, 89, 0.1);
+		border: 1rpx solid rgba(52, 199, 89, 0.3);
+	}
+
+	.status-overdue {
+		color: #ff3b30;
+		background: rgba(255, 59, 48, 0.1);
+		border: 1rpx solid rgba(255, 59, 48, 0.3);
+	}
+
+	.status-cancelled {
+		color: #8e8e93;
+		background: rgba(142, 142, 147, 0.1);
+		border: 1rpx solid rgba(142, 142, 147, 0.3);
+	}
+
 	.team-tag {
 		font-size: 20rpx;
 		color: #007aff;
 		background: rgba(0, 122, 255, 0.1);
+		padding: 4rpx 12rpx;
+		border-radius: 12rpx;
+	}
+
+	.activity-tag {
+		font-size: 20rpx;
+		color: #5856d6;
+		background: rgba(88, 86, 214, 0.1);
 		padding: 4rpx 12rpx;
 		border-radius: 12rpx;
 	}

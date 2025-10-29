@@ -207,7 +207,7 @@ window.addEventListener('unhandledrejection', function(e){
 });
 
 var scriptsLoaded = 0;
-var totalScripts = 11; // 更新为实际加载的脚本数量
+var totalScripts = 12; // 更新为实际加载的脚本数量
 var loadedScripts = new Set();
 
 function onScriptLoad(scriptName){
@@ -318,9 +318,7 @@ function showErrorPage(message){
                 await loadScript('/js/router.js');
                 await loadScript('/js/placeholder-generator.js');
                 await loadScript('/js/app.js');
-                // 暂时注释掉message-manager.js和message-notifier.js，避免jQuery依赖问题
-                // await loadScript('/js/message-manager.js');
-                // await loadScript('/js/message-notifier.js');
+                await loadScript('/js/message-manager.js');
                 await loadScript('/js/message-navbar.js');
             } catch (error) {
                 console.error('鑴氭湰鍔犺浇澶辫触:', error);

@@ -1583,16 +1583,24 @@ class ActivityDetailPage {
                                         <button class="btn btn-success btn-sm" onclick="activityDetailPage.saveAABill()">
                                             <i class="fas fa-save me-1"></i>保存账单
                                         </button>
-                                        <button class="btn btn-info btn-sm" onclick="activityDetailPage.pushAABill()" disabled>
+                                        <button class="btn btn-info btn-sm" onclick="activityDetailPage.pushAABill()">
                                             <i class="fas fa-paper-plane me-1"></i>推送账单
-                                            <small class="text-muted">(待实现)</small>
                                         </button>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- 账单信息显示区域 -->
-                            ${this.currentAABill ? this.renderAABillCard() : ''}
+                            <div id="bill-card-container">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center py-3">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                            <span class="visually-hidden">加载中...</span>
+                                        </div>
+                                        <span class="text-muted">正在加载账单数据...</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1601,7 +1609,43 @@ class ActivityDetailPage {
 
             // 绑定系数更新事件
             this.bindRatioUpdateEvents();
+
+            // 异步渲染账单卡片
+            this.renderBillCardAsync();
         }, 100); // 给DOM 100ms时间完成渲染
+    }
+
+    // 异步渲染账单卡片
+    async renderBillCardAsync() {
+        try {
+            const billContainer = document.getElementById('bill-card-container');
+            if (!billContainer) {
+                console.error('❌ 未找到账单容器 #bill-card-container');
+                return;
+            }
+
+            // 渲染账单卡片
+            const billCardHtml = await this.renderAABillCard();
+            billContainer.innerHTML = billCardHtml;
+
+            console.log('✅ 账单卡片异步渲染完成');
+        } catch (error) {
+            console.error('❌ 账单卡片异步渲染失败:', error);
+            const billContainer = document.getElementById('bill-card-container');
+            if (billContainer) {
+                billContainer.innerHTML = `
+                    <div class="card bg-danger text-white">
+                        <div class="card-body text-center py-3">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <p class="mb-2 small">账单加载失败</p>
+                            <button class="btn btn-light btn-sm" onclick="activityDetailPage.refreshBillData()">
+                                <i class="fas fa-sync me-1"></i>重新加载
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
     }
 
     // 绑定系数更新事件
@@ -1644,14 +1688,27 @@ class ActivityDetailPage {
         try {
             Utils.showLoading('正在保存账单...');
 
+            // 获取用户输入的分摊总金额
+            const totalCostInput = document.getElementById('aa-total-cost-input');
+            const inputTotalCost = totalCostInput ? parseFloat(totalCostInput.value) : this.aaCostsData.totalCost;
+
+            // 检查是否使用了自定义总金额
+            const useCustomTotalCost = this.aaCostsData.useCustomTotalCost ||
+                                      (inputTotalCost !== this.aaCostsData.expenseTotalCost);
+
             console.log('💾 发送AA账单保存请求:', {
                 activityId: this.activityId,
                 totalCost: this.aaCostsData.totalCost,
+                inputTotalCost: inputTotalCost,
+                useCustomTotalCost: useCustomTotalCost,
                 participantCount: this.aaCostsData.participantCount
             });
 
-            // 调用后端API保存账单
-            const response = await API.activities.saveAABill(this.activityId);
+            // 调用后端API保存账单，传递自定义总金额
+            const response = await API.activities.saveAABill(this.activityId, {
+                useCustomTotalCost: useCustomTotalCost,
+                customTotalCost: inputTotalCost
+            });
 
             if (response.success) {
                 Utils.hideLoading();
@@ -1720,76 +1777,222 @@ class ActivityDetailPage {
         }
     }
 
-    // 渲染紧凑的AA账单卡片（用于侧边栏显示）
-    renderAABillCard() {
-        if (!this.currentAABill) return '';
+    // 渲染紧凑的AA账单卡片（用于侧边栏显示）- 完全重写版本
+    async renderAABillCard() {
+        try {
+            // 总是先从后端获取最新的账单数据
+            const freshBillData = await this.fetchFreshBillData();
 
-        const bill = this.currentAABill;
-        const createdTime = new Date(bill.created_at).toLocaleString('zh-CN', {
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        return `
-            <div class="card border-success mt-3">
-                <div class="card-header bg-success text-white py-2">
-                    <h6 class="mb-0 d-flex justify-content-between align-items-center">
-                        <span>
-                            <i class="fas fa-file-invoice-dollar me-1"></i>AA分摊账单
-                        </span>
-                        <span class="badge bg-light text-success">已保存</span>
-                    </h6>
-                </div>
-                <div class="card-body p-3">
-                    <div class="small mb-3">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted">活动名称:</span>
-                            <strong>${this.activityData?.title || '未知活动'}</strong>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted">生成时间:</span>
-                            <span>${createdTime}</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted">记录人员:</span>
-                            <span>${bill.creator?.username || '管理员'}</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted">分摊总额:</span>
-                            <span class="fw-bold text-success">¥${bill.total_cost || '0.00'}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted">参与人数:</span>
-                            <span>${bill.participant_count || 0} 人</span>
+            if (!freshBillData) {
+                return `
+                    <div class="card bg-light mt-3">
+                        <div class="card-body text-center py-3">
+                            <i class="fas fa-receipt fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-2 small">暂无已保存的账单</p>
+                            <button class="btn btn-outline-primary btn-sm" onclick="activityDetailPage.refreshBillData()">
+                                <i class="fas fa-sync me-1"></i>刷新
+                            </button>
                         </div>
                     </div>
+                `;
+            }
 
-                    <div class="border-top pt-2">
-                        <div class="small text-muted mb-2">参与者分摊明细:</div>
-                        ${bill.bill_details?.map(detail => `
-                            <div class="d-flex justify-content-between align-items-center mb-1 small">
-                                <span>${detail.username || '未知用户'}</span>
-                                <div class="text-end">
-                                    <span class="badge bg-secondary me-1">${detail.cost_sharing_ratio || 1}</span>
-                                    <span class="fw-bold text-primary">¥${detail.amount || '0.00'}</span>
-                                </div>
+            const bill = freshBillData;
+            const createdTime = new Date(bill.created_at).toLocaleString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // 确定显示的金额 - 优先使用分摊总额，而不是记账总额
+            const displayTotal = bill.use_custom_total_cost ?
+                (bill.custom_total_cost || bill.total_cost) :
+                (bill.total_cost || '0.00');
+
+            console.log('🎯 渲染账单数据:', {
+                billId: bill.id,
+                displayTotal: displayTotal,
+                useCustomTotalCost: bill.use_custom_total_cost,
+                customTotalCost: bill.custom_total_cost,
+                totalCost: bill.total_cost,
+                expenseTotalCost: bill.expense_total_cost
+            });
+
+            return `
+                <div class="card border-success mt-3">
+                    <div class="card-header bg-success text-white py-2">
+                        <h6 class="mb-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-file-invoice-dollar me-1"></i>AA分摊账单
+                                ${bill.use_custom_total_cost ? '<span class="badge bg-warning text-dark ms-1" style="font-size: 0.6em;">自定义</span>' : ''}
                             </div>
-                        `).join('') || '<div class="text-center text-muted small">暂无参与者数据</div>'}
+                            <div>
+                                <span class="badge bg-light text-success me-1" style="font-size: 0.7em;">已保存</span>
+                                <button class="btn btn-outline-light btn-sm" onclick="activityDetailPage.refreshBillData()" style="padding: 2px 6px; font-size: 0.7em;" title="刷新账单数据">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                        </h6>
                     </div>
+                    <div class="card-body p-3">
+                        <div class="small mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">活动名称:</span>
+                                <strong>${this.activityData?.title || '未知活动'}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">生成时间:</span>
+                                <span>${createdTime}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">记录人员:</span>
+                                <span>${bill.creator?.username || '管理员'}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">分摊总额:</span>
+                                <span class="fw-bold text-success">¥${displayTotal}</span>
+                            </div>
+                            ${bill.expense_total_cost && bill.expense_total_cost !== displayTotal ? `
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">记账总额:</span>
+                                <span class="text-decoration-line-through text-muted" style="font-size: 0.9em;">¥${bill.expense_total_cost}</span>
+                            </div>
+                            ` : ''}
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">参与人数:</span>
+                                <span>${bill.participant_count || 0} 人</span>
+                            </div>
+                        </div>
 
-                    <div class="d-grid gap-1 mt-3">
-                        <button class="btn btn-outline-success btn-sm" onclick="activityDetailPage.printAABill()">
-                            <i class="fas fa-print me-1"></i>打印账单
-                        </button>
-                        <button class="btn btn-outline-primary btn-sm" onclick="activityDetailPage.exportAABill()">
-                            <i class="fas fa-download me-1"></i>导出账单
+                        <div class="border-top pt-2">
+                            <div class="small text-muted mb-2">参与者分摊明细:</div>
+                            ${bill.bill_details?.map(detail => `
+                                <div class="d-flex justify-content-between align-items-center mb-1 small">
+                                    <span>${detail.username || '未知用户'}</span>
+                                    <div class="text-end">
+                                        <span class="badge bg-secondary me-1" style="font-size: 0.7em;">${detail.cost_sharing_ratio || 1}</span>
+                                        <span class="fw-bold text-primary">¥${detail.amount || '0.00'}</span>
+                                    </div>
+                                </div>
+                            `).join('') || '<div class="text-center text-muted small">暂无参与者数据</div>'}
+                        </div>
+
+                        <div class="d-grid gap-1 mt-3">
+                            <button class="btn btn-outline-success btn-sm" onclick="activityDetailPage.printAABill()">
+                                <i class="fas fa-print me-1"></i>打印账单
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="activityDetailPage.exportAABill()">
+                                <i class="fas fa-download me-1"></i>导出账单
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('❌ 渲染账单卡片失败:', error);
+            return `
+                <div class="card bg-danger text-white mt-3">
+                    <div class="card-body text-center py-3">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <p class="mb-2 small">账单数据加载失败</p>
+                        <button class="btn btn-light btn-sm" onclick="activityDetailPage.refreshBillData()">
+                            <i class="fas fa-sync me-1"></i>重新加载
                         </button>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
+    }
+
+    // 从后端获取最新的账单数据
+    async fetchFreshBillData() {
+        try {
+            console.log('🔄 从后端获取最新账单数据，活动ID:', this.activityId);
+
+            // 调用后端API获取最新的账单列表
+            const response = await API.activities.getAABills(this.activityId);
+
+            if (response.success && response.data && response.data.length > 0) {
+                // 获取最新的账单（按创建时间排序）
+                const latestBill = response.data.sort((a, b) =>
+                    new Date(b.created_at) - new Date(a.created_at)
+                )[0];
+
+                console.log('✅ 获取到最新账单:', latestBill);
+
+                // 更新当前账单缓存
+                this.currentAABill = {
+                    ...latestBill,
+                    creator: {
+                        username: latestBill.creator?.username || '管理员',
+                        id: latestBill.creator?.id
+                    }
+                };
+
+                return this.currentAABill;
+            } else {
+                console.log('📝 后端没有找到账单数据');
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ 获取最新账单数据失败:', error);
+            // 如果后端失败，尝试使用localStorage作为备选
+            return this.loadLocalBillData();
+        }
+    }
+
+    // 从localStorage加载账单数据（备选方案）
+    loadLocalBillData() {
+        try {
+            console.log('💾 从localStorage加载账单数据（备选方案）');
+
+            const activityBills = Utils.storage.get(`aa_bills_activity_${this.activityId}`, []);
+
+            if (activityBills && activityBills.length > 0) {
+                const latestBill = activityBills.sort((a, b) =>
+                    new Date(b.saved_at) - new Date(a.saved_at)
+                )[0];
+
+                const billData = Utils.storage.get(latestBill.key);
+
+                if (billData) {
+                    console.log('✅ 从localStorage成功加载账单:', billData);
+                    this.currentAABill = billData;
+                    return this.currentAABill;
+                }
+            }
+
+            console.log('📝 localStorage中也没有找到账单数据');
+            return null;
+        } catch (error) {
+            console.error('❌ 从localStorage加载账单失败:', error);
+            return null;
+        }
+    }
+
+    // 刷新账单数据
+    async refreshBillData() {
+        try {
+            Utils.showLoading('正在刷新账单数据...');
+
+            // 重新获取最新数据
+            const freshData = await this.fetchFreshBillData();
+
+            Utils.hideLoading();
+
+            if (freshData) {
+                Utils.toast.success('账单数据已刷新');
+                // 重新渲染AA分摊页面
+                await this.renderAACostSharingTab();
+            } else {
+                Utils.toast.info('没有找到账单数据');
+            }
+        } catch (error) {
+            Utils.hideLoading();
+            console.error('❌ 刷新账单数据失败:', error);
+            Utils.toast.error('刷新失败: ' + error.message);
+        }
     }
 
     // 打印AA账单
@@ -1803,22 +2006,80 @@ class ActivityDetailPage {
         Utils.toast.info('导出功能开发中...');
     }
 
-    // 推送AA分摊账单（占位功能）
+    // 推送AA分摊账单
     async pushAABill() {
-        Utils.toast.warning('推送账单功能待实现，需要消息机制支持');
+        if (!this.aaCostsData || !this.aaCostsData.participants || this.aaCostsData.participants.length === 0) {
+            Utils.toast.error('没有可推送的AA分摊数据');
+            return;
+        }
 
-        // 占位：未来的推送逻辑
-        console.log('📤 推送AA账单（占位）:', {
-            activityId: this.activityId,
-            participants: this.aaCostsData?.participants?.length || 0,
-            totalCost: this.aaCostsData?.totalCost || 0
-        });
+        // 确认推送
+        const confirmed = confirm(
+            `确定要向 ${this.aaCostsData.participants.length} 位参与者推送账单通知吗？\n\n` +
+            `总金额：¥${this.aaCostsData.totalCost}\n` +
+            `参与者将收到各自的应付金额通知。`
+        );
 
-        // 未来实现：
-        // 1. 调用后端API生成账单通知
-        // 2. 为每个参与者发送账单消息
-        // 3. 消息包含：活动名称、个人应付金额、支付方式等
-        // 4. 记录推送状态和时间
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            Utils.showLoading('正在推送账单...');
+
+            console.log('📤 推送AA账单:', {
+                activityId: this.activityId,
+                participants: this.aaCostsData.participants.length,
+                totalCost: this.aaCostsData.totalCost
+            });
+
+            // 构建推送数据
+            const pushData = {
+                customMessage: `活动"${this.activityData.title}"的AA分摊账单已生成，请及时查看并完成支付。`,
+                forceRecalculate: false
+            };
+
+            // 调用后端API推送账单
+            const response = await API.bills.pushAABill(this.activityId, pushData);
+
+            if (response.success) {
+                Utils.hideLoading();
+
+                // 后端返回的数据结构是 results.successful_bills 和 results.errors
+                const successfulBills = response.data.results?.successful_bills || [];
+                const errorBills = response.data.results?.errors || [];
+                const successCount = successfulBills.length;
+                const errorCount = errorBills.length;
+
+                if (errorCount === 0) {
+                    Utils.toast.success(`账单推送成功！已向 ${successCount} 位参与者发送账单通知。`);
+                } else if (successCount > 0) {
+                    Utils.toast.warning(`推送完成！成功 ${successCount} 个，失败 ${errorCount} 个。`);
+                } else {
+                    Utils.toast.error('推送失败，请稍后重试。');
+                }
+
+                // 记录推送历史
+                console.log('📊 账单推送结果:', {
+                    activityId: this.activityId,
+                    successCount,
+                    errorCount,
+                    results: response.data.results
+                });
+
+            } else {
+                Utils.hideLoading();
+                Utils.toast.error('推送失败：' + (response.message || '未知错误'));
+            }
+
+        } catch (error) {
+            Utils.hideLoading();
+            console.error('❌ 推送AA账单失败:', error);
+
+            // 显示详细错误信息
+            const errorMessage = error.response?.data?.message || error.message || '网络连接失败';
+            Utils.toast.error('推送失败：' + errorMessage);
+        }
     }
 }
 

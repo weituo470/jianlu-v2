@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <rect width="120" height="120" fill="#3f37c9" rx="8"/>
+  <circle cx="60" cy="45" r="18" fill="white" opacity="0.9"/>
+  <circle cx="35" cy="75" r="12" fill="white" opacity="0.8"/>
+  <circle cx="60" cy="75" r="12" fill="white" opacity="0.8"/>
+  <circle cx="85" cy="75" r="12" fill="white" opacity="0.8"/>
+  <text x="60" y="105" font-family="Arial, sans-serif" font-size="16" fill="white" text-anchor="middle">团队</text>
+</svg>

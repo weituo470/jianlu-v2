@@ -325,7 +325,7 @@ window.MessageNotifier = (function() {
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <h6 class="mb-1">${message.title}</h6>
-                        <p class="mb-1 text-muted small">${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}</p>
+                        <p class="mb-1 text-muted small message-content-preview" style="max-height: 60px; overflow-y: auto; white-space: pre-wrap;">${escapeHtml(message.content)}</p>
                         <small class="text-muted">
                             <i class="far fa-clock"></i> ${formatTime(message.created_at)}
                             ${message.sender ? `| ${message.sender.username}` : ''}
@@ -383,6 +383,15 @@ window.MessageNotifier = (function() {
             'announcement': '系统公告'
         };
         return types[type] || '其他';
+    }
+
+    /**
+     * HTML转义函数
+     */
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     /**
