@@ -4,6 +4,34 @@ const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 const { success, error, notFound, forbidden } = require('../utils/response');
 
+// 独立的权限检查函数
+async function checkMessagePermission(message, userId) {
+    try {
+        // 如果是全局消息，所有用户都能看到
+        if (message.is_global) {
+            return true;
+        }
+
+        // 如果直接发送给该用户
+        if (message.recipient_id === userId) {
+            return true;
+        }
+
+        // 如果按角色发送，检查用户角色
+        if (message.recipient_role) {
+            const user = await User.findByPk(userId);
+            return user && user.role === message.recipient_role;
+        }
+
+        // 其他情况需要特殊权限
+        const user = await User.findByPk(userId);
+        return user && ['super_admin', 'admin'].includes(user.role);
+    } catch (error) {
+        logger.error('检查消息权限失败:', error);
+        return false;
+    }
+}
+
 class MessageControllerV2 {
     // 初始化用户消息状态（当新消息产生时自动创建状态）
     async initializeUserMessageStates(messageId, recipientUsers = []) {
@@ -88,7 +116,7 @@ class MessageControllerV2 {
             }
 
             // 检查用户是否有权限查看此消息
-            const hasPermission = await this.checkMessagePermission(message, userId);
+            const hasPermission = await checkMessagePermission(message, userId);
             if (!hasPermission) {
                 return forbidden(res, '无权限查看此消息');
             }
@@ -191,7 +219,7 @@ class MessageControllerV2 {
                 return notFound(res, '消息不存在');
             }
 
-            const hasPermission = await this.checkMessagePermission(message, userId);
+            const hasPermission = await checkMessagePermission(message, userId);
             if (!hasPermission) {
                 return forbidden(res, '无权限操作此消息');
             }
@@ -307,34 +335,7 @@ class MessageControllerV2 {
         }
     }
 
-    // 检查用户是否有权限查看消息
-    async checkMessagePermission(message, userId) {
-        try {
-            // 如果是全局消息，所有用户都能看到
-            if (message.is_global) {
-                return true;
-            }
-
-            // 如果直接发送给该用户
-            if (message.recipient_id === userId) {
-                return true;
-            }
-
-            // 如果按角色发送，检查用户角色
-            if (message.recipient_role) {
-                const user = await User.findByPk(userId);
-                return user && user.role === message.recipient_role;
-            }
-
-            // 其他情况需要特殊权限
-            const user = await User.findByPk(userId);
-            return user && ['super_admin', 'admin'].includes(user.role);
-        } catch (error) {
-            logger.error('检查消息权限失败:', error);
-            return false;
-        }
-    }
-
+  
     // 批量操作
     async batchOperation(req, res) {
         try {
