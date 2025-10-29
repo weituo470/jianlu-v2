@@ -510,36 +510,76 @@ window.MessageManager = (function() {
      * 删除消息
      */
     async function deleteMessage(messageId) {
+        console.log('🗑️ MessageManager Debug - 开始删除消息');
+        console.log('  📄 消息ID:', messageId);
+        console.log('  🔗 API Base URL:', window.AppConfig?.API_BASE_URL);
+
         if (!confirm('确定要删除这条消息吗？此操作不可恢复。')) {
+            console.log('  ❌ 用户取消删除');
             return;
         }
 
         try {
             const token = window.Auth?.getToken();
-            if (!token) return;
+            console.log('  🔑 Token存在:', !!token);
+            console.log('  🔑 Token长度:', token ? token.length : 0);
+            if (!token) {
+                console.error('  ❌ 未找到认证token');
+                Utils.toast.error('认证失败，请重新登录');
+                return;
+            }
 
-            const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages/${messageId}`, {
+            const deleteUrl = `${window.AppConfig.API_BASE_URL}/messages/${messageId}`;
+            console.log('  🌐 删除URL:', deleteUrl);
+
+            const response = await fetch(deleteUrl, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
             });
 
+            console.log('  📡 响应状态:', response.status, response.statusText);
+            console.log('  📡 响应OK:', response.ok);
+
             if (response.ok) {
+                const result = await response.json();
+                console.log('  ✅ 删除成功响应:', result);
+
                 // 从本地列表中移除消息
+                const beforeCount = messages.length;
                 messages = messages.filter(m => m.id !== messageId);
                 totalCount--;
+
+                console.log(`  📊 消息数量变化: ${beforeCount} -> ${messages.length}`);
+                console.log('  📊 总数更新:', totalCount);
 
                 renderMessages();
                 updatePagination();
                 updateStatistics();
                 Utils.toast.success('消息已删除');
             } else {
-                Utils.toast.error('删除失败');
+                const errorText = await response.text();
+                console.error('  ❌ 删除失败响应:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: errorText
+                });
+
+                // 尝试解析JSON错误信息
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    console.error('  ❌ 服务器错误详情:', errorJson);
+                    Utils.toast.error(`删除失败: ${errorJson.message || errorText}`);
+                } catch (e) {
+                    Utils.toast.error(`删除失败: ${response.status} ${response.statusText}`);
+                }
             }
         } catch (error) {
-            console.error('删除消息失败:', error);
-            Utils.toast.error('网络错误');
+            console.error('  ❌ 删除消息异常:', error);
+            console.error('  ❌ 错误堆栈:', error.stack);
+            Utils.toast.error('删除失败: 网络错误');
         }
     }
 

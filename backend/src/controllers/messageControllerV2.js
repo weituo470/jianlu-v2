@@ -6,28 +6,58 @@ const { success, error, notFound, forbidden } = require('../utils/response');
 
 // 独立的权限检查函数
 async function checkMessagePermission(message, userId) {
+    logger.info('🔐 Permission Check Debug - 开始权限检查');
+
     try {
+        logger.info('  📋 检查参数:', {
+            messageId: message.id,
+            userId: userId,
+            is_global: message.is_global,
+            recipient_id: message.recipient_id,
+            recipient_role: message.recipient_role
+        });
+
         // 如果是全局消息，所有用户都能看到
         if (message.is_global) {
+            logger.info('  ✅ 全局消息，允许访问');
             return true;
         }
 
         // 如果直接发送给该用户
         if (message.recipient_id === userId) {
+            logger.info('  ✅ 直接发送给该用户，允许访问');
             return true;
         }
 
         // 如果按角色发送，检查用户角色
         if (message.recipient_role) {
+            logger.info('  👥 检查角色权限:', message.recipient_role);
             const user = await User.findByPk(userId);
-            return user && user.role === message.recipient_role;
+            const hasRolePermission = user && user.role === message.recipient_role;
+            logger.info('  📊 角色检查结果:', {
+                userRole: user?.role,
+                requiredRole: message.recipient_role,
+                hasPermission: hasRolePermission
+            });
+            return hasRolePermission;
         }
 
         // 其他情况需要特殊权限
+        logger.info('  🛡️ 检查管理员权限');
         const user = await User.findByPk(userId);
-        return user && ['super_admin', 'admin'].includes(user.role);
+        const hasAdminPermission = user && ['super_admin', 'admin'].includes(user.role);
+        logger.info('  📊 管理员权限检查结果:', {
+            userRole: user?.role,
+            hasPermission: hasAdminPermission
+        });
+        return hasAdminPermission;
     } catch (error) {
-        logger.error('检查消息权限失败:', error);
+        logger.error('  ❌ 权限检查异常:', {
+            error: error.message,
+            stack: error.stack,
+            messageId: message.id,
+            userId: userId
+        });
         return false;
     }
 }
@@ -210,30 +240,71 @@ class MessageControllerV2 {
 
     // 删除消息（软删除）
     async deleteMessage(req, res) {
+        logger.info('🗑️ MessageController Debug - 开始处理删除请求');
+
         try {
             const { id } = req.params;
             const userId = req.user.id;
 
+            logger.info('  📄 请求参数:', {
+                messageId: id,
+                userId: userId,
+                userAgent: req.get('User-Agent'),
+                ip: req.ip
+            });
+
             const message = await Message.findByPk(id);
             if (!message) {
+                logger.warn('  ❌ 消息不存在:', id);
                 return notFound(res, '消息不存在');
             }
 
+            logger.info('  📋 找到消息:', {
+                id: message.id,
+                title: message.title,
+                type: message.type,
+                sender_id: message.sender_id,
+                recipient_id: message.recipient_id,
+                recipient_role: message.recipient_role,
+                is_global: message.is_global
+            });
+
             const hasPermission = await checkMessagePermission(message, userId);
+            logger.info('  🔐 权限检查结果:', hasPermission);
+
             if (!hasPermission) {
+                logger.warn('  ❌ 权限不足:', { userId, messageId: id });
                 return forbidden(res, '无权限操作此消息');
             }
 
+            logger.info('  🔄 开始创建/更新消息状态...');
             const messageState = await UserMessageState.getOrCreateState(userId, id);
-            await messageState.markAsDeleted();
+            logger.info('  📊 消息状态创建/获取完成:', {
+                id: messageState.id,
+                is_read: messageState.is_read,
+                is_deleted: messageState.is_deleted,
+                is_hidden: messageState.is_hidden
+            });
 
+            await messageState.markAsDeleted();
+            logger.info('  ✅ 消息标记为已删除:', {
+                deleted_at: messageState.deleted_at,
+                is_deleted: messageState.is_deleted
+            });
+
+            logger.info('  🎉 删除操作完成');
             return success(res, {
                 message: '消息已删除',
                 is_deleted: true,
                 deleted_at: messageState.deleted_at
             });
         } catch (err) {
-            logger.error('删除消息失败:', err);
+            logger.error('  ❌ 删除消息异常:', {
+                error: err.message,
+                stack: err.stack,
+                params: req.params,
+                user: req.user?.id
+            });
             return error(res, '删除消息失败');
         }
     }
