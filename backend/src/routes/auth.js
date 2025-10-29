@@ -301,7 +301,8 @@ function getUserPermissions(role) {
       'dashboard:read',
       'user:read',
       'team:read', 'team:create', 'team:update',
-      'activity:read', 'activity:create', 'activity:update'
+      'activity:read', 'activity:create', 'activity:update',
+      'message:read', 'message:send'
     ],
     // 管理员（兼容旧配置）
     admin: [
@@ -314,7 +315,8 @@ function getUserPermissions(role) {
     ],
     // 普通用户：可以访问仪表板和管理自己的信息
     user: [
-      'dashboard:read', 'profile:read', 'profile:update'
+      'dashboard:read', 'profile:read', 'profile:update',
+      'message:read', 'message:send'
     ]
   };
 

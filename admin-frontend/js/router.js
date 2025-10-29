@@ -94,20 +94,17 @@ window.Router = {
         '/messages': {
             title: '消息管理',
             component: 'MessagesPage',
-            requireAuth: true,
-            permissions: ['message:read']
+            requireAuth: true
         },
         '/messages/inbox': {
             title: '收件箱',
             component: 'MessagesInboxPage',
-            requireAuth: true,
-            permissions: ['message:read']
+            requireAuth: true
         },
         '/messages/sent': {
             title: '已发送',
             component: 'MessagesSentPage',
-            requireAuth: true,
-            permissions: ['message:read']
+            requireAuth: true
         },
         '/settings': {
             title: '系统设置',
