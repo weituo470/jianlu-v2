@@ -23,6 +23,8 @@ window.MessageManager = (function() {
         pageType = type;
         currentPage = 1; // 重置页码
         console.log(`🎨 初始化消息管理页面 (${type})...`);
+        console.log('🔍 MessageManager Debug - init called with type:', type);
+        console.log('🔍 MessageManager Debug - pageType set to:', pageType);
         bindEvents();
         loadMessages();
     }
@@ -88,6 +90,7 @@ window.MessageManager = (function() {
 
         try {
             const token = window.Auth?.getToken();
+            console.log('🔍 MessageManager Debug - Token exists:', !!token);
             if (!token) {
                 Utils.toast.error('请先登录');
                 return;
@@ -99,19 +102,26 @@ window.MessageManager = (function() {
                 limit: pageSize
             });
 
+            console.log('🔍 MessageManager Debug - Initial params:', params.toString());
+
             if (currentSearch) {
                 params.append('search', currentSearch);
+                console.log('🔍 MessageManager Debug - Added search:', currentSearch);
             }
 
             // 根据页面类型设置参数
+            console.log('🔍 MessageManager Debug - pageType in loadMessages:', pageType);
             if (pageType === 'inbox' || pageType === 'messages') {
                 params.append('filter', 'received');
+                console.log('🔍 MessageManager Debug - Using received filter for type:', pageType);
             } else if (pageType === 'sent') {
                 params.append('filter', 'sent');
+                console.log('🔍 MessageManager Debug - Using sent filter for type:', pageType);
             } else {
                 // 主页面使用过滤器
                 if (currentFilter !== 'all') {
                     params.append('filter', currentFilter);
+                    console.log('🔍 MessageManager Debug - Using currentFilter:', currentFilter);
                 }
             }
 
@@ -123,7 +133,10 @@ window.MessageManager = (function() {
                 params.append('priority', currentPriority);
             }
 
-            const response = await fetch(`${window.AppConfig.API_BASE_URL}/messages?${params}`, {
+            const url = `${window.AppConfig.API_BASE_URL}/messages?${params}`;
+            console.log('🔍 MessageManager Debug - Fetching URL:', url);
+
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -131,13 +144,24 @@ window.MessageManager = (function() {
 
             if (response.ok) {
                 const result = await response.json();
+                console.log('🔍 MessageManager Debug - API Response OK');
+                console.log('🔍 MessageManager Debug - Result:', result);
+                console.log('🔍 MessageManager Debug - Messages from API:', result.data?.messages);
+                console.log('🔍 MessageManager Debug - Messages count:', result.data?.messages?.length);
+
                 messages = result.data.messages || [];
                 totalCount = result.data.pagination?.total_count || 0;
 
+                console.log('🔍 MessageManager Debug - After assignment - messages:', messages);
+                console.log('🔍 MessageManager Debug - After assignment - messages.length:', messages.length);
+
+                console.log('🔍 MessageManager Debug - About to call renderMessages');
                 renderMessages();
+                console.log('🔍 MessageManager Debug - renderMessages called');
                 updatePagination();
                 updateStatistics();
             } else {
+                console.error('🔍 MessageManager Debug - API Response failed:', response.status, response.statusText);
                 Utils.toast.error('加载消息失败');
             }
         } catch (error) {
@@ -153,10 +177,21 @@ window.MessageManager = (function() {
      * 渲染消息列表
      */
     function renderMessages() {
-        const container = document.getElementById('message-list');
-        if (!container) return;
+        const container = document.getElementById('messages-list');
+        console.log('🔍 MessageManager Debug - renderMessages called');
+        console.log('🔍 MessageManager Debug - container exists:', !!container);
+        console.log('🔍 MessageManager Debug - container:', container);
+        console.log('🔍 MessageManager Debug - container.innerHTML:', container ? container.innerHTML.substring(0, 200) : 'N/A');
+        console.log('🔍 MessageManager Debug - messages.length:', messages.length);
+        console.log('🔍 MessageManager Debug - messages content:', messages);
+
+        if (!container) {
+            console.error('🔍 MessageManager Debug - ERROR: messages-list container not found!');
+            return;
+        }
 
         if (messages.length === 0) {
+            console.log('🔍 MessageManager Debug - Showing empty state');
             container.innerHTML = `
                 <div class="text-center py-5">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
