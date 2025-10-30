@@ -79,7 +79,7 @@
 				
 				<view class="message-content">
 					<view class="message-header">
-						<text class="sender-name">{{ message.sender_name || message.title }}</text>
+						<text class="sender-name">{{ (message.sender && message.sender.username) || message.title }}</text>
 						<text class="message-time">{{ formatTime(message.created_at) }}</text>
 					</view>
 					<text class="message-preview">{{ message.content || message.preview }}</text>
@@ -101,7 +101,7 @@
 				</view>
 				
 				<view class="message-status">
-					<view class="unread-dot" v-if="!message.is_read"></view>
+					<view class="unread-dot" v-if="!isMessageRead(message)"></view>
 					<text class="message-type">{{ getMessageTypeText(message.type) }}</text>
 				</view>
 			</view>
@@ -125,6 +125,7 @@
 	import { formatDate, showSuccess, showError } from '../../utils/index.js'
 	import notificationService from '../../utils/notification.js'
 	import billSyncService from '../../utils/billSync.js'
+	import { messageApi } from '../../api/index.js'
 
 	export default {
 		data() {
@@ -148,7 +149,7 @@
 				if (this.searchKeyword) {
 					const keyword = this.searchKeyword.toLowerCase()
 					filtered = filtered.filter(msg =>
-						(msg.sender_name && msg.sender_name.toLowerCase().includes(keyword)) ||
+						(msg.sender && msg.sender.username && msg.sender.username.toLowerCase().includes(keyword)) ||
 						(msg.title && msg.title.toLowerCase().includes(keyword)) ||
 						(msg.content && msg.content.toLowerCase().includes(keyword)) ||
 						(msg.data && msg.data.activity_title && msg.data.activity_title.toLowerCase().includes(keyword))
@@ -159,23 +160,23 @@
 			},
 
 			allCount() {
-				return this.messages.filter(msg => !msg.is_read).length
+				return this.messages.filter(msg => !this.isMessageRead(msg)).length
 			},
 
 			billCount() {
-				return this.messages.filter(msg => msg.type === 'bill' && !msg.is_read).length
+				return this.messages.filter(msg => msg.type === 'bill' && !this.isMessageRead(msg)).length
 			},
 
 			teamCount() {
-				return this.messages.filter(msg => msg.type === 'team' && !msg.is_read).length
+				return this.messages.filter(msg => msg.type === 'team' && !this.isMessageRead(msg)).length
 			},
 
 			activityCount() {
-				return this.messages.filter(msg => msg.type === 'activity' && !msg.is_read).length
+				return this.messages.filter(msg => msg.type === 'activity' && !this.isMessageRead(msg)).length
 			},
 
 			systemCount() {
-				return this.messages.filter(msg => msg.type === 'system' && !msg.is_read).length
+				return this.messages.filter(msg => msg.type === 'system' && !this.isMessageRead(msg)).length
 			}
 		},
 		onLoad() {
@@ -200,20 +201,47 @@
 			})
 		},
 		methods: {
+			// 检查消息是否已读
+			isMessageRead(message) {
+				// 优先使用 user_message_state 的状态
+				if (message.user_message_state && message.user_message_state.is_read !== undefined) {
+					return message.user_message_state.is_read
+				}
+				// 回退到消息表的 is_read 字段
+				return message.is_read === true
+			},
+
 			// 加载消息列表
 			async loadMessages() {
 				this.loading = true
 				try {
-					// TODO: 调用真实API
-					// const response = await messageApi.getList()
-					// if (response.success) {
-					//     this.messages = response.data
-					// }
-					
-					// 模拟加载延迟
-					await new Promise(resolve => setTimeout(resolve, 500))
+					console.log('🔄 小程序开始加载消息...')
+					const response = await messageApi.getList()
+					console.log('📋 消息API响应:', response)
+
+					if (response && response.success && response.data) {
+						this.messages = response.data.messages || []
+						console.log('✅ 消息加载成功，数量:', this.messages.length)
+
+						// 打印消息详情用于调试
+						this.messages.forEach((msg, index) => {
+							console.log(`  消息 ${index + 1}:`, {
+								id: msg.id,
+								title: msg.title,
+								type: msg.type,
+								is_read: msg.is_read,
+								user_message_state: msg.user_message_state,
+								sender: msg.sender?.username
+							})
+						})
+					} else {
+						console.warn('⚠️ 消息API响应格式异常:', response)
+						this.messages = []
+					}
 				} catch (error) {
-					showError('加载消息失败')
+					console.error('❌ 加载消息失败:', error)
+					showError('加载消息失败: ' + (error.message || '网络错误'))
+					this.messages = []
 				} finally {
 					this.loading = false
 				}
@@ -230,18 +258,38 @@
 			},
 			
 			// 查看消息详情
-			viewMessage(message) {
+			async viewMessage(message) {
+				console.log('📱 查看消息:', message.title)
+
 				// 如果是账单消息，使用账单同步服务处理
 				if (message.type === 'bill') {
 					billSyncService.handleBillMessageClick(message)
 				} else {
-					// 标记为已读
-					message.is_read = true
+					// 如果消息未读，调用API标记为已读
+					if (!this.isMessageRead(message)) {
+						try {
+							console.log('🔄 标记消息为已读:', message.id)
+							await messageApi.markAsRead(message.id)
+
+							// 更新本地状态
+							if (message.user_message_state) {
+								message.user_message_state.is_read = true
+							} else {
+								message.is_read = true
+							}
+
+							console.log('✅ 消息标记已读成功')
+							showSuccess('消息已标记为已读')
+						} catch (error) {
+							console.error('❌ 标记已读失败:', error)
+							showError('标记已读失败: ' + (error.message || '网络错误'))
+						}
+					}
 
 					// 显示普通消息详情
 					uni.showModal({
-						title: message.title || message.sender_name,
-						content: message.content,
+						title: message.title || (message.sender ? message.sender.username : '消息'),
+						content: message.content || '无内容',
 						showCancel: false,
 						confirmText: '知道了'
 					})

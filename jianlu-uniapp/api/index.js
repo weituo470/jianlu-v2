@@ -146,11 +146,41 @@ export const activityApi = {
 export const userApi = {
 	// 获取用户信息
 	getProfile: () => get('/user/profile'),
-	
+
 	// 更新用户信息
 	updateProfile: (data) => put('/user/profile', data),
-	
+
 	// 搜索用户
 	search: (query) => get(`/user/search?q=${encodeURIComponent(query)}`),
-	
+
 	}
+
+// 消息相关API
+export const messageApi = {
+	// 获取消息列表
+	getList: (params = {}) => {
+		// 默认获取接收的消息
+		const defaultParams = {
+			filter: 'received',
+			page: 1,
+			limit: 20,
+			...params
+		}
+		return get('/messages', defaultParams)
+	},
+
+	// 获取未读消息数量
+	getUnreadCount: () => get('/messages/unread-count'),
+
+	// 标记消息为已读
+	markAsRead: (messageId) => put(`/messages/${messageId}/read`),
+
+	// 标记消息为未读
+	markAsUnread: (messageId) => put(`/messages/${messageId}/unread`),
+
+	// 删除消息
+	delete: (messageId) => del(`/messages/${messageId}`),
+
+	// 全部标记已读
+	markAllAsRead: () => put('/messages/read-all')
+}
