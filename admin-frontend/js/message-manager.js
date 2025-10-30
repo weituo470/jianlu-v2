@@ -25,6 +25,7 @@ window.MessageManager = (function() {
         console.log(`🎨 初始化消息管理页面 (${type})...`);
         console.log('🔍 MessageManager Debug - init called with type:', type);
         console.log('🔍 MessageManager Debug - pageType set to:', pageType);
+        console.log('🔧 MessageManager Debug - 代码版本检查: 语法错误修复版本 v4.1 (修复模板字符串语法)');
         bindEvents();
         loadMessages();
     }
@@ -62,19 +63,37 @@ window.MessageManager = (function() {
             loadMessages();
         });
 
-        // 消息操作按钮
+        // 消息操作按钮 - 使用更精确的事件委托
         document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('mark-read-btn')) {
-                const messageId = e.target.dataset.messageId;
+            // 处理标记已读按钮
+            const markReadBtn = e.target.closest('.mark-read-btn');
+            if (markReadBtn) {
+                const messageId = markReadBtn.dataset.messageId;
                 markAsRead(messageId);
-            } else if (e.target.classList.contains('mark-unread-btn')) {
-                const messageId = e.target.dataset.messageId;
+                return;
+            }
+
+            // 处理标记未读按钮
+            const markUnreadBtn = e.target.closest('.mark-unread-btn');
+            if (markUnreadBtn) {
+                const messageId = markUnreadBtn.dataset.messageId;
                 markAsUnread(messageId);
-            } else if (e.target.classList.contains('delete-message-btn')) {
-                const messageId = e.target.dataset.messageId;
+                return;
+            }
+
+            // 处理删除按钮 - 支持点击按钮或图标
+            const deleteBtn = e.target.closest('.delete-message-btn');
+            if (deleteBtn) {
+                const messageId = deleteBtn.dataset.messageId;
+                console.log('🗑️ 删除按钮被点击 - 消息ID:', messageId, '来源元素:', e.target.tagName, e.target.className);
                 deleteMessage(messageId);
-            } else if (e.target.classList.contains('refresh-messages-btn')) {
+                return;
+            }
+
+            // 处理刷新按钮
+            if (e.target.classList.contains('refresh-messages-btn')) {
                 loadMessages();
+                return;
             }
         });
     }
@@ -147,6 +166,13 @@ window.MessageManager = (function() {
                 console.log('🔍 MessageManager Debug - API Response OK');
                 console.log('🔍 MessageManager Debug - Result:', result);
                 console.log('🔍 MessageManager Debug - Messages from API:', result.data?.messages);
+            console.log('🔍 MessageManager Debug - Message ID types:', result.data?.messages?.map(m => ({
+                id: m.id,
+                idType: typeof m.id,
+                globalId: m.global_message_id,
+                globalIdType: typeof m.global_message_id,
+                title: m.title?.substring(0, 30) + '...'
+            })));
                 console.log('🔍 MessageManager Debug - Messages count:', result.data?.messages?.length);
                 console.log('🔍 MessageManager Debug - Statistics from API:', result.data?.statistics);
 
@@ -222,21 +248,54 @@ window.MessageManager = (function() {
         }
 
         const messagesHtml = messages.map(message => {
-            const isRead = message.user_message_state ? message.user_message_state.is_read : message.is_read;
+            try {
+            // 强化状态判断逻辑 - 添加类型检查和强制转换
+            let isRead;
+
+            // 获取原始值
+            const userStateValue = message.user_message_state?.is_read;
+            const messageValue = message.is_read;
+
+            // 强制转换为布尔值并处理类型问题
+            if (message.user_message_state && userStateValue !== undefined && userStateValue !== null) {
+                // 使用user_message_state的值，但强制转换为正确的布尔值
+                isRead = Boolean(userStateValue === true || userStateValue === 'true' || userStateValue === 1);
+            } else {
+                // 回退到message表的值
+                isRead = Boolean(messageValue === true || messageValue === 'true' || messageValue === 1);
+            }
+
             const unreadClass = isRead ? '' : 'unread';
             const statusBadge = isRead ?
                 '<span class="badge bg-secondary">已读</span>' :
                 '<span class="badge bg-primary">未读</span>';
 
-            console.log('🎨 MessageManager Debug - 渲染消息状态:', {
+            console.log('🎨 MessageManager Debug - 渲染消息状态 (强化版):', {
                 id: message.id,
                 globalId: message.global_message_id,
-                isRead: isRead,
+                title: message.title,
+                raw_user_state: userStateValue,
+                raw_message_value: messageValue,
+                user_state_type: typeof userStateValue,
+                message_value_type: typeof messageValue,
+                final_isRead: isRead,
                 unreadClass: unreadClass,
-                statusBadge: isRead ? '已读' : '未读',
-                user_message_state: message.user_message_state
+                statusBadge: statusBadge.replace(/<[^>]*>/g, ''), // 移除HTML标签用于日志
+                expected_display: isRead ? '已读' : '未读',
+                user_message_state: message.user_message_state,
+                message_is_read: message.is_read,
+                message_read_at: message.read_at,
+                user_state_is_read: message.user_message_state?.is_read,
+                user_state_read_at: message.user_message_state?.read_at,
+                logic_check: {
+                    userStateExists: !!message.user_message_state,
+                    userStateDefined: userStateValue !== undefined && userStateValue !== null,
+                    usingUserState: message.user_message_state && userStateValue !== undefined && userStateValue !== null,
+                    booleanConversion: Boolean(userStateValue)
+                }
             });
 
+  
             return `
                 <div class="message-item ${unreadClass}" data-id="${message.id}">
                     <div class="message-row">
@@ -244,13 +303,29 @@ window.MessageManager = (function() {
                             <div class="message-header">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div class="d-flex align-items-center">
-                                        <span class="badge bg-light text-dark me-2">${message.global_message_id || `#${message.page_index || 'N/A'}`}</span>
+                                        <!-- 可点击的信封图标，用于标记消息状态 -->
+                                        <span class="message-envelope-icon me-2 ${!isRead ? 'unread-envelope' : 'read-envelope'}"
+                                              style="cursor: ${!isRead ? 'pointer' : 'default'}; ${!isRead ? 'transition: all 0.2s ease;' : ''}"
+                                              onclick="MessageManager.toggleMessageRead('${message.id}')"
+                                              title="${isRead ? '已读消息' : '点击标记为已读'}">
+                                            <i class="fas fa-envelope${isRead ? '-open' : ''} ${!isRead ? 'text-primary unread-icon' : 'text-muted'}"
+                                               style="font-size: 1.1em; ${!isRead ? 'animation: pulse-icon 2s infinite;' : ''}"></i>
+                                        </span>
+                                        <span class="badge bg-light text-dark me-2">${escapeHtml(String(message.global_message_id || '#' + (message.page_index || 'N/A')))}</span>
+                  <span class="badge ${!isRead ? 'bg-primary' : 'bg-secondary'} me-2" style="cursor: ${!isRead ? 'pointer' : 'default'};"
+                        onclick="MessageManager.toggleMessageRead('${message.id}')"
+                        title="${isRead ? '点击标记为未读' : '点击标记为已读'}">
+                    ${!isRead ? '未读' : '已读'}
+                  </span>
                                         <h6 class="message-title ${unreadClass} mb-0">${escapeHtml(message.title)}</h6>
                                     </div>
                                     <div class="message-meta">
                                         ${statusBadge}
                                         <span class="message-type">${getTypeText(message.type)}</span>
                                         <span class="message-priority">${getPriorityText(message.priority)}</span>
+                                        <button class="btn btn-sm btn-outline-danger delete-message-btn ms-2" data-message-id="${message.id}">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -266,25 +341,20 @@ window.MessageManager = (function() {
                                 </div>
                             </div>
                         </div>
-                        <div class="message-actions-col">
-                            <div class="message-actions">
-                                ${!isRead ? `
-                                    <button class="btn btn-sm btn-outline-success mark-read-btn" data-message-id="${message.id}">
-                                        <i class="fas fa-check"></i> 已读
-                                    </button>
-                                ` : `
-                                    <button class="btn btn-sm btn-outline-warning mark-unread-btn" data-message-id="${message.id}">
-                                        <i class="fas fa-envelope"></i> 未读
-                                    </button>
-                                `}
-                                <button class="btn btn-sm btn-outline-danger delete-message-btn" data-message-id="${message.id}">
-                                    <i class="fas fa-trash"></i> 删除
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                      </div>
                 </div>
             `;
+            } catch (error) {
+                console.error('❌ 渲染消息时发生错误:', error, '消息数据:', message);
+                return `
+                    <div class="message-item error" data-id="${message?.id || 'unknown'}">
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            消息渲染失败: ${error.message}
+                        </div>
+                    </div>
+                `;
+            }
         }).join('');
 
         container.innerHTML = messagesHtml;
@@ -424,7 +494,10 @@ window.MessageManager = (function() {
      */
     function viewMessage(messageId) {
         const message = messages.find(m => m.id === messageId);
-        if (!message) return;
+        if (!message) {
+            console.warn('查看消息失败 - 消息不存在，ID:', messageId);
+            return;
+        }
 
         // 创建模态框显示消息详情
         const modalHtml = `
@@ -550,6 +623,103 @@ window.MessageManager = (function() {
     }
 
     /**
+     * 切换消息已读状态（通过点击信封图标）
+     */
+    async function toggleMessageRead(messageId) {
+        console.log('📧 MessageManager Debug - 点击信封图标切换消息状态');
+        console.log('  📄 消息ID:', messageId);
+
+        try {
+            const token = window.Auth?.getToken();
+            if (!token) {
+                Utils.toast.error('认证失败，请重新登录');
+                return;
+            }
+
+            // 查找消息的当前状态 - UUID精确匹配
+            console.log('  🔍 查找消息 - 当前消息列表:', messages.map(m => ({ id: m.id, type: typeof m.id, title: m.title })));
+            console.log('  🔍 查找消息 - 目标ID:', messageId, '类型:', typeof messageId);
+
+            const message = messages.find(msg => {
+                const idMatch = msg.id === messageId;
+                if (idMatch) {
+                    console.log('  ✅ 找到匹配消息:', { id: msg.id, title: msg.title });
+                }
+                return idMatch;
+            });
+
+            if (!message) {
+                console.error('  ❌ 消息查找失败 - 未找到匹配的消息');
+                console.error('  🔍 可用的消息ID:', messages.map(m => ({ id: m.id, type: typeof m.id })));
+                Utils.toast.error(`消息不存在 (ID: ${messageId})`);
+                return;
+            }
+
+            const isCurrentlyRead = message.user_message_state ? message.user_message_state.is_read : message.is_read;
+
+            // 如果已经是已读状态，无需操作
+            if (isCurrentlyRead) {
+                console.log('  ✅ 消息已经是已读状态');
+                return;
+            }
+
+            // 标记为已读
+            const markReadUrl = `${window.AppConfig.API_BASE_URL}/messages/${messageId}/read`;
+            console.log('  🌐 标记已读URL:', markReadUrl);
+
+            const response = await fetch(markReadUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('  📡 响应状态:', response.status, response.statusText);
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('  ✅ 标记已读成功:', result);
+
+                // 更新本地消息状态
+                if (message.user_message_state) {
+                    message.user_message_state.is_read = true;
+                    message.user_message_state.read_at = new Date().toISOString();
+                } else {
+                    message.is_read = true;
+                    message.read_at = new Date().toISOString();
+                }
+
+                // 重新渲染消息列表
+                renderMessages();
+
+                Utils.toast.success('消息已标记为已读');
+
+                // 更新消息计数
+                if (typeof updateMessageCount === 'function') {
+                    updateMessageCount();
+                }
+
+            } else {
+                const errorData = await response.json();
+                console.error('  ❌ 标记已读失败:', errorData);
+                console.error('  📋 错误详情:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    code: errorData.code,
+                    message: errorData.message,
+                    details: errorData.details
+                });
+                Utils.toast.error(errorData.message || '标记已读失败');
+            }
+
+        } catch (error) {
+            console.error('  ❌ 标记已读异常:', error);
+            Utils.toast.error('网络错误，请稍后重试');
+        }
+    }
+
+    /**
      * 删除消息
      */
     async function deleteMessage(messageId) {
@@ -590,7 +760,7 @@ window.MessageManager = (function() {
                 const result = await response.json();
                 console.log('  ✅ 删除成功响应:', result);
 
-                // 从本地列表中移除消息
+                // 从本地列表中移除消息 - UUID精确匹配
                 const beforeCount = messages.length;
                 messages = messages.filter(m => m.id !== messageId);
                 totalCount--;
@@ -709,6 +879,12 @@ window.MessageManager = (function() {
      * HTML转义
      */
     function escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        if (typeof text !== 'string') text = String(text);
+
+        // 额外检查可能导致模板字符串问题的字符
+        text = text.replace(/`/g, '&#96;'); // 转义反引号
+
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
@@ -779,6 +955,12 @@ window.MessageManager = (function() {
         }
     }
 
+      // 添加版本检查和强制更新标识
+    console.log('🔧 MessageManager Debug - 代码版本检查:');
+    console.log('  - 最后更新时间: 2025-10-30 01:25:00');
+    console.log('  - 调试功能: 已启用全生命周期调试');
+    console.log('  - 测试消息弹窗: 已启用');
+
     // 公共API
     return {
         init: init,
@@ -787,8 +969,21 @@ window.MessageManager = (function() {
         markAsRead: markAsRead,
         markAsReadAndClose: markAsReadAndClose,
         markAllAsRead: markAllAsRead,
+        toggleMessageRead: toggleMessageRead,  // 添加信封图标切换已读状态功能
         refresh: loadMessages,
-        refreshMessages: loadMessages  // 添加别名以兼容现有调用
+        refreshMessages: loadMessages,  // 添加别名以兼容现有调用
+        // 添加调试方法
+        debug: function() {
+            console.log('🔧 MessageManager Debug - 调试方法调用成功');
+            console.log('  - messages数组长度:', messages.length);
+            console.log('  - 页面类型:', pageType);
+            console.log('  - 当前页:', currentPage);
+            return {
+                messages: messages,
+                pageType: pageType,
+                currentPage: currentPage
+            };
+        }
     };
 })();
 

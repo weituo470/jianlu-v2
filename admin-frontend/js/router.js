@@ -3140,44 +3140,55 @@ window.Router = {
     async renderMessagesInbox() {
         const pageContent = document.getElementById('page-content');
 
-        pageContent.innerHTML = `
-            <div class="messages-page">
-                <!-- 页面头部 -->
-                <div class="page-header">
-                    <div class="page-header-content">
-                        <div class="page-title-section">
-                            <h1 class="page-title">
-                                <i class="fas fa-inbox"></i>
-                                收件箱
-                            </h1>
-                            <p class="page-description">查看接收到的所有消息</p>
-                        </div>
-                        <div class="page-actions">
-                            <button class="btn btn-outline-primary" onclick="MessageManager.refreshMessages()">
-                                <i class="fas fa-sync-alt"></i>
-                                刷新
-                            </button>
-                            <button class="btn btn-success" onclick="MessageManager.markAllAsRead()">
-                                <i class="fas fa-check-double"></i>
-                                全部标记已读
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        // 使用DOM方法创建元素，避免innerHTML语法问题
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'messages-page';
 
-                <!-- 消息列表容器 -->
-                <div class="messages-container">
-                    <div class="messages-list" id="inbox-messages-list">
-                        <div class="loading-state">
-                            <div class="loading-spinner">
-                                <div class="spinner"></div>
-                                <p>加载收件箱消息中...</p>
-                            </div>
-                        </div>
+        // 创建页面头部
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'page-header';
+        headerDiv.innerHTML = `
+            <div class="page-header-content">
+                <div class="page-title-section">
+                    <h1 class="page-title">
+                        <i class="fas fa-inbox"></i>
+                        收件箱
+                    </h1>
+                    <p class="page-description">查看接收到的所有消息</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-outline-primary" onclick="MessageManager.refreshMessages()">
+                        <i class="fas fa-sync-alt"></i>
+                        刷新
+                    </button>
+                    <button class="btn btn-success" onclick="MessageManager.markAllAsRead()">
+                        <i class="fas fa-check-double"></i>
+                        全部标记已读
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 创建消息容器
+        const containerDiv = document.createElement('div');
+        containerDiv.className = 'messages-container';
+        containerDiv.innerHTML = `
+            <div class="messages-list" id="inbox-messages-list">
+                <div class="loading-state">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>加载收件箱消息中...</p>
                     </div>
                 </div>
             </div>
         `;
+
+        pageDiv.appendChild(headerDiv);
+        pageDiv.appendChild(containerDiv);
+
+        // 清空并设置内容
+        pageContent.innerHTML = '';
+        pageContent.appendChild(pageDiv);
 
         // 初始化收件箱消息管理器
         if (window.MessageManager) {
